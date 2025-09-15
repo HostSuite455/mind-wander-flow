@@ -38,19 +38,17 @@ All colors MUST be HSL.
 
     --radius: 0.75rem;
 
-    /* Travel-themed design tokens */
-    --ocean: 200 95% 55%;
-    --ocean-dark: 200 95% 35%;
-    --coral: 14 91% 71%;
-    --coral-dark: 14 91% 51%;
-    --sand: 45 100% 92%;
-    --seafoam: 173 58% 39%;
-    --seafoam-light: 173 58% 89%;
+    /* HostSuite-themed design tokens */
+    --hostsuite-primary: 24 95% 53%;
+    --hostsuite-primary-dark: 24 95% 43%;
+    --hostsuite-secondary: 210 95% 55%;
+    --hostsuite-accent: 14 91% 71%;
+    --hostsuite-light: 24 95% 93%;
     
     /* Gradients */
-    --gradient-ocean: linear-gradient(135deg, hsl(200 95% 55%) 0%, hsl(173 58% 39%) 100%);
-    --gradient-sunset: linear-gradient(135deg, hsl(14 91% 71%) 0%, hsl(45 100% 72%) 100%);
-    --gradient-hero: linear-gradient(135deg, hsl(173 58% 39%) 0%, hsl(200 95% 55%) 50%, hsl(14 91% 71%) 100%);
+    --gradient-hostsuite: linear-gradient(135deg, hsl(24 95% 53%) 0%, hsl(210 95% 55%) 100%);
+    --gradient-hostsuite-sunset: linear-gradient(135deg, hsl(14 91% 71%) 0%, hsl(24 95% 53%) 100%);
+    --gradient-hostsuite-hero: linear-gradient(135deg, hsl(24 95% 53%) 0%, hsl(210 95% 55%) 50%, hsl(14 91% 71%) 100%);
     
     /* Effects */
     --shadow-soft: 0 4px 20px -2px hsl(173 58% 39% / 0.1);

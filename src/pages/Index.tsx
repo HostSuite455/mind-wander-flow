@@ -1,14 +1,14 @@
 import { useState } from "react";
 import Navigation from "@/components/Navigation";
 import Hero from "@/components/Hero";
-import TravelPlanner from "@/components/TravelPlanner";
-import ItineraryDisplay from "@/components/ItineraryDisplay";
+import HostDashboard from "@/components/HostDashboard";
+import PropertyAnalysisDisplay from "@/components/PropertyAnalysisDisplay";
 
 const Index = () => {
-  const [generatedItinerary, setGeneratedItinerary] = useState(null);
+  const [generatedAnalysis, setGeneratedAnalysis] = useState(null);
 
-  const handlePlanGenerated = (plan: any) => {
-    setGeneratedItinerary(plan);
+  const handleAnalysisGenerated = (analysis: any) => {
+    setGeneratedAnalysis(analysis);
   };
 
   return (
@@ -16,9 +16,9 @@ const Index = () => {
       <Navigation />
       <main>
         <Hero />
-        <TravelPlanner onPlanGenerated={handlePlanGenerated} />
-        {generatedItinerary && (
-          <ItineraryDisplay itinerary={generatedItinerary} />
+        <HostDashboard onAnalysisGenerated={handleAnalysisGenerated} />
+        {generatedAnalysis && (
+          <PropertyAnalysisDisplay analysis={generatedAnalysis} />
         )}
       </main>
     </div>
