@@ -1,39 +1,52 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bot, Calendar, TrendingUp, Home as HomeIcon, Building2, Users, BarChart3 } from "lucide-react";
+import { Bot, Calendar, TrendingUp, Home as HomeIcon, Building2, Users } from "lucide-react";
 import { Link } from "react-router-dom";
-import heroImage from "@/assets/hero-travel.jpg";
+import sienaDayImage from "@/assets/siena-day.png";
 
 const Home = () => {
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero Section */}
-      <section className="relative py-20 px-6 overflow-hidden">
+      {/* Hero Section - 2 Column Responsive Layout */}
+      <section className="relative py-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-hostsuite-primary/10 to-hostsuite-secondary/10" />
-        <div 
-          className="absolute inset-0 opacity-20 bg-cover bg-center"
-          style={{ backgroundImage: `url(${heroImage})` }}
-        />
-        <div className="relative container mx-auto text-center max-w-4xl">
-          <h1 className="text-4xl md:text-6xl font-bold text-hostsuite-primary mb-6">
-            Gestisci case vacanza in modo intelligente
-          </h1>
-          <p className="text-xl md:text-2xl text-hostsuite-text mb-8 max-w-3xl mx-auto">
-            Messaggi, pulizie, biancheria, prezzi dinamici e dashboard AI. Tutto in un unico posto.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button asChild size="lg" className="bg-gradient-hostsuite hover:scale-105 transition-transform">
-              <Link to="/login/host">
-                <HomeIcon className="w-5 h-5 mr-2" />
-                Accedi Host
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="lg" className="border-hostsuite-primary text-hostsuite-primary hover:bg-hostsuite-primary hover:text-white">
-              <Link to="/login/guest">
-                <Users className="w-5 h-5 mr-2" />
-                Accedi Guest
-              </Link>
-            </Button>
+        <div className="relative container max-w-screen-xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Text Content */}
+            <div className="text-center lg:text-left">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-hostsuite-primary mb-6">
+                Gestisci case vacanza in modo intelligente
+              </h1>
+              <p className="text-xl md:text-2xl text-hostsuite-text mb-8">
+                Messaggi, pulizie, prezzi dinamici e dashboard AI. Tutto in un unico posto.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                <Button asChild size="lg" className="bg-gradient-hostsuite hover:scale-105 transition-all duration-300 shadow-lg">
+                  <Link to="/host-login">
+                    <HomeIcon className="w-5 h-5 mr-2" />
+                    Accedi Host
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="lg" className="border-hostsuite-primary text-hostsuite-primary hover:bg-hostsuite-primary hover:text-white transition-all duration-300">
+                  <Link to="/guest">
+                    <Users className="w-5 h-5 mr-2" />
+                    Accedi Guest
+                  </Link>
+                </Button>
+              </div>
+            </div>
+            
+            {/* Hero Image */}
+            <div className="relative">
+              <img 
+                src={sienaDayImage} 
+                alt="Gestione intelligente case vacanza con vista panoramica di Siena - HostSuite dashboard AI"
+                className="w-full h-auto rounded-2xl shadow-xl"
+                loading="lazy"
+                width="600"
+                height="400"
+              />
+            </div>
           </div>
         </div>
       </section>

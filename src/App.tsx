@@ -7,6 +7,8 @@ import Navigation from "@/components/Navigation";
 import Home from "./pages/Home";
 import HostLogin from "./pages/HostLogin";
 import GuestLogin from "./pages/GuestLogin";
+import HostDashboard from "./pages/host-dashboard";
+import GuestDashboard from "./pages/guest-dashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -21,8 +23,12 @@ const App = () => (
           <Navigation />
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/host-login" element={<HostLogin />} />
             <Route path="/login/host" element={<HostLogin />} />
+            <Route path="/guest" element={<GuestLogin />} />
             <Route path="/login/guest" element={<GuestLogin />} />
+            <Route path="/host-dashboard" element={<HostDashboard />} />
+            <Route path="/guest-dashboard" element={<GuestDashboard />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

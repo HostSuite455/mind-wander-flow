@@ -32,9 +32,9 @@ const Navigation = () => {
               Home
             </Link>
             <Link 
-              to="/login/host" 
+              to="/host-login" 
               className={`transition-colors font-medium ${
-                isActive('/login/host') 
+                isActive('/host-login') || isActive('/login/host')
                   ? 'text-hostsuite-primary font-semibold' 
                   : 'text-hostsuite-text hover:text-hostsuite-primary'
               }`}
@@ -42,9 +42,9 @@ const Navigation = () => {
               Login Host
             </Link>
             <Link 
-              to="/login/guest" 
+              to="/guest" 
               className={`transition-colors font-medium ${
-                isActive('/login/guest') 
+                isActive('/guest') || isActive('/login/guest')
                   ? 'text-hostsuite-primary font-semibold' 
                   : 'text-hostsuite-text hover:text-hostsuite-primary'
               }`}
@@ -56,13 +56,13 @@ const Navigation = () => {
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-4">
             <Button asChild variant="ghost" className="text-hostsuite-primary hover:text-hostsuite-primary-dark">
-              <Link to="/login/host">
+              <Link to="/host-login">
                 <HomeIcon className="w-4 h-4 mr-2" />
                 Accedi Host
               </Link>
             </Button>
             <Button asChild className="bg-gradient-hostsuite hover:scale-105 transition-transform shadow-soft">
-              <Link to="/login/guest">
+              <Link to="/guest">
                 <Users className="w-4 h-4 mr-2" />
                 Accedi Guest
               </Link>
@@ -100,9 +100,9 @@ const Navigation = () => {
               Home
             </Link>
             <Link 
-              to="/login/host" 
+              to="/host-login" 
               className={`block px-4 py-2 transition-colors font-medium ${
-                isActive('/login/host') 
+                isActive('/host-login') || isActive('/login/host')
                   ? 'text-hostsuite-primary bg-hostsuite-light/30 font-semibold' 
                   : 'text-hostsuite-text hover:bg-hostsuite-light/20'
               }`}
@@ -112,9 +112,9 @@ const Navigation = () => {
               Login Host
             </Link>
             <Link 
-              to="/login/guest" 
+              to="/guest" 
               className={`block px-4 py-2 transition-colors font-medium ${
-                isActive('/login/guest') 
+                isActive('/guest') || isActive('/login/guest')
                   ? 'text-hostsuite-primary bg-hostsuite-light/30 font-semibold' 
                   : 'text-hostsuite-text hover:bg-hostsuite-light/20'
               }`}
