@@ -17,6 +17,8 @@ import HostUnansweredQuestions from "./pages/host-unanswered-questions";
 import Calendar from "./pages/calendar";
 import Properties from "./pages/properties";
 import Export from "./pages/export";
+import GuestCodeDemo from "./pages/guest-code-demo";
+import WelcomeBooklet from "./pages/welcome-booklet";
 import AdminUsers from "./pages/admin-users";
 import ProtectedRoute from "./components/ProtectedRoute";
 import GuestGuard from "./components/GuestGuard";
@@ -41,6 +43,7 @@ const App = () => (
               <Route path="/login/host" element={<Navigate to="/host-login" replace />} />
               <Route path="/guest" element={<GuestLogin />} />
               <Route path="/login/guest" element={<GuestLogin />} />
+              <Route path="/guest-code-demo" element={<GuestCodeDemo />} />
               
               {/* Protected Host Routes */}
               <Route path="/host-dashboard" element={<ProtectedRoute><HostDashboard /></ProtectedRoute>} />
@@ -56,6 +59,7 @@ const App = () => (
               
               {/* Protected Guest Routes */}
               <Route path="/guest-dashboard" element={<GuestGuard><GuestDashboard /></GuestGuard>} />
+              <Route path="/welcome-booklet" element={<WelcomeBooklet />} />
               
               {/* Catch-all route */}
               <Route path="*" element={<NotFound />} />

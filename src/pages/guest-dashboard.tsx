@@ -22,7 +22,8 @@ import {
   PhoneCall,
   AlertTriangle,
   Copy,
-  CheckCircle
+  CheckCircle,
+  FileText
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -487,6 +488,30 @@ const GuestDashboard = () => {
                   </p>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Welcome Booklet */}
+        <div className="mb-8">
+          <Card className="border-hostsuite-primary/20">
+            <CardHeader>
+              <CardTitle className="text-hostsuite-primary flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Libretto di Benvenuto
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-hostsuite-text mb-4">
+                Scarica o stampa il libretto di benvenuto con tutte le informazioni importanti per il tuo soggiorno.
+              </p>
+              <Button 
+                onClick={() => navigate('/welcome-booklet')} 
+                className="w-full bg-gradient-to-r from-hostsuite-secondary to-hostsuite-primary hover:scale-105 transition-transform"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                Apri Welcome Booklet (PDF)
+              </Button>
             </CardContent>
           </Card>
         </div>

@@ -165,6 +165,19 @@ const GuestLogin = () => {
         </Card>
 
         <div className="text-center mt-6">
+          <p className="text-sm text-muted-foreground mb-2">
+            Non hai un codice ospite?
+          </p>
+          <Button 
+            variant="link" 
+            onClick={() => navigate('/guest-code-demo')}
+            className="text-hostsuite-secondary hover:text-hostsuite-primary transition-colors"
+          >
+            Oppure genera un codice demo
+          </Button>
+        </div>
+
+        <div className="text-center mt-4">
           <Link to="/" className="text-sm text-hostsuite-secondary hover:text-hostsuite-primary transition-colors">
             ← Torna alla home
           </Link>

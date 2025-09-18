@@ -1,0 +1,147 @@
+/* Print-specific styles for Welcome Booklet */
+@page {
+  size: A4;
+  margin: 12mm;
+}
+
+@media print {
+  /* Hide non-printable elements */
+  .print\\:hidden {
+    display: none !important;
+  }
+  
+  /* Reset page styles for print */
+  body {
+    -webkit-print-color-adjust: exact;
+    color-adjust: exact;
+  }
+  
+  /* Welcome Booklet specific print styles */
+  .welcome-booklet {
+    font-size: 11pt;
+    line-height: 1.4;
+    color: #000 !important;
+    background: white !important;
+  }
+  
+  /* Header styles for print */
+  .booklet-header {
+    page-break-inside: avoid;
+    margin-bottom: 20pt;
+    border-bottom: 2pt solid #2563eb !important;
+    padding-bottom: 15pt;
+  }
+  
+  .booklet-header h1 {
+    font-size: 28pt;
+    font-weight: bold;
+    color: #2563eb !important;
+    margin-bottom: 8pt;
+  }
+  
+  .booklet-header h2 {
+    font-size: 18pt;
+    font-weight: 600;
+    color: #000 !important;
+  }
+  
+  /* Section styles */
+  .booklet-section {
+    margin-bottom: 20pt;
+    page-break-inside: avoid;
+  }
+  
+  .booklet-section h3 {
+    font-size: 14pt;
+    font-weight: 600;
+    color: #000 !important;
+    margin-bottom: 10pt;
+  }
+  
+  /* Card styles for print */
+  .booklet-card {
+    border: 1pt solid #e5e7eb;
+    border-radius: 4pt;
+    padding: 12pt;
+    background: white !important;
+    margin-bottom: 10pt;
+  }
+  
+  /* QR placeholder */
+  .booklet-qr-placeholder {
+    width: 60pt;
+    height: 60pt;
+    border: 1pt dashed #9ca3af;
+    border-radius: 4pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8pt;
+    color: #6b7280 !important;
+  }
+  
+  /* Typography for print */
+  .text-muted-foreground {
+    color: #6b7280 !important;
+  }
+  
+  .text-primary {
+    color: #2563eb !important;
+  }
+  
+  /* Icons for print - hide or replace with text */
+  .lucide {
+    display: none;
+  }
+  
+  /* Grid layouts for print */
+  .grid-cols-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12pt;
+  }
+  
+  /* Font styles */
+  .font-mono {
+    font-family: 'Courier New', monospace;
+    background: #f3f4f6 !important;
+    padding: 2pt 4pt;
+    border-radius: 2pt;
+  }
+  
+  /* Footer */
+  .booklet-footer {
+    margin-top: 30pt;
+    padding-top: 15pt;
+    border-top: 1pt solid #e5e7eb;
+    text-align: center;
+    font-size: 9pt;
+    color: #6b7280 !important;
+  }
+  
+  /* Prevent page breaks in important sections */
+  .booklet-section,
+  .booklet-card {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  
+  /* Ensure good contrast for printed text */
+  h1, h2, h3, h4, h5, h6 {
+    color: #000 !important;
+  }
+  
+  p, span, div {
+    color: #000 !important;
+  }
+  
+  /* Exception for specifically colored elements */
+  .text-primary,
+  .booklet-header h1 {
+    color: #2563eb !important;
+  }
+  
+  .text-muted-foreground {
+    color: #6b7280 !important;
+  }
+}
