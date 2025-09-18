@@ -14,9 +14,13 @@ import HostAgentConfig from "./pages/host-agent-config";
 import HostBookings from "./pages/host-bookings";
 import HostIcalConfig from "./pages/host-ical-config";
 import HostUnansweredQuestions from "./pages/host-unanswered-questions";
+import Calendar from "./pages/calendar";
+import Properties from "./pages/properties";
+import AdminUsers from "./pages/admin-users";
 import ProtectedRoute from "./components/ProtectedRoute";
 import GuestGuard from "./components/GuestGuard";
 import NotFound from "./pages/NotFound";
+import AppErrorBoundary from "./components/AppErrorBoundary";
 
 const queryClient = new QueryClient();
 
@@ -25,10 +29,11 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        <div className="min-h-screen bg-background">
-          <Navigation />
-          <Routes>
+      <AppErrorBoundary>
+        <BrowserRouter>
+          <div className="min-h-screen bg-background">
+            <Navigation />
+            <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Home />} />
             <Route path="/host-login" element={<HostLogin />} />
@@ -43,15 +48,19 @@ const App = () => (
             <Route path="/host-bookings" element={<ProtectedRoute><HostBookings /></ProtectedRoute>} />
             <Route path="/host-ical-config" element={<ProtectedRoute><HostIcalConfig /></ProtectedRoute>} />
             <Route path="/host-unanswered-questions" element={<ProtectedRoute><HostUnansweredQuestions /></ProtectedRoute>} />
+            <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
+            <Route path="/properties" element={<ProtectedRoute><Properties /></ProtectedRoute>} />
+            <Route path="/admin-users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
             
             {/* Protected Guest Routes */}
             <Route path="/guest-dashboard" element={<GuestGuard><GuestDashboard /></GuestGuard>} />
             
             {/* Catch-all route */}
             <Route path="*" element={<NotFound />} />
-          </Routes>
-        </div>
-      </BrowserRouter>
+            </Routes>
+          </div>
+        </BrowserRouter>
+      </AppErrorBoundary>
     </TooltipProvider>
   </QueryClientProvider>
 );

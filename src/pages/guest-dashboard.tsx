@@ -366,7 +366,7 @@ const GuestDashboard = () => {
 
         {/* Offline Info Banner */}
         <div className="mb-6">
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg" role="note" aria-live="polite">
             <p className="text-sm text-blue-800 text-center">
               💡 <strong>Suggerimento:</strong> Puoi trovare queste informazioni anche offline facendo screenshot.
             </p>
@@ -384,7 +384,7 @@ const GuestDashboard = () => {
                     variant={action.variant}
                     className="h-auto p-4 justify-start"
                     disabled={action.disabled}
-                    title={action.tooltip}
+                    title={action.tooltip || (action.disabled ? "Numero non valido" : undefined)}
                     asChild={!action.disabled}
                   >
                     {action.disabled ? (
@@ -446,6 +446,8 @@ const GuestDashboard = () => {
                               onClick={copyWifiPassword}
                               className="h-8 px-2"
                               title={copiedWifi ? "Copiato!" : "Copia password"}
+                              aria-pressed={copiedWifi}
+                              aria-label={copiedWifi ? "Password copiata" : "Copia password Wi-Fi"}
                             >
                               {copiedWifi ? (
                                 <CheckCircle className="w-4 h-4 text-green-600" />

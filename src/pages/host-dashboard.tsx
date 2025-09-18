@@ -43,6 +43,7 @@ interface UnansweredQuestion {
   question: string;
   property_id: string;
   guest_code: string;
+  source?: string;
   created_at: string;
   status: string;
 }
@@ -214,7 +215,8 @@ const HostDashboard = () => {
     return list.filter(question => {
       const qText = (question?.question ?? '').toLowerCase();
       const matchesSearch = qText.includes(term);
-      const qSource = (question?.guest_code ?? '').toLowerCase();
+      // Use 'source' first, fallback to 'guest_code' for backward compatibility
+      const qSource = (question?.source ?? question?.guest_code ?? '').toLowerCase();
       const matchesSource = src === 'all' || qSource === src || qSource.includes(src);
       return matchesSearch && matchesSource;
     });

@@ -18,11 +18,14 @@ const HostNavbar = () => {
 
   const navLinks = [
     { path: "/host-dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { path: "/properties", label: "Proprietà", icon: Settings },
+    { path: "/calendar", label: "Calendario", icon: Calendar },
     { path: "/host-agent-home", label: "iAgent Home", icon: Bot },
     { path: "/host-agent-config", label: "Config Agent", icon: Settings },
     { path: "/host-bookings", label: "Prenotazioni", icon: Calendar },
     { path: "/host-ical-config", label: "iCal Config", icon: Settings },
     { path: "/host-unanswered-questions", label: "Domande", icon: HelpCircle },
+    { path: "/admin-users", label: "Admin Users", icon: User },
   ];
 
   const closeMenu = () => setIsMenuOpen(false);
@@ -85,7 +88,7 @@ const HostNavbar = () => {
                       className={`px-4 py-2 rounded-lg transition-all duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-hostsuite-primary focus:ring-offset-2 relative ${
                         isActive(link.path) 
                           ? 'text-hostsuite-primary bg-hostsuite-primary/10 font-semibold' 
-                          : 'text-hostsuite-text hover:text-hostsuite-primary hover:bg-hostsuite-primary/5 hover:underline'
+                          : 'text-hostsuite-text hover:text-hostsuite-primary hover:bg-hostsuite-primary/5 hover:underline decoration-2 underline-offset-4 hover:decoration-hostsuite-primary'
                       }`}
                 >
                   <IconComponent className="w-4 h-4 inline mr-2" />
