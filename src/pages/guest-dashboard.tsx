@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { 
   Wifi, 
   Clock, 
@@ -15,7 +16,11 @@ import {
   Building,
   LogOut,
   AlertCircle,
-  Shield
+  Shield,
+  ExternalLink,
+  MessageCircle,
+  PhoneCall,
+  AlertTriangle
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -161,7 +166,56 @@ const GuestDashboard = () => {
     return cards;
   };
 
+  // Build quick actions based on available data
+  const buildQuickActions = () => {
+    const actions = [];
+
+    // Support phone actions
+    if (propertyInfo?.extra_notes && propertyInfo.extra_notes.match(/[\+\d\s\(\)\-]{10,}/)) {
+      const phoneMatch = propertyInfo.extra_notes.match(/([\+\d\s\(\)\-]{10,})/);
+      if (phoneMatch) {
+        const phone = phoneMatch[1].replace(/\s/g, '');
+        
+        actions.push({
+          title: "Chiama assistenza",
+          href: `tel:${phone}`,
+          icon: PhoneCall,
+          variant: "outline" as const
+        });
+
+        const whatsappPhone = phone.replace(/[\s\(\)\-]/g, '');
+        actions.push({
+          title: "WhatsApp",
+          href: `https://wa.me/${whatsappPhone}`,
+          icon: MessageCircle,
+          variant: "default" as const
+        });
+      }
+    }
+
+    // Map directions (if we had address data)
+    // This would require address info in the property_ai_data table
+    // actions.push({
+    //   title: "Apri indicazioni",
+    //   href: `https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}`,
+    //   icon: MapPin,
+    //   variant: "outline" as const
+    // });
+
+    return actions;
+  };
+
+  // Check if session is near expiry (less than 12 hours)
+  const isSessionNearExpiry = useMemo(() => {
+    if (!guestSession) return false;
+    const expiresAt = new Date(guestSession.expires_at);
+    const now = new Date();
+    const hoursUntilExpiry = (expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60);
+    return hoursUntilExpiry > 0 && hoursUntilExpiry < 12;
+  }, [guestSession]);
+
   const infoCards = buildInfoCards();
+  const quickActions = buildQuickActions();
 
   // Loading state
   if (isLoading) {
@@ -226,6 +280,11 @@ const GuestDashboard = () => {
                       {guestSession && (
                         <span>📅 Scade: {new Date(guestSession.expires_at).toLocaleDateString('it-IT')}</span>
                       )}
+                      {isSessionNearExpiry && (
+                        <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+                          Sessione in scadenza
+                        </Badge>
+                      )}
                     </div>
                   </CardDescription>
                 </div>
@@ -243,21 +302,46 @@ const GuestDashboard = () => {
           </Card>
         </div>
 
+        {/* Quick Actions */}
+        {quickActions.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold text-hostsuite-primary mb-4">Azioni Rapide</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {quickActions.map((action, index) => {
+                const IconComponent = action.icon;
+                return (
+                  <Button
+                    key={index}
+                    variant={action.variant}
+                    className="h-auto p-4 justify-start"
+                    asChild
+                  >
+                    <a 
+                      href={action.href} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3"
+                    >
+                      <IconComponent className="w-5 h-5" />
+                      <span>{action.title}</span>
+                      <ExternalLink className="w-3 h-3 ml-auto" />
+                    </a>
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Quick Info Cards */}
         <div className="mb-8">
           <h2 className="text-xl font-semibold text-hostsuite-primary mb-4">Informazioni Utili</h2>
           {infoCards.length === 0 ? (
-            <Card className="border-hostsuite-primary/20">
-              <CardContent className="text-center py-8">
-                <Shield className="w-12 h-12 text-hostsuite-primary/30 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-hostsuite-text mb-2">
-                  Informazioni non disponibili
-                </h3>
-                <p className="text-hostsuite-text/60">
-                  Le informazioni per questa proprietà saranno disponibili a breve
-                </p>
-              </CardContent>
-            </Card>
+            <EmptyState
+              icon={<Shield className="w-12 h-12 text-hostsuite-primary/30" />}
+              title="Informazioni non disponibili"
+              description="Le informazioni per questa proprietà saranno disponibili a breve"
+            />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {infoCards.map((info, index) => {
@@ -278,6 +362,31 @@ const GuestDashboard = () => {
               })}
             </div>
           )}
+        </div>
+
+        {/* Emergency Information */}
+        <div className="mb-8">
+          <Card className="border-red-200 bg-red-50">
+            <CardHeader>
+              <CardTitle className="text-red-800 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5" />
+                Numeri di Emergenza
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 text-red-700">
+                <p className="font-medium">🚨 Emergenze: 112 (numero unico europeo)</p>
+                <p>🚑 Pronto Soccorso: 118</p>
+                <p>🚓 Polizia: 113</p>
+                <p>🚒 Vigili del Fuoco: 115</p>
+                <div className="mt-4 p-3 bg-red-100 rounded-lg">
+                  <p className="text-sm font-medium">
+                    💡 Per problemi non urgenti relativi all'alloggio, contatta prima il gestore tramite i pulsanti sopra
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Local Recommendations */}
