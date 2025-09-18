@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -254,18 +255,23 @@ const Properties = () => {
               </div>
               
               <div className="flex items-center gap-3">
-                <Button onClick={loadProperties} disabled={isLoading}>
+                <PrimaryButton 
+                  onClick={loadProperties} 
+                  disabled={isLoading}
+                  size="sm"
+                  aria-label="Aggiorna lista proprietà"
+                >
                   <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                   Aggiorna
-                </Button>
+                </PrimaryButton>
                 
-                <button
+                <PrimaryButton
                   onClick={() => setIsCreateModalOpen(true)}
-                  className="inline-flex items-center rounded-lg border border-hostsuite-primary text-hostsuite-primary hover:bg-hostsuite-primary hover:text-white px-3 py-2"
+                  aria-label="Crea nuova proprietà"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Nuova Proprietà
-                </button>
+                </PrimaryButton>
               </div>
             </div>
           </div>
@@ -456,15 +462,14 @@ const Properties = () => {
                                 </div>
                               </TableCell>
                               <TableCell className="text-right">
-                                <Button
-                                  variant="outline"
+                                <PrimaryButton
                                   size="sm"
                                   onClick={() => openModal(property.id)}
-                                  className="hover:bg-hostsuite-primary/5"
+                                  aria-label={`Visualizza dettagli di ${property.nome || property.name || 'Proprietà'}`}
                                 >
                                   <Eye className="w-4 h-4 mr-1" />
                                   Dettagli
-                                </Button>
+                                </PrimaryButton>
                               </TableCell>
                             </TableRow>
                           ))}

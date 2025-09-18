@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { PrimaryButton } from "@/components/ui/PrimaryButton";
 
 type Props = {
   open: boolean;
@@ -35,6 +36,12 @@ export default function CreatePropertyModal({
 
   if (!open) return null;
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.nome.trim()) return;
+    onConfirm();
+  };
+
   return (
     <div 
       ref={ref} 
@@ -42,85 +49,93 @@ export default function CreatePropertyModal({
       role="dialog" 
       aria-modal="true"
     >
-      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
-        <div className="mb-4">
-          <h2 className="text-xl font-semibold">Crea Nuova Proprietà</h2>
-          <p className="text-sm text-gray-500">Compila almeno il nome. Tutto il resto è opzionale.</p>
-        </div>
-
-        <div className="space-y-3">
-          <div>
-            <label className="text-sm font-medium">Nome Proprietà *</label>
-            <input
-              value={form.nome}
-              onChange={(e) => setForm({ ...form, nome: e.target.value })}
-              placeholder="Es. Villa Sunset"
-              className="mt-1 w-full rounded-md border px-3 py-2"
-            />
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-sm font-medium">Città</label>
-              <input
-                value={form.city || ""}
-                onChange={(e) => setForm({ ...form, city: e.target.value })}
-                placeholder="Es. Roma"
-                className="mt-1 w-full rounded-md border px-3 py-2"
-              />
+      <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl flex flex-col max-h-[90vh]">
+        <form onSubmit={handleSubmit} className="flex flex-col h-full">
+          <div className="p-6">
+            <div className="mb-4">
+              <h2 className="text-xl font-semibold">Crea Nuova Proprietà</h2>
+              <p className="text-sm text-gray-500">Compila almeno il nome. Tutto il resto è opzionale.</p>
             </div>
-            <div>
-              <label className="text-sm font-medium">Ospiti Max</label>
-              <input
-                type="number"
-                min={1}
-                value={form.max_guests ?? ""}
-                onChange={(e) => setForm({ ...form, max_guests: e.target.value ? parseInt(e.target.value) : undefined })}
-                placeholder="Es. 4"
-                className="mt-1 w-full rounded-md border px-3 py-2"
-              />
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium">Nome Proprietà *</label>
+                <input
+                  value={form.nome}
+                  onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                  placeholder="Es. Villa Sunset"
+                  className="mt-1 w-full rounded-md border px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hostsuite-primary"
+                  required
+                />
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium">Città</label>
+                  <input
+                    value={form.city || ""}
+                    onChange={(e) => setForm({ ...form, city: e.target.value })}
+                    placeholder="Es. Roma"
+                    className="mt-1 w-full rounded-md border px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hostsuite-primary"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Ospiti Max</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={form.max_guests ?? ""}
+                    onChange={(e) => setForm({ ...form, max_guests: e.target.value ? parseInt(e.target.value) : undefined })}
+                    placeholder="Es. 4"
+                    className="mt-1 w-full rounded-md border px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hostsuite-primary"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Indirizzo</label>
+                <input
+                  value={form.address || ""}
+                  onChange={(e) => setForm({ ...form, address: e.target.value })}
+                  placeholder="Es. Via Roma 123"
+                  className="mt-1 w-full rounded-md border px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hostsuite-primary"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Stato</label>
+                <select
+                  value={form.status}
+                  onChange={(e) => setForm({ ...form, status: e.target.value as "active" | "inactive" })}
+                  className="mt-1 w-full rounded-md border px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hostsuite-primary"
+                >
+                  <option value="active">Attiva</option>
+                  <option value="inactive">Inattiva</option>
+                </select>
+              </div>
             </div>
           </div>
 
-          <div>
-            <label className="text-sm font-medium">Indirizzo</label>
-            <input
-              value={form.address || ""}
-              onChange={(e) => setForm({ ...form, address: e.target.value })}
-              placeholder="Es. Via Roma 123"
-              className="mt-1 w-full rounded-md border px-3 py-2"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium">Stato</label>
-            <select
-              value={form.status}
-              onChange={(e) => setForm({ ...form, status: e.target.value as "active" | "inactive" })}
-              className="mt-1 w-full rounded-md border px-3 py-2"
+          {/* Sticky footer */}
+          <div className="sticky bottom-0 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-t p-4 flex justify-end gap-2 mt-auto">
+            <button 
+              type="button"
+              onClick={onClose} 
+              disabled={creating} 
+              className="rounded-lg border px-3 py-2 hover:bg-gray-50 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-hostsuite-primary"
+              aria-label="Annulla creazione proprietà"
             >
-              <option value="active">Attiva</option>
-              <option value="inactive">Inattiva</option>
-            </select>
+              Annulla
+            </button>
+            <PrimaryButton
+              type="submit"
+              disabled={creating || !form.nome.trim()}
+              aria-label={creating ? "Creazione in corso..." : "Crea nuova proprietà"}
+            >
+              {creating ? "Creazione..." : "Crea Proprietà"}
+            </PrimaryButton>
           </div>
-        </div>
-
-        <div className="mt-6 flex justify-end gap-3">
-          <button 
-            onClick={onClose} 
-            disabled={creating} 
-            className="rounded-lg border px-3 py-2 hover:bg-gray-50"
-          >
-            Annulla
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={creating || !form.nome.trim()}
-            className="rounded-lg bg-hostsuite-primary text-white px-3 py-2 hover:opacity-90 disabled:opacity-50"
-          >
-            {creating ? "Creazione..." : "Crea Proprietà"}
-          </button>
-        </div>
+        </form>
       </div>
     </div>
   );

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supaSelect } from "@/lib/supaSafe";
 import { toCSV, downloadCSV } from "@/lib/csv";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Download, Database } from "lucide-react";
@@ -88,16 +88,15 @@ export default function Export() {
           <Card key={index}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
               <CardTitle className="text-lg">{dataset.title}</CardTitle>
-              <Button
+              <PrimaryButton
                 onClick={() => handleExport(dataset)}
                 disabled={dataset.loading || dataset.data.length === 0}
-                variant="outline"
                 size="sm"
-                className="gap-2"
+                aria-label={`Esporta ${dataset.title} in formato CSV`}
               >
-                <Download className="h-4 w-4" />
+                <Download className="h-4 w-4 mr-2" />
                 Esporta CSV
-              </Button>
+              </PrimaryButton>
             </CardHeader>
             
             <CardContent>

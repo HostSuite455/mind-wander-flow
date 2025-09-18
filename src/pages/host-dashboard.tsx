@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -373,15 +374,15 @@ const HostDashboard = () => {
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div className="flex items-center justify-between">
                     <h1 className="text-3xl font-bold text-hostsuite-primary">Dashboard Overview</h1>
-                    <Button 
-                      onClick={retryLoad} 
-                      variant="outline" 
-                      size="sm"
+                    <PrimaryButton 
+                      onClick={retryLoad}
                       disabled={isLoading}
+                      size="sm"
+                      aria-label="Aggiorna dashboard"
                     >
                       <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                       Aggiorna
-                    </Button>
+                    </PrimaryButton>
                   </div>
                   
                   {/* Right actions */}
@@ -402,12 +403,13 @@ const HostDashboard = () => {
                       </select>
                     )}
 
-                    <button
+                    <PrimaryButton
                       onClick={() => setIsCreateModalOpen(true)}
-                      className="inline-flex items-center rounded-lg border border-hostsuite-primary text-hostsuite-primary hover:bg-hostsuite-primary hover:text-white px-3 py-2"
+                      aria-label="Crea nuova proprietà"
                     >
-                      + Nuova Proprietà
-                    </button>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Nuova Proprietà
+                    </PrimaryButton>
                   </div>
                 </div>
               </div>
