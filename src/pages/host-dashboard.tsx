@@ -11,6 +11,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import HostNavbar from "@/components/HostNavbar";
 import PropertyDetailModal from "@/components/PropertyDetailModal";
 import CreatePropertyModal from "@/components/CreatePropertyModal";
+import PropertySwitch from "@/components/PropertySwitch";
 import KpiTrend from "@/components/KpiTrend";
 import { supabase } from "@/lib/supabase";
 import { createProperty, type NewProperty } from "@/lib/properties";
@@ -82,9 +83,10 @@ const HostDashboard = () => {
     address: ""
   });
   
-  // Multi-property selection
-  const [activePropertyId, setActivePropertyId] = useState<string | null>(() => {
-    return localStorage.getItem("active_property_id");
+  // Multi-property selection with new storage key
+  const [activePropertyId, setActivePropertyId] = useState<string | 'all'>(() => {
+    const stored = localStorage.getItem("hd_active_property_id");
+    return stored ? stored : 'all';
   });
   
   const [properties, setProperties] = useState<Property[]>([]);
@@ -123,14 +125,14 @@ const HostDashboard = () => {
           .eq("host_id", hostId)
           .order("created_at", { ascending: false }),
 
-        // se c'è activePropertyId filtra, altrimenti non filtrare
+        // Filter by property if not 'all'
         (async () => {
           let q = supabase
             .from("unanswered_questions")
             .select("id, question, property_id, guest_code, created_at, status")
             .order("created_at", { ascending: false })
             .limit(25);
-          if (activePropertyId) q = q.eq("property_id", activePropertyId);
+          if (activePropertyId && activePropertyId !== 'all') q = q.eq("property_id", activePropertyId);
           return await q;
         })(),
 
@@ -205,7 +207,6 @@ const HostDashboard = () => {
         // Set as active property if it's the first one
         if (properties.length === 0) {
           setActivePropertyId(data.id);
-          localStorage.setItem("active_property_id", data.id);
         }
         
         toast({
@@ -239,14 +240,8 @@ const HostDashboard = () => {
     }
   };
 
-  const handlePropertyChange = (propertyId: string) => {
-    if (propertyId === "all") {
-      setActivePropertyId(null);
-      localStorage.removeItem("active_property_id");
-    } else {
-      setActivePropertyId(propertyId);
-      localStorage.setItem("active_property_id", propertyId);
-    }
+  const handlePropertyChange = (propertyId: string | 'all') => {
+    setActivePropertyId(propertyId);
     loadDashboardData(); // Reload with new filter
   };
 
@@ -403,19 +398,15 @@ const HostDashboard = () => {
                   {/* Right actions */}
                   <div className="ml-auto flex items-center gap-3">
                     {properties.length > 0 && (
-                      <select
-                        aria-label="Filtro proprietà"
-                        value={activePropertyId ?? "all"}
-                        onChange={(e) => handlePropertyChange(e.target.value)}
-                        className="border rounded-md px-2 py-1"
-                      >
-                        <option value="all">Tutte le proprietà</option>
-                        {properties.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.nome}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="min-w-[200px]">
+                        <PropertySwitch
+                          value={activePropertyId}
+                          onChange={handlePropertyChange}
+                          items={properties.map(p => ({ id: p.id, nome: p.nome }))}
+                          storageKey="hd_active_property_id"
+                          className="w-full sm:w-auto"
+                        />
+                      </div>
                     )}
 
                     <PrimaryButton
@@ -471,6 +462,16 @@ const HostDashboard = () => {
                       </div>
                     </CardContent>
                   </Card>
+                </div>
+              )}
+
+              {/* Filter Status */}
+              {activePropertyId && activePropertyId !== 'all' && (
+                <div className="mb-6">
+                  <Badge variant="outline" className="bg-hostsuite-primary/10 text-hostsuite-primary border-hostsuite-primary/30">
+                    <Filter className="w-3 h-3 mr-1" />
+                    Filtrato per: {properties.find(p => p.id === activePropertyId)?.nome || 'Proprietà'}
+                  </Badge>
                 </div>
               )}
 
