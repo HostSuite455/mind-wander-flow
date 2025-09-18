@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import HostNavbar from "@/components/HostNavbar";
+import { supabase, getUserSafe } from "@/lib/supabase";
+import { useToast } from "@/hooks/use-toast";
 import { 
   LayoutDashboard, 
   Home, 
@@ -16,44 +18,95 @@ import {
   Plus,
   MapPin,
   Star,
-  Building
+  Building,
+  AlertCircle
 } from "lucide-react";
 
-// Dummy data for demo
-const dummyProperties = [
-  {
-    id: 1,
-    name: "Casa Siena Centro",
-    city: "Siena",
-    guests: 4,
-    status: "active",
-    rating: 4.8,
-    bookings: 12
-  },
-  {
-    id: 2,
-    name: "Appartamento Firenze",
-    city: "Firenze", 
-    guests: 2,
-    status: "maintenance",
-    rating: 4.9,
-    bookings: 8
-  }
-];
+// Types for our data
+interface Property {
+  id: string;
+  nome: string;
+  host_id: string;
+  created_at: string;
+}
+
+interface DashboardStats {
+  propertiesCount: number;
+  unansweredCount: number;
+  icalCount: number;
+}
 
 const HostDashboard = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [isLoading, setIsLoading] = useState(false);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [stats, setStats] = useState<DashboardStats>({ propertiesCount: 0, unansweredCount: 0, icalCount: 0 });
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
-  // TODO: Supabase auth here - check user session
-  // TODO: Fetch real data from Supabase
+  // Load data on mount
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
 
-  const filteredProperties = dummyProperties.filter(property => {
-    const matchesSearch = property.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         property.city.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || property.status === statusFilter;
-    return matchesSearch && matchesStatus;
+  const loadDashboardData = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Check if user is authenticated
+      const user = await getUserSafe();
+      if (!user) {
+        setError("Utente non autenticato");
+        return;
+      }
+
+      // Load properties with basic info
+      const { data: propertiesData, error: propertiesError } = await supabase
+        .from('properties')
+        .select('id, nome, host_id, created_at')
+        .order('created_at', { ascending: false });
+
+      if (propertiesError) {
+        console.error('Error loading properties:', propertiesError);
+        setError("Errore nel caricamento delle proprietà");
+        return;
+      }
+
+      // Get counts for KPIs
+      const [unansweredResult, icalResult] = await Promise.all([
+        supabase.from('unanswered_questions').select('id', { count: 'exact', head: true }),
+        supabase.from('ical_configs').select('id', { count: 'exact', head: true })
+      ]);
+
+      setProperties(propertiesData || []);
+      setStats({
+        propertiesCount: propertiesData?.length || 0,
+        unansweredCount: unansweredResult.count || 0,
+        icalCount: icalResult.count || 0,
+      });
+
+    } catch (err) {
+      console.error('Error in loadDashboardData:', err);
+      setError("Errore nel caricamento dei dati");
+      toast({
+        variant: "destructive",
+        title: "Errore",
+        description: "Errore nel caricamento della dashboard",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const retryLoad = () => {
+    loadDashboardData();
+  };
+
+  const filteredProperties = properties.filter(property => {
+    const matchesSearch = property.nome.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesSearch; // Removed status filter since we don't have status in DB yet
   });
 
   const KPICard = ({ title, value, change, icon: Icon, isLoading }: any) => (
@@ -136,34 +189,58 @@ const HostDashboard = () => {
                 </div>
               </div>
 
+              {error && (
+                <div className="mb-8">
+                  <Card className="border-red-200 bg-red-50">
+                    <CardContent className="pt-6">
+                      <div className="flex items-center gap-2 text-red-700">
+                        <AlertCircle className="w-5 h-5" />
+                        <div>
+                          <p className="font-medium">Errore nel caricamento</p>
+                          <p className="text-sm">{error}</p>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={retryLoad}
+                          className="ml-auto"
+                        >
+                          Riprova
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
               {/* KPI Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <KPICard
-                  title="Occupancy Rate"
-                  value="87%"
-                  change={5.2}
-                  icon={TrendingUp}
+                  title="Proprietà"
+                  value={stats.propertiesCount.toString()}
+                  change={0}
+                  icon={Building}
                   isLoading={isLoading}
                 />
                 <KPICard
-                  title="ADR (Tariffa Media)"
-                  value="€125"
-                  change={-2.1}
+                  title="Domande in Sospeso"
+                  value={stats.unansweredCount.toString()}
+                  change={0}
                   icon={Users}
                   isLoading={isLoading}
                 />
                 <KPICard
-                  title="RevPAR"
-                  value="€109"
-                  change={3.8}
-                  icon={TrendingUp}
+                  title="Configurazioni iCal"
+                  value={stats.icalCount.toString()}
+                  change={0}
+                  icon={Calendar}
                   isLoading={isLoading}
                 />
                 <KPICard
-                  title="Prossimi Check-in"
-                  value="5"
+                  title="ADR (Tariffa Media)"
+                  value="—"
                   change={0}
-                  icon={Calendar}
+                  icon={TrendingUp}
                   isLoading={isLoading}
                 />
               </div>
@@ -193,10 +270,7 @@ const HostDashboard = () => {
                         <SelectValue placeholder="Filtra per stato" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">Tutti gli stati</SelectItem>
-                        <SelectItem value="active">Attivo</SelectItem>
-                        <SelectItem value="maintenance">Manutenzione</SelectItem>
-                        <SelectItem value="inactive">Inattivo</SelectItem>
+                        <SelectItem value="all">Tutte le proprietà</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -211,8 +285,8 @@ const HostDashboard = () => {
                         Nessuna proprietà trovata
                       </h3>
                       <p className="text-hostsuite-text/60 mb-6">
-                        {searchTerm || statusFilter !== "all" 
-                          ? "Prova a modificare i filtri di ricerca" 
+                        {searchTerm 
+                          ? "Prova a modificare il termine di ricerca" 
                           : "Inizia aggiungendo la tua prima proprietà"}
                       </p>
                       <Button disabled className="bg-gradient-hostsuite opacity-50">
@@ -227,48 +301,26 @@ const HostDashboard = () => {
                         <thead>
                           <tr className="border-b border-hostsuite-primary/20">
                             <th className="text-left py-3 px-2 text-hostsuite-text font-medium">Nome</th>
-                            <th className="text-left py-3 px-2 text-hostsuite-text font-medium hidden sm:table-cell">Città</th>
-                            <th className="text-left py-3 px-2 text-hostsuite-text font-medium">Ospiti</th>
-                            <th className="text-left py-3 px-2 text-hostsuite-text font-medium">Stato</th>
-                            <th className="text-left py-3 px-2 text-hostsuite-text font-medium hidden lg:table-cell">Rating</th>
+                            <th className="text-left py-3 px-2 text-hostsuite-text font-medium hidden sm:table-cell">Data Creazione</th>
+                            <th className="text-left py-3 px-2 text-hostsuite-text font-medium">Azioni</th>
                           </tr>
                         </thead>
                         <tbody>
                           {filteredProperties.map((property) => (
                             <tr key={property.id} className="border-b border-gray-100 hover:bg-hostsuite-light/10 transition-colors">
                               <td className="py-4 px-2">
-                                <div className="font-medium text-hostsuite-primary">{property.name}</div>
-                                <div className="text-sm text-hostsuite-text sm:hidden">{property.city}</div>
-                              </td>
-                              <td className="py-4 px-2 hidden sm:table-cell">
-                                <div className="flex items-center text-hostsuite-text">
-                                  <MapPin className="w-3 h-3 mr-1" />
-                                  {property.city}
+                                <div className="font-medium text-hostsuite-primary">{property.nome}</div>
+                                <div className="text-sm text-hostsuite-text sm:hidden">
+                                  {new Date(property.created_at).toLocaleDateString('it-IT')}
                                 </div>
                               </td>
-                              <td className="py-4 px-2 text-hostsuite-text">
-                                {property.guests} ospiti
+                              <td className="py-4 px-2 hidden sm:table-cell text-hostsuite-text">
+                                {new Date(property.created_at).toLocaleDateString('it-IT')}
                               </td>
                               <td className="py-4 px-2">
-                                <Badge 
-                                  variant={property.status === "active" ? "default" : "secondary"}
-                                  className={
-                                    property.status === "active" 
-                                      ? "bg-green-100 text-green-800" 
-                                      : property.status === "maintenance"
-                                      ? "bg-orange-100 text-orange-800"
-                                      : "bg-gray-100 text-gray-800"
-                                  }
-                                >
-                                  {property.status === "active" ? "Attivo" : 
-                                   property.status === "maintenance" ? "Manutenzione" : "Inattivo"}
-                                </Badge>
-                              </td>
-                              <td className="py-4 px-2 hidden lg:table-cell">
-                                <div className="flex items-center text-hostsuite-text">
-                                  <Star className="w-4 h-4 fill-yellow-400 text-yellow-400 mr-1" />
-                                  {property.rating}
-                                </div>
+                                <Button size="sm" variant="outline" disabled>
+                                  Gestisci
+                                </Button>
                               </td>
                             </tr>
                           ))}
