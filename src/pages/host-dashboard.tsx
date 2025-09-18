@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { StatusBadge, SourceBadge } from "@/components/ui/Badges";
 import { EmptyState } from "@/components/ui/EmptyState";
 import HostNavbar from "@/components/HostNavbar";
+import PropertyDetailModal from "@/components/PropertyDetailModal";
+import KpiTrend from "@/components/KpiTrend";
 import { supabase, getUserSafe } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -24,7 +26,8 @@ import {
   AlertCircle,
   RefreshCw,
   HelpCircle,
-  Filter
+  Filter,
+  Eye
 } from "lucide-react";
 
 // Types for our data
@@ -57,6 +60,8 @@ const HostDashboard = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [questionSearch, setQuestionSearch] = useState("");
   const [questionSourceFilter, setQuestionSourceFilter] = useState("all");
+  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [properties, setProperties] = useState<Property[]>([]);
   const [unansweredQuestions, setUnansweredQuestions] = useState<UnansweredQuestion[]>([]);
   const [stats, setStats] = useState<DashboardStats>({ 
@@ -145,6 +150,50 @@ const HostDashboard = () => {
 
   const retryLoad = () => {
     loadDashboardData();
+  };
+
+  // Generate trend data (client-side placeholder)
+  const trendData = useMemo(() => {
+    if (stats.occupancy === 0 || stats.adr === 0) {
+      return { occupancyTrend: [], adrTrend: [] };
+    }
+
+    // Generate 7 days of data with realistic variations
+    const generateTrendData = (baseValue: number, variance: number, min: number, max: number) => {
+      const data = [];
+      let currentValue = baseValue;
+      
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        
+        // Add some randomness but keep it realistic
+        const change = (Math.random() - 0.5) * variance;
+        currentValue = Math.max(min, Math.min(max, currentValue + change));
+        
+        data.push({
+          day: date.toLocaleDateString('it-IT', { weekday: 'short' }),
+          value: Math.round(currentValue)
+        });
+      }
+      
+      return data;
+    };
+
+    return {
+      occupancyTrend: generateTrendData(stats.occupancy, 10, 30, 95),
+      adrTrend: generateTrendData(stats.adr, 20, 50, 180)
+    };
+  }, [stats.occupancy, stats.adr]);
+
+  const handlePropertyDetail = (propertyId: string) => {
+    setSelectedPropertyId(propertyId);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedPropertyId(null);
   };
 
   // Memoized filtered data for performance
@@ -314,7 +363,22 @@ const HostDashboard = () => {
                 />
               </div>
 
-              {/* Unanswered Questions Section */}
+              {/* Trend Charts */}
+              <div className="mb-8">
+                <h2 className="text-xl font-semibold text-hostsuite-primary mb-4">Trend 7 giorni</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <KpiTrend 
+                    data={trendData.occupancyTrend}
+                    label="Occupancy"
+                    suffix="%"
+                  />
+                  <KpiTrend 
+                    data={trendData.adrTrend}
+                    label="ADR"
+                    prefix="€"
+                  />
+                </div>
+              </div>
               <Card className="border-hostsuite-primary/20 mb-8">
                 <CardHeader>
                   <CardTitle className="text-hostsuite-primary flex items-center gap-2">
@@ -463,9 +527,17 @@ const HostDashboard = () => {
                                 {new Date(property.created_at).toLocaleDateString('it-IT')}
                               </td>
                               <td className="py-4 px-2">
-                                <Button size="sm" variant="outline" disabled>
-                                  Gestisci
-                                </Button>
+                                <div className="flex gap-2">
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    onClick={() => handlePropertyDetail(property.id)}
+                                    className="text-hostsuite-primary hover:bg-hostsuite-primary hover:text-white"
+                                  >
+                                    <Eye className="w-3 h-3 mr-1" />
+                                    Dettagli
+                                  </Button>
+                                </div>
                               </td>
                             </tr>
                           ))}
@@ -479,6 +551,15 @@ const HostDashboard = () => {
           </main>
         </div>
       </div>
+
+      {/* Property Detail Modal */}
+      {selectedPropertyId && (
+        <PropertyDetailModal 
+          open={isModalOpen}
+          onClose={handleCloseModal}
+          propertyId={selectedPropertyId}
+        />
+      )}
     </div>
   );
 };

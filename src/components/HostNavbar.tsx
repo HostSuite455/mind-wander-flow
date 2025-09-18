@@ -82,11 +82,11 @@ const HostNavbar = () => {
                 <Link 
                   key={link.path}
                   to={link.path} 
-                  className={`relative px-4 py-2 rounded-lg transition-all duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-hostsuite-primary focus:ring-offset-2 ${
-                    isActive(link.path) 
-                      ? 'text-hostsuite-primary bg-hostsuite-primary/10 font-semibold after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:w-6 after:h-0.5 after:bg-hostsuite-primary after:rounded-full' 
-                      : 'text-hostsuite-text hover:text-hostsuite-primary hover:bg-hostsuite-primary/5'
-                  }`}
+                      className={`px-4 py-2 rounded-lg transition-all duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-hostsuite-primary focus:ring-offset-2 relative ${
+                        isActive(link.path) 
+                          ? 'text-hostsuite-primary bg-hostsuite-primary/10 font-semibold' 
+                          : 'text-hostsuite-text hover:text-hostsuite-primary hover:bg-hostsuite-primary/5 hover:underline'
+                      }`}
                 >
                   <IconComponent className="w-4 h-4 inline mr-2" />
                   {link.label}

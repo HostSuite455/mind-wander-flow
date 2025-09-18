@@ -20,7 +20,9 @@ import {
   ExternalLink,
   MessageCircle,
   PhoneCall,
-  AlertTriangle
+  AlertTriangle,
+  Copy,
+  CheckCircle
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -51,6 +53,7 @@ const GuestDashboard = () => {
   const [guestSession, setGuestSession] = useState<GuestSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [copiedWifi, setCopiedWifi] = useState(false);
 
   // Load data on mount
   useEffect(() => {
@@ -123,16 +126,62 @@ const GuestDashboard = () => {
     navigate("/guest");
   };
 
+  const copyWifiPassword = async () => {
+    if (!propertyInfo?.wifi_password) return;
+    
+    try {
+      await navigator.clipboard.writeText(propertyInfo.wifi_password);
+      setCopiedWifi(true);
+      toast({
+        title: "Password copiata!",
+        description: "Password Wi-Fi copiata negli appunti",
+      });
+      setTimeout(() => setCopiedWifi(false), 2000);
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Errore",
+        description: "Impossibile copiare la password",
+      });
+    }
+  };
+
+  const sanitizePhoneNumber = (phone: string): string | null => {
+    // Remove all non-digit characters except +
+    const cleaned = phone.replace(/[^\d+]/g, '');
+    
+    // Check if it's a valid phone number (at least 10 digits)
+    if (cleaned.length < 10) return null;
+    
+    return cleaned;
+  };
+
+  const extractCheckInOutTimes = (accessInfo: string): { checkIn?: string; checkOut?: string } => {
+    // Simple regex to find times in format HH:MM
+    const timeRegex = /\b(\d{1,2}:\d{2})\b/g;
+    const matches = accessInfo.match(timeRegex);
+    
+    if (!matches) return {};
+    
+    // Assume first time is check-in, second is check-out (if available)
+    return {
+      checkIn: matches[0],
+      checkOut: matches[1]
+    };
+  };
+
   // Build info cards based on available data
   const buildInfoCards = () => {
     const cards = [];
 
-    // Wi-Fi card
+    // Wi-Fi card with copy functionality
     if (propertyInfo?.wifi_name && propertyInfo?.wifi_password) {
       cards.push({
         title: "Wi-Fi",
-        description: `${propertyInfo.wifi_name} | Password: ${propertyInfo.wifi_password}`,
-        icon: Wifi
+        description: propertyInfo.wifi_name,
+        password: propertyInfo.wifi_password,
+        icon: Wifi,
+        hasPassword: true
       });
     }
 
@@ -145,12 +194,20 @@ const GuestDashboard = () => {
       });
     }
 
-    // Access info card
+    // Access info card with time extraction
     if (propertyInfo?.access_info) {
+      const times = extractCheckInOutTimes(propertyInfo.access_info);
+      let displayText = propertyInfo.access_info;
+      
+      if (times.checkIn || times.checkOut) {
+        displayText = `Check-in ${times.checkIn ? `dalle ${times.checkIn}` : 'da definire'} / Check-out ${times.checkOut ? `entro le ${times.checkOut}` : 'da definire'}`;
+      }
+      
       cards.push({
         title: "Check-in/Check-out",
-        description: propertyInfo.access_info,
-        icon: Clock
+        description: displayText,
+        icon: Clock,
+        highlightTimes: true
       });
     }
 
@@ -166,41 +223,46 @@ const GuestDashboard = () => {
     return cards;
   };
 
-  // Build quick actions based on available data
+  // Build quick actions based on available data with improved phone formatting
   const buildQuickActions = () => {
     const actions = [];
 
-    // Support phone actions
-    if (propertyInfo?.extra_notes && propertyInfo.extra_notes.match(/[\+\d\s\(\)\-]{10,}/)) {
+    // Support phone actions with better validation
+    if (propertyInfo?.extra_notes) {
       const phoneMatch = propertyInfo.extra_notes.match(/([\+\d\s\(\)\-]{10,})/);
       if (phoneMatch) {
-        const phone = phoneMatch[1].replace(/\s/g, '');
+        const rawPhone = phoneMatch[1];
+        const sanitizedPhone = sanitizePhoneNumber(rawPhone);
         
-        actions.push({
-          title: "Chiama assistenza",
-          href: `tel:${phone}`,
-          icon: PhoneCall,
-          variant: "outline" as const
-        });
+        if (sanitizedPhone) {
+          actions.push({
+            title: "Chiama assistenza",
+            href: `tel:${sanitizedPhone}`,
+            icon: PhoneCall,
+            variant: "outline" as const
+          });
 
-        const whatsappPhone = phone.replace(/[\s\(\)\-]/g, '');
-        actions.push({
-          title: "WhatsApp",
-          href: `https://wa.me/${whatsappPhone}`,
-          icon: MessageCircle,
-          variant: "default" as const
-        });
+          // WhatsApp with proper formatting
+          const whatsappPhone = sanitizedPhone.replace(/^\+/, '').replace(/\s/g, '');
+          actions.push({
+            title: "WhatsApp",
+            href: `https://wa.me/${whatsappPhone}`,
+            icon: MessageCircle,
+            variant: "default" as const
+          });
+        } else {
+          // Show action but with warning tooltip
+          actions.push({
+            title: "Numero non formattato",
+            href: "#",
+            icon: PhoneCall,
+            variant: "outline" as const,
+            disabled: true,
+            tooltip: "Il numero di telefono necessita di formattazione"
+          });
+        }
       }
     }
-
-    // Map directions (if we had address data)
-    // This would require address info in the property_ai_data table
-    // actions.push({
-    //   title: "Apri indicazioni",
-    //   href: `https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}`,
-    //   icon: MapPin,
-    //   variant: "outline" as const
-    // });
 
     return actions;
   };
@@ -302,7 +364,14 @@ const GuestDashboard = () => {
           </Card>
         </div>
 
-        {/* Quick Actions */}
+        {/* Offline Info Banner */}
+        <div className="mb-6">
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm text-blue-800 text-center">
+              💡 <strong>Suggerimento:</strong> Puoi trovare queste informazioni anche offline facendo screenshot.
+            </p>
+          </div>
+        </div>
         {quickActions.length > 0 && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold text-hostsuite-primary mb-4">Azioni Rapide</h2>
@@ -314,18 +383,27 @@ const GuestDashboard = () => {
                     key={index}
                     variant={action.variant}
                     className="h-auto p-4 justify-start"
-                    asChild
+                    disabled={action.disabled}
+                    title={action.tooltip}
+                    asChild={!action.disabled}
                   >
-                    <a 
-                      href={action.href} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-3"
-                    >
-                      <IconComponent className="w-5 h-5" />
-                      <span>{action.title}</span>
-                      <ExternalLink className="w-3 h-3 ml-auto" />
-                    </a>
+                    {action.disabled ? (
+                      <div className="flex items-center gap-3 opacity-50">
+                        <IconComponent className="w-5 h-5" />
+                        <span>{action.title}</span>
+                      </div>
+                    ) : (
+                      <a 
+                        href={action.href} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3"
+                      >
+                        <IconComponent className="w-5 h-5" />
+                        <span>{action.title}</span>
+                        <ExternalLink className="w-3 h-3 ml-auto" />
+                      </a>
+                    )}
                   </Button>
                 );
               })}
@@ -355,7 +433,29 @@ const GuestDashboard = () => {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-hostsuite-text">{info.description}</p>
+                      <p className="text-hostsuite-text mb-3">{info.description}</p>
+                      
+                      {/* Wi-Fi Password Copy Feature */}
+                      {info.hasPassword && info.password && (
+                        <div className="p-2 bg-hostsuite-light/20 rounded">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-mono">{info.password}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={copyWifiPassword}
+                              className="h-8 px-2"
+                              title={copiedWifi ? "Copiato!" : "Copia password"}
+                            >
+                              {copiedWifi ? (
+                                <CheckCircle className="w-4 h-4 text-green-600" />
+                              ) : (
+                                <Copy className="w-4 h-4" />
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 );

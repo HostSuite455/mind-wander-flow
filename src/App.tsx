@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Navigation from "@/components/Navigation";
 import Home from "./pages/Home";
 import HostLogin from "./pages/HostLogin";
@@ -32,7 +32,7 @@ const App = () => (
             {/* Public Routes */}
             <Route path="/" element={<Home />} />
             <Route path="/host-login" element={<HostLogin />} />
-            <Route path="/login/host" element={<HostLogin />} />
+            <Route path="/login/host" element={<Navigate to="/host-login" replace />} />
             <Route path="/guest" element={<GuestLogin />} />
             <Route path="/login/guest" element={<GuestLogin />} />
             
