@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/ui/Badges";
 import PropertyDetailModal from "@/components/PropertyDetailModal";
+import CreatePropertyModal from "@/components/CreatePropertyModal";
 import { 
   Building, 
   RefreshCw, 
@@ -17,10 +18,12 @@ import {
   Eye,
   MapPin,
   Users,
-  Calendar
+  Calendar,
+  Plus
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supaSelect, pickName } from "@/lib/supaSafe";
+import { supabase } from "@/integrations/supabase/client";
+import { createProperty, type NewProperty } from "@/lib/properties";
 import HostNavbar from "@/components/HostNavbar";
 
 interface Property {
@@ -31,6 +34,7 @@ interface Property {
   city?: string;
   status?: string;
   max_guests?: number;
+  address?: string;
   created_at: string;
 }
 
@@ -48,6 +52,17 @@ const Properties = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   
+  // Create property modal
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    nome: "",
+    city: "",
+    max_guests: undefined as number | undefined,
+    status: "active" as "active" | "inactive",
+    address: ""
+  });
+  
   const { toast } = useToast();
 
   useEffect(() => {
@@ -59,10 +74,15 @@ const Properties = () => {
       setIsLoading(true);
       setError(null);
 
-      const { data, error: propertiesError } = await supaSelect<Property>(
-        'properties', 
-        'id, host_id, city, status, max_guests, created_at, nome, name'
-      );
+      const { data: userRes, error: userErr } = await supabase.auth.getUser();
+      if (userErr || !userRes?.user) throw new Error("Utente non autenticato");
+      const hostId = userRes.user.id;
+
+      const { data, error: propertiesError } = await supabase
+        .from('properties')
+        .select('id, host_id, city, status, max_guests, address, created_at, nome')
+        .eq('host_id', hostId)
+        .order('created_at', { ascending: false });
 
       if (propertiesError) {
         setError("Errore nel caricamento delle proprietà");
@@ -113,7 +133,7 @@ const Properties = () => {
     const status = selectedStatus === 'all' ? null : selectedStatus;
     
     return properties.filter(prop => {
-      const name = pickName(prop).toLowerCase();
+      const name = (prop.nome || prop.name || '').toLowerCase();
       const matchesSearch = name.includes(term);
       const matchesCity = !city || prop.city === city;
       const matchesStatus = !status || prop.status === status;
@@ -121,6 +141,59 @@ const Properties = () => {
       return matchesSearch && matchesCity && matchesStatus;
     });
   }, [properties, searchTerm, selectedCity, selectedStatus]);
+
+  // Property creation functions
+  const handleCreateProperty = async () => {
+    if (!createForm.nome.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Errore",
+        description: "Il nome della proprietà è obbligatorio",
+      });
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      const { data, error } = await createProperty(createForm);
+      
+      if (error) {
+        throw error;
+      }
+
+      if (data) {
+        // Optimistic update
+        setProperties(prev => [data, ...prev]);
+        
+        toast({
+          title: "Successo",
+          description: "Proprietà creata con successo",
+        });
+        
+        // Reset form and close modal
+        setCreateForm({
+          nome: "",
+          city: "",
+          max_guests: undefined,
+          status: "active",
+          address: ""
+        });
+        setIsCreateModalOpen(false);
+        
+        // Reload data
+        loadProperties();
+      }
+    } catch (error: any) {
+      console.error('Error creating property:', error);
+      toast({
+        variant: "destructive",
+        title: "Errore",
+        description: error.message || "Errore nella creazione della proprietà",
+      });
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('it-IT', {
@@ -179,10 +252,21 @@ const Properties = () => {
                   Gestisci tutte le tue proprietà in un unico posto
                 </p>
               </div>
-              <Button onClick={loadProperties} disabled={isLoading}>
-                <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                Aggiorna
-              </Button>
+              
+              <div className="flex items-center gap-3">
+                <Button onClick={loadProperties} disabled={isLoading}>
+                  <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                  Aggiorna
+                </Button>
+                
+                <button
+                  onClick={() => setIsCreateModalOpen(true)}
+                  className="inline-flex items-center rounded-lg border border-hostsuite-primary text-hostsuite-primary hover:bg-hostsuite-primary hover:text-white px-3 py-2"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nuova Proprietà
+                </button>
+              </div>
             </div>
           </div>
 
@@ -314,6 +398,7 @@ const Properties = () => {
                           <TableRow>
                             <TableHead className="min-w-[200px]">Nome</TableHead>
                             <TableHead>Città</TableHead>
+                            <TableHead>Indirizzo</TableHead>
                             <TableHead>Ospiti</TableHead>
                             {filteredProperties.length > 0 && 'status' in filteredProperties[0] && <TableHead>Stato</TableHead>}
                             <TableHead>Creato il</TableHead>
@@ -325,7 +410,7 @@ const Properties = () => {
                             <TableRow key={property.id}>
                               <TableCell>
                                 <div className="font-medium text-hostsuite-primary">
-                                  {pickName(property)}
+                                  {property.nome || property.name}
                                 </div>
                               </TableCell>
                               <TableCell>
@@ -334,6 +419,13 @@ const Properties = () => {
                                     <MapPin className="w-3 h-3 text-hostsuite-text/50" />
                                     {property.city}
                                   </div>
+                                ) : (
+                                  <span className="text-hostsuite-text/50">—</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {property.address ? (
+                                  <span className="text-hostsuite-text">{property.address}</span>
                                 ) : (
                                   <span className="text-hostsuite-text/50">—</span>
                                 )}
@@ -395,6 +487,16 @@ const Properties = () => {
           propertyId={selectedPropertyId}
         />
       )}
+      
+      {/* Create Property Modal */}
+      <CreatePropertyModal
+        open={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onConfirm={handleCreateProperty}
+        creating={isCreating}
+        form={createForm}
+        setForm={setCreateForm}
+      />
     </div>
   );
 };

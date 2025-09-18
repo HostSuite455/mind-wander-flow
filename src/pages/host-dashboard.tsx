@@ -3,16 +3,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge, SourceBadge } from "@/components/ui/Badges";
 import { EmptyState } from "@/components/ui/EmptyState";
 import HostNavbar from "@/components/HostNavbar";
 import PropertyDetailModal from "@/components/PropertyDetailModal";
+import CreatePropertyModal from "@/components/CreatePropertyModal";
 import KpiTrend from "@/components/KpiTrend";
-import { supabase, getUserSafe } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { createProperty, type NewProperty } from "@/lib/properties";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -74,11 +73,11 @@ const HostDashboard = () => {
   // New property creation modal state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [createForm, setCreateForm] = useState<NewProperty>({
+  const [createForm, setCreateForm] = useState({
     nome: "",
     city: "",
-    max_guests: undefined,
-    status: "active",
+    max_guests: undefined as number | undefined,
+    status: "active" as "active" | "inactive",
     address: ""
   });
   
@@ -110,55 +109,43 @@ const HostDashboard = () => {
     try {
       setIsLoading(true);
       setError(null);
-      
-      // Check if user is authenticated
-      const user = await getUserSafe();
-      if (!user) {
-        setError("Utente non autenticato");
-        return;
-      }
+      setPropertiesError(null);
 
-      // Load all data in parallel
-      let unansweredQuery = supabase
-        .from('unanswered_questions')
-        .select('id, question, property_id, guest_code, created_at, status');
-      
-      if (activePropertyId) {
-        unansweredQuery = unansweredQuery.eq('property_id', activePropertyId);
-      }
-      
+      const { data: userRes, error: userErr } = await supabase.auth.getUser();
+      if (userErr || !userRes?.user) throw new Error("Utente non autenticato");
+      const hostId = userRes.user.id;
+
       const [propertiesResult, unansweredResult, icalResult] = await Promise.all([
         supabase
-          .from('properties')
-          .select('id, nome, host_id, created_at, city, max_guests, status, address')
-          .order('created_at', { ascending: false }),
-        unansweredQuery
-          .order('created_at', { ascending: false })
-          .limit(25),
-        supabase.from('ical_configs').select('id', { count: 'exact', head: true })
+          .from("properties")
+          .select("id, nome, city, address, max_guests, status, host_id, created_at")
+          .eq("host_id", hostId)
+          .order("created_at", { ascending: false }),
+
+        // se c'è activePropertyId filtra, altrimenti non filtrare
+        (async () => {
+          let q = supabase
+            .from("unanswered_questions")
+            .select("id, question, property_id, guest_code, created_at, status")
+            .order("created_at", { ascending: false })
+            .limit(25);
+          if (activePropertyId) q = q.eq("property_id", activePropertyId);
+          return await q;
+        })(),
+
+        supabase.from("ical_configs").select("id", { count: "exact", head: true }),
       ]);
 
-      if (propertiesResult.error) {
-        console.error('Error loading properties:', propertiesResult.error);
-        setPropertiesError(propertiesResult.error);
-      } else {
-        setPropertiesError(null);
-      }
-
-      if (unansweredResult.error) {
-        console.error('Error loading unanswered questions:', unansweredResult.error);
-        // Don't return early, just log the error and use empty array
-      }
-
+      if (propertiesResult.error) setPropertiesError(propertiesResult.error.message || "Errore caricamento proprietà");
       const propertiesData = propertiesResult.data || [];
-      const unansweredData: UnansweredQuestion[] = unansweredResult.error ? [] : (unansweredResult.data || []);
-
-      // Calculate client-side KPIs
-      const adr = propertiesData.length * 5 + 70;  // Placeholder calculation
-      const occupancy = Math.min(95, 50 + propertiesData.length * 3);
-
       setProperties(propertiesData);
+
+      const unansweredData = unansweredResult.data || [];
       setUnansweredQuestions(unansweredData);
+
+      const adr = propertiesData.length ? Math.round(70 + propertiesData.length * 5) : 0;
+      const occupancy = propertiesData.length ? Math.min(95, 50 + propertiesData.length * 3) : 0;
+
       setStats({
         propertiesCount: propertiesData.length,
         unansweredCount: unansweredData.length,
@@ -166,15 +153,8 @@ const HostDashboard = () => {
         adr,
         occupancy,
       });
-
-    } catch (err) {
-      console.error('Error in loadDashboardData:', err);
-      setError("Errore nel caricamento dei dati");
-      toast({
-        variant: "destructive",
-        title: "Errore",
-        description: "Errore nel caricamento della dashboard",
-      });
+    } catch (err: any) {
+      setError(err?.message || "Errore nel caricamento");
     } finally {
       setIsLoading(false);
     }
@@ -404,125 +384,30 @@ const HostDashboard = () => {
                     </Button>
                   </div>
                   
-                  <div className="flex items-center gap-4">
-                    {/* Property Selector */}
+                  {/* Right actions */}
+                  <div className="ml-auto flex items-center gap-3">
                     {properties.length > 0 && (
-                      <Select value={activePropertyId || "all"} onValueChange={handlePropertyChange}>
-                        <SelectTrigger className="w-48 border-hostsuite-primary/20">
-                          <SelectValue placeholder="Seleziona proprietà" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white z-50">
-                          <SelectItem value="all">Tutte le proprietà</SelectItem>
-                          {properties.map((property) => (
-                            <SelectItem key={property.id} value={property.id}>
-                              {property.nome}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <select
+                        aria-label="Filtro proprietà"
+                        value={activePropertyId ?? "all"}
+                        onChange={(e) => handlePropertyChange(e.target.value)}
+                        className="border rounded-md px-2 py-1"
+                      >
+                        <option value="all">Tutte le proprietà</option>
+                        {properties.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.nome}
+                          </option>
+                        ))}
+                      </select>
                     )}
-                    
-                    {/* Create Property Button */}
-                    <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-                      <DialogTrigger asChild>
-                        <Button className="bg-gradient-hostsuite hover:opacity-90">
-                          <Plus className="w-4 h-4 mr-2" />
-                          Nuova Proprietà
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="sm:max-w-md bg-white">
-                        <DialogHeader>
-                          <DialogTitle>Crea Nuova Proprietà</DialogTitle>
-                        </DialogHeader>
-                        
-                        <div className="space-y-4 py-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="nome">Nome Proprietà *</Label>
-                            <Input
-                              id="nome"
-                              value={createForm.nome}
-                              onChange={(e) => setCreateForm(prev => ({ ...prev, nome: e.target.value }))}
-                              placeholder="Es. Villa Sunset"
-                            />
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <Label htmlFor="city">Città</Label>
-                            <Input
-                              id="city"
-                              value={createForm.city}
-                              onChange={(e) => setCreateForm(prev => ({ ...prev, city: e.target.value }))}
-                              placeholder="Es. Roma"
-                            />
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <Label htmlFor="address">Indirizzo</Label>
-                            <Input
-                              id="address"
-                              value={createForm.address}
-                              onChange={(e) => setCreateForm(prev => ({ ...prev, address: e.target.value }))}
-                              placeholder="Es. Via Roma 123"
-                            />
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="max_guests">Ospiti Max</Label>
-                              <Input
-                                id="max_guests"
-                                type="number"
-                                min="1"
-                                value={createForm.max_guests || ""}
-                                onChange={(e) => setCreateForm(prev => ({ 
-                                  ...prev, 
-                                  max_guests: e.target.value ? parseInt(e.target.value) : undefined 
-                                }))}
-                                placeholder="Es. 4"
-                              />
-                            </div>
-                            
-                            <div className="space-y-2">
-                              <Label htmlFor="status">Stato</Label>
-                              <Select 
-                                value={createForm.status} 
-                                onValueChange={(value) => setCreateForm(prev => ({ 
-                                  ...prev, 
-                                  status: value as "active" | "inactive"
-                                }))}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent className="bg-white z-50">
-                                  <SelectItem value="active">Attiva</SelectItem>
-                                  <SelectItem value="inactive">Inattiva</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-                          
-                          <div className="flex justify-end gap-2 pt-4">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              onClick={() => setIsCreateModalOpen(false)}
-                              disabled={isCreating}
-                            >
-                              Annulla
-                            </Button>
-                            <Button
-                              type="button"
-                              onClick={handleCreateProperty}
-                              disabled={isCreating}
-                              className="bg-gradient-hostsuite hover:opacity-90"
-                            >
-                              {isCreating ? "Creazione..." : "Crea Proprietà"}
-                            </Button>
-                          </div>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
+
+                    <button
+                      onClick={() => setIsCreateModalOpen(true)}
+                      className="inline-flex items-center rounded-lg border border-hostsuite-primary text-hostsuite-primary hover:bg-hostsuite-primary hover:text-white px-3 py-2"
+                    >
+                      + Nuova Proprietà
+                    </button>
                   </div>
                 </div>
               </div>
@@ -551,130 +436,239 @@ const HostDashboard = () => {
                 </div>
               )}
 
+              {error && (
+                <div className="mb-8">
+                  <Card className="border-red-200 bg-red-50">
+                    <CardContent className="pt-6">
+                      <div className="flex items-center gap-2 text-red-700">
+                        <AlertCircle className="w-5 h-5" />
+                        <p>{error}</p>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={retryLoad}
+                          className="ml-auto"
+                        >
+                          Riprova
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
               {/* KPI Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8" aria-live="polite">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6 mb-8">
                 <KPICard
                   title="Proprietà"
-                  value={stats.propertiesCount.toString()}
-                  change={0}
+                  value={stats.propertiesCount}
+                  change={15}
                   icon={Building}
                   isLoading={isLoading}
                 />
                 <KPICard
-                  title="Domande in Sospeso"
-                  value={stats.unansweredCount.toString()}
-                  change={0}
+                  title="Domande"
+                  value={stats.unansweredCount}
+                  change={-8}
                   icon={HelpCircle}
                   isLoading={isLoading}
                 />
                 <KPICard
-                  title="Configurazioni iCal"
-                  value={stats.icalCount.toString()}
-                  change={0}
+                  title="iCal Config"
+                  value={stats.icalCount}
+                  change={22}
                   icon={Calendar}
                   isLoading={isLoading}
                 />
                 <KPICard
-                  title="ADR (Tariffa Media)"
-                  value={stats.adr > 0 ? `€${stats.adr}` : "—"}
-                  change={0}
+                  title="ADR"
+                  value={`€${stats.adr}`}
+                  change={12}
                   icon={TrendingUp}
                   isLoading={isLoading}
                 />
                 <KPICard
-                  title="Occupancy Rate"
-                  value={stats.occupancy > 0 ? `${stats.occupancy}%` : "—"}
-                  change={0}
+                  title="Occupancy"
+                  value={`${stats.occupancy}%`}
+                  change={5}
                   icon={Users}
                   isLoading={isLoading}
                 />
               </div>
 
-              {/* Trend Charts */}
-              <div className="mb-8">
-                <h2 className="text-xl font-semibold text-hostsuite-primary mb-4">Trend 7 giorni</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <KpiTrend 
-                    data={trendData.occupancyTrend}
-                    label="Occupancy"
-                    suffix="%"
-                  />
-                  <KpiTrend 
-                    data={trendData.adrTrend}
-                    label="ADR"
-                    prefix="€"
-                  />
-                </div>
+              {/* Performance Trends */}
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-8">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Tasso di Occupazione</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{stats.occupancy}%</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>ADR (Tariffa Media)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">€{stats.adr}</div>
+                  </CardContent>
+                </Card>
               </div>
-              <Card className="border-hostsuite-primary/20 mb-8">
-                <CardHeader>
-                  <CardTitle className="text-hostsuite-primary flex items-center gap-2">
-                    <HelpCircle className="w-5 h-5" />
-                    Domande Non Risposte
-                  </CardTitle>
-                  
-                  {/* Question Filters */}
-                  <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                    <div className="relative flex-1 max-w-md">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-hostsuite-text w-4 h-4" />
-                      <Input
-                        placeholder="Cerca nelle domande..."
-                        value={questionSearch}
-                        onChange={(e) => setQuestionSearch(e.target.value)}
-                        className="pl-10 border-hostsuite-primary/20 focus:border-hostsuite-primary"
-                      />
+
+              {/* Properties Section */}
+              <div className="mb-8">
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2 text-hostsuite-primary">
+                        <Building className="h-5 w-5" />
+                        Le Tue Proprietà
+                        {properties.length > 0 && (
+                          <Badge variant="secondary" className="ml-2">
+                            {properties.length}
+                          </Badge>
+                        )}
+                      </CardTitle>
+                      <div className="flex items-center gap-2">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <Input
+                            placeholder="Cerca proprietà..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-10 w-64"
+                          />
+                        </div>
+                      </div>
                     </div>
-                    
-                    <Select value={questionSourceFilter} onValueChange={setQuestionSourceFilter}>
-                      <SelectTrigger className="w-full sm:w-48 border-hostsuite-primary/20">
-                        <SelectValue placeholder="Filtra per origine" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Tutte le origini</SelectItem>
-                        <SelectItem value="airbnb">Airbnb</SelectItem>
-                        <SelectItem value="booking">Booking.com</SelectItem>
-                        <SelectItem value="email">Email</SelectItem>
-                        <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  </CardHeader>
+                  <CardContent>
+                    {isLoading ? (
+                      <div className="space-y-4">
+                        {[1, 2, 3].map((i) => (
+                          <Skeleton key={i} className="h-16 w-full" />
+                        ))}
+                      </div>
+                    ) : filteredProperties.length === 0 ? (
+                      <EmptyState
+                        icon={<Building className="w-16 h-16 text-hostsuite-primary/30" />}
+                        title={searchTerm ? "Nessuna proprietà trovata" : "Nessuna proprietà disponibile"}
+                        description={searchTerm ? "Prova a modificare il termine di ricerca" : "Inizia aggiungendo la tua prima proprietà"}
+                      />
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="text-left border-b border-gray-200">
+                              <th className="py-3 px-2 font-medium text-hostsuite-text">Proprietà</th>
+                              <th className="py-3 px-2 font-medium text-hostsuite-text hidden md:table-cell">Città</th>
+                              <th className="py-3 px-2 font-medium text-hostsuite-text hidden lg:table-cell">Ospiti</th>
+                              <th className="py-3 px-2 font-medium text-hostsuite-text hidden sm:table-cell">Stato</th>
+                              <th className="py-3 px-2 font-medium text-hostsuite-text hidden sm:table-cell">Creata il</th>
+                              <th className="py-3 px-2 font-medium text-hostsuite-text">Azioni</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredProperties.map((property) => (
+                              <tr key={property.id} className="border-b border-gray-100 hover:bg-hostsuite-light/10 transition-colors">
+                                <td className="py-4 px-2">
+                                  <div className="font-medium text-hostsuite-primary">{property.nome}</div>
+                                  {property.address && (
+                                    <div className="text-sm text-hostsuite-text">{property.address}</div>
+                                  )}
+                                  <div className="text-sm text-hostsuite-text sm:hidden">
+                                    {new Date(property.created_at).toLocaleDateString('it-IT')}
+                                  </div>
+                                </td>
+                                <td className="py-4 px-2 text-hostsuite-text hidden md:table-cell">
+                                  {property.city || "—"}
+                                </td>
+                                <td className="py-4 px-2 text-hostsuite-text hidden lg:table-cell">
+                                  {property.max_guests ? `${property.max_guests} ospiti` : "—"}
+                                </td>
+                                <td className="py-4 px-2 hidden sm:table-cell">
+                                  <StatusBadge status={(property.status === "active" || property.status === "inactive") ? property.status : "active"} />
+                                </td>
+                                <td className="py-4 px-2 text-hostsuite-text hidden sm:table-cell">
+                                  {new Date(property.created_at).toLocaleDateString('it-IT')}
+                                </td>
+                                <td className="py-4 px-2">
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => handlePropertyDetail(property.id)}
+                                    className="border-hostsuite-primary/30 text-hostsuite-primary hover:bg-hostsuite-primary/10"
+                                  >
+                                    <Eye className="w-4 h-4 mr-1" />
+                                    Dettagli
+                                  </Button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Unanswered Questions Section */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-hostsuite-primary">
+                      <HelpCircle className="h-5 w-5" />
+                      Domande Non Risposte
+                      {unansweredQuestions.length > 0 && (
+                        <Badge variant="secondary" className="ml-2">
+                          {unansweredQuestions.length}
+                        </Badge>
+                      )}
+                    </CardTitle>
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <Input
+                          placeholder="Cerca domande..."
+                          value={questionSearch}
+                          onChange={(e) => setQuestionSearch(e.target.value)}
+                          className="pl-10 w-64"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </CardHeader>
-                
                 <CardContent>
-                  {(filteredQuestions ?? []).length === 0 ? (
+                  {isLoading ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <Skeleton key={i} className="h-12 w-full" />
+                      ))}
+                    </div>
+                  ) : filteredQuestions.length === 0 ? (
                     <EmptyState
                       icon={<HelpCircle className="w-16 h-16 text-hostsuite-primary/30" />}
-                      title={questionSearch || questionSourceFilter !== "all" 
-                        ? "Nessuna domanda trovata" 
-                        : "Nessuna domanda in sospeso"}
-                      description={questionSearch || questionSourceFilter !== "all"
-                        ? "Prova a modificare i filtri di ricerca"
-                        : "Tutte le domande degli ospiti hanno ricevuto risposta"}
+                      title={questionSearch ? "Nessuna domanda trovata" : "Nessuna domanda in sospeso"}
+                      description={questionSearch ? "Prova a modificare il termine di ricerca" : "Ottimo! Non ci sono domande in attesa di risposta"}
                     />
                   ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       {filteredQuestions.map((question) => (
-                        <div key={question.id} className="p-4 border border-hostsuite-primary/20 rounded-lg hover:bg-hostsuite-primary/5 transition-colors">
-                          <div className="flex flex-col gap-3">
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="flex-1">
-                                <p className="font-medium text-hostsuite-primary mb-2">
-                                  {question.question}
-                                </p>
-                                <div className="flex items-center gap-4 text-sm text-hostsuite-text">
-                                  <SourceBadge source={question.guest_code} />
-                                  <span>{new Date(question.created_at).toLocaleDateString('it-IT')}</span>
-                                </div>
+                        <div key={question.id} className="p-4 border border-gray-200 rounded-lg hover:border-hostsuite-primary/50 transition-colors">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <p className="text-hostsuite-text font-medium mb-2">{question.question}</p>
+                              <div className="flex items-center gap-4 text-sm text-hostsuite-text/60">
+                                <span>Codice: {question.guest_code}</span>
+                                <span>{new Date(question.created_at).toLocaleDateString('it-IT')}</span>
+                                <span>{new Date(question.created_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</span>
                               </div>
-                              
-                              <Button 
-                                size="sm" 
-                                disabled 
-                                className="opacity-50"
-                                title="Disponibile in modalità operativa"
-                              >
-                                Segna come gestita
-                              </Button>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <StatusBadge status={question.status as any} />
+                              <SourceBadge source={question.source || question.guest_code || 'Unknown'} />
                             </div>
                           </div>
                         </div>
@@ -683,126 +677,31 @@ const HostDashboard = () => {
                   )}
                 </CardContent>
               </Card>
+            </div>
+          </main>
+        </div>
+      </div>
 
-              {/* Properties Section */}
-              <Card className="border-hostsuite-primary/20">
-                <CardHeader>
-                  <CardTitle className="text-hostsuite-primary flex items-center gap-2">
-                    <Building className="w-5 h-5" />
-                    Le Tue Proprietà
-                  </CardTitle>
-                  
-                  {/* Toolbar */}
-                  <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                    <div className="relative flex-1 max-w-md">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-hostsuite-text w-4 h-4" />
-                      <Input
-                        placeholder="Cerca proprietà..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10 border-hostsuite-primary/20 focus:border-hostsuite-primary"
-                      />
-                    </div>
-                    
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="w-full sm:w-48 border-hostsuite-primary/20">
-                        <SelectValue placeholder="Filtra per stato" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Tutte le proprietà</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardHeader>
-                
-                <CardContent>
-                  {filteredProperties.length === 0 ? (
-                    <EmptyState
-                      icon={<Home className="w-16 h-16 text-hostsuite-primary/30" />}
-                      title={searchTerm 
-                        ? "Nessuna proprietà trovata" 
-                        : "Nessuna proprietà disponibile"}
-                      description={searchTerm 
-                        ? "Prova a modificare il termine di ricerca" 
-                        : "Inizia aggiungendo la tua prima proprietà"}
-                    >
-                      <Button disabled className="bg-gradient-hostsuite opacity-50">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Aggiungi Proprietà
-                      </Button>
-                    </EmptyState>
-                  ) : (
-                     // Properties Table - Responsive
-                     <div className="overflow-x-auto">
-                       <table className="w-full">
-                         <thead>
-                           <tr className="border-b border-hostsuite-primary/20">
-                             <th className="text-left py-3 px-2 text-hostsuite-text font-medium">Nome</th>
-                             <th className="text-left py-3 px-2 text-hostsuite-text font-medium hidden md:table-cell">Città</th>
-                             <th className="text-left py-3 px-2 text-hostsuite-text font-medium hidden lg:table-cell">Ospiti</th>
-                             <th className="text-left py-3 px-2 text-hostsuite-text font-medium hidden sm:table-cell">Stato</th>
-                             <th className="text-left py-3 px-2 text-hostsuite-text font-medium hidden sm:table-cell">Data Creazione</th>
-                             <th className="text-left py-3 px-2 text-hostsuite-text font-medium">Azioni</th>
-                           </tr>
-                         </thead>
-                         <tbody>
-                           {filteredProperties.map((property) => (
-                             <tr key={property.id} className="border-b border-gray-100 hover:bg-hostsuite-light/10 transition-colors">
-                               <td className="py-4 px-2">
-                                 <div className="font-medium text-hostsuite-primary">{property.nome}</div>
-                                 {property.address && (
-                                   <div className="text-sm text-hostsuite-text">{property.address}</div>
-                                 )}
-                                 <div className="text-sm text-hostsuite-text sm:hidden">
-                                   {new Date(property.created_at).toLocaleDateString('it-IT')}
-                                 </div>
-                               </td>
-                               <td className="py-4 px-2 text-hostsuite-text hidden md:table-cell">
-                                 {property.city || "—"}
-                               </td>
-                               <td className="py-4 px-2 text-hostsuite-text hidden lg:table-cell">
-                                 {property.max_guests ? `${property.max_guests} ospiti` : "—"}
-                               </td>
-                               <td className="py-4 px-2 hidden sm:table-cell">
-                                 <StatusBadge status={(property.status === "active" || property.status === "inactive") ? property.status : "active"} />
-                               </td>
-                               <td className="py-4 px-2 text-hostsuite-text hidden sm:table-cell">
-                                 {new Date(property.created_at).toLocaleDateString('it-IT')}
-                               </td>
-                               <td className="py-4 px-2">
-                                 <Button 
-                                   size="sm" 
-                                   variant="outline"
-                                   onClick={() => handlePropertyDetail(property.id)}
-                                   className="border-hostsuite-primary/30 text-hostsuite-primary hover:bg-hostsuite-primary/10"
-                                 >
-                                   <Eye className="w-4 h-4 mr-1" />
-                                   Dettagli
-                                 </Button>
-                               </td>
-                             </tr>
-                           ))}
-                         </tbody>
-                       </table>
-                      </div>
-                   )}
-                 </CardContent>
-               </Card>
-             </div>
-           </main>
-         </div>
-       </div>
- 
-       {/* Property Detail Modal */}
-       {selectedPropertyId && (
-         <PropertyDetailModal 
-           open={isModalOpen}
-           onClose={handleCloseModal}
-           propertyId={selectedPropertyId}
-         />
-       )}
-     </div>
-   );
- };
+      {/* Property Detail Modal */}
+      {selectedPropertyId && (
+        <PropertyDetailModal 
+          open={isModalOpen}
+          onClose={handleCloseModal}
+          propertyId={selectedPropertyId}
+        />
+      )}
+
+      {/* Create Property Modal */}
+      <CreatePropertyModal
+        open={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onConfirm={handleCreateProperty}
+        creating={isCreating}
+        form={createForm}
+        setForm={setCreateForm}
+      />
+    </div>
+  );
+};
 
 export default HostDashboard;
