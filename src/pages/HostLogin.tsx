@@ -3,14 +3,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Home as HomeIcon } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Loader2, Home as HomeIcon, AlertCircle } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import logoImage from "@/assets/logo.png";
 
 const HostLogin = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
   const isValidEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -23,15 +28,42 @@ const HostLogin = () => {
     if (!isFormValid) return;
 
     setIsLoading(true);
+    setError(null);
     
-    // TODO: Collega Supabase qui per l'autenticazione host
-    // await supabase.auth.signInWithPassword({ email, password });
-    
-    // Simulazione caricamento
-    setTimeout(() => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        setError(error.message);
+        toast({
+          variant: "destructive",
+          title: "Errore di accesso",
+          description: error.message,
+        });
+        return;
+      }
+
+      if (data.user) {
+        toast({
+          title: "Accesso effettuato",
+          description: "Benvenuto nella tua dashboard!",
+        });
+        navigate("/host-dashboard");
+      }
+    } catch (err) {
+      const errorMessage = "Errore durante l'accesso. Riprova.";
+      setError(errorMessage);
+      toast({
+        variant: "destructive",
+        title: "Errore",
+        description: errorMessage,
+      });
+    } finally {
       setIsLoading(false);
-      console.log("Login simulato per:", email);
-    }, 2000);
+    }
   };
 
   return (
@@ -84,10 +116,18 @@ const HostLogin = () => {
                 />
               </div>
 
+              {error && (
+                <div className="p-3 rounded-lg bg-red-50 border border-red-200 flex items-center gap-2" role="alert">
+                  <AlertCircle className="w-4 h-4 text-red-500" />
+                  <span className="text-sm text-red-700">{error}</span>
+                </div>
+              )}
+
               <Button
                 type="submit"
                 className="w-full bg-gradient-hostsuite hover:scale-105 transition-transform"
                 disabled={!isFormValid || isLoading}
+                aria-busy={isLoading}
               >
                 {isLoading ? (
                   <>
@@ -111,7 +151,7 @@ const HostLogin = () => {
 
             <div className="mt-6 p-4 bg-hostsuite-light/20 rounded-lg">
               <p className="text-xs text-hostsuite-text text-center">
-                L'autenticazione sarà collegata a Supabase (in arrivo).
+                Autenticazione sicura powered by Supabase.
               </p>
             </div>
           </CardContent>

@@ -9,6 +9,13 @@ import HostLogin from "./pages/HostLogin";
 import GuestLogin from "./pages/GuestLogin";
 import HostDashboard from "./pages/host-dashboard";
 import GuestDashboard from "./pages/guest-dashboard";
+import HostAgentHome from "./pages/host-agent-home";
+import HostAgentConfig from "./pages/host-agent-config";
+import HostBookings from "./pages/host-bookings";
+import HostIcalConfig from "./pages/host-ical-config";
+import HostUnansweredQuestions from "./pages/host-unanswered-questions";
+import ProtectedRoute from "./components/ProtectedRoute";
+import GuestGuard from "./components/GuestGuard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,14 +29,25 @@ const App = () => (
         <div className="min-h-screen bg-background">
           <Navigation />
           <Routes>
+            {/* Public Routes */}
             <Route path="/" element={<Home />} />
             <Route path="/host-login" element={<HostLogin />} />
             <Route path="/login/host" element={<HostLogin />} />
             <Route path="/guest" element={<GuestLogin />} />
             <Route path="/login/guest" element={<GuestLogin />} />
-            <Route path="/host-dashboard" element={<HostDashboard />} />
-            <Route path="/guest-dashboard" element={<GuestDashboard />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            
+            {/* Protected Host Routes */}
+            <Route path="/host-dashboard" element={<ProtectedRoute><HostDashboard /></ProtectedRoute>} />
+            <Route path="/host-agent-home" element={<ProtectedRoute><HostAgentHome /></ProtectedRoute>} />
+            <Route path="/host-agent-config" element={<ProtectedRoute><HostAgentConfig /></ProtectedRoute>} />
+            <Route path="/host-bookings" element={<ProtectedRoute><HostBookings /></ProtectedRoute>} />
+            <Route path="/host-ical-config" element={<ProtectedRoute><HostIcalConfig /></ProtectedRoute>} />
+            <Route path="/host-unanswered-questions" element={<ProtectedRoute><HostUnansweredQuestions /></ProtectedRoute>} />
+            
+            {/* Protected Guest Routes */}
+            <Route path="/guest-dashboard" element={<GuestGuard><GuestDashboard /></GuestGuard>} />
+            
+            {/* Catch-all route */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </div>

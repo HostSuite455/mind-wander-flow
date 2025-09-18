@@ -10,8 +10,11 @@ import {
   Utensils,
   Camera,
   Wine,
-  Building
+  Building,
+  LogOut
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 // Dummy data for guest stay
 const stayInfo = {
@@ -76,6 +79,18 @@ const localRecommendations = [
 ];
 
 const GuestDashboard = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleGuestLogout = () => {
+    localStorage.removeItem('guest_session');
+    toast({
+      title: "Logout effettuato",
+      description: "Arrivederci!",
+    });
+    navigate("/guest");
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -84,16 +99,29 @@ const GuestDashboard = () => {
         <div className="mb-8">
           <Card className="border-hostsuite-primary/20 bg-gradient-to-r from-hostsuite-primary/5 to-hostsuite-secondary/5">
             <CardHeader>
-              <CardTitle className="text-2xl text-hostsuite-primary flex items-center gap-2">
-                <Home className="w-6 h-6" />
-                Benvenuto al {stayInfo.propertyName}
-              </CardTitle>
-              <CardDescription className="text-lg">
-                <div className="flex flex-wrap gap-4 mt-2">
-                  <span>📅 {stayInfo.checkIn} - {stayInfo.checkOut}</span>
-                  <span>👥 {stayInfo.guests} ospiti</span>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-2xl text-hostsuite-primary flex items-center gap-2">
+                    <Home className="w-6 h-6" />
+                    Benvenuto al {stayInfo.propertyName}
+                  </CardTitle>
+                  <CardDescription className="text-lg">
+                    <div className="flex flex-wrap gap-4 mt-2">
+                      <span>📅 {stayInfo.checkIn} - {stayInfo.checkOut}</span>
+                      <span>👥 {stayInfo.guests} ospiti</span>
+                    </div>
+                  </CardDescription>
                 </div>
-              </CardDescription>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleGuestLogout}
+                  className="text-hostsuite-text hover:text-hostsuite-primary"
+                >
+                  <LogOut className="w-4 h-4 mr-1" />
+                  Esci
+                </Button>
+              </div>
             </CardHeader>
           </Card>
         </div>

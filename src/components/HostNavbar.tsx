@@ -1,12 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, X, LayoutDashboard, Bot, Calendar, MessageSquare, Settings, HelpCircle } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Menu, X, LayoutDashboard, Bot, Calendar, MessageSquare, Settings, HelpCircle, LogOut, User } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { User as SupabaseUser } from "@supabase/supabase-js";
 import logoImage from "@/assets/logo.png";
 
 const HostNavbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   
   const isActive = (path: string) => location.pathname === path;
 
@@ -21,6 +27,42 @@ const HostNavbar = () => {
 
   const closeMenu = () => setIsMenuOpen(false);
 
+  useEffect(() => {
+    // Get initial session
+    const getInitialSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+    };
+
+    getInitialSession();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user ?? null);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      toast({
+        title: "Logout effettuato",
+        description: "Arrivederci!",
+      });
+      navigate("/host-login");
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Errore",
+        description: "Errore durante il logout",
+      });
+    }
+  };
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg border-b border-hostsuite-primary/20 shadow-sm">
       <div className="container max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -32,7 +74,8 @@ const HostNavbar = () => {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center space-x-1">
+          <div className="hidden lg:flex items-center justify-between flex-1">
+            <div className="flex items-center space-x-1">
             {navLinks.map((link) => {
               const IconComponent = link.icon;
               return (
@@ -50,6 +93,28 @@ const HostNavbar = () => {
                 </Link>
               );
             })}
+            </div>
+            
+            {/* User Menu */}
+            {user && (
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-hostsuite-primary/10">
+                  <User className="w-4 h-4 text-hostsuite-primary" />
+                  <span className="text-sm text-hostsuite-primary font-medium">
+                    {user.email?.split('@')[0]}
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleSignOut}
+                  className="text-hostsuite-text hover:text-hostsuite-primary"
+                >
+                  <LogOut className="w-4 h-4 mr-1" />
+                  Esci
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -99,6 +164,28 @@ const HostNavbar = () => {
                     </Link>
                   );
                 })}
+                
+                {/* Mobile User Menu */}
+                {user && (
+                  <div className="border-t border-hostsuite-primary/20 pt-4 mt-4">
+                    <div className="px-6 py-2 flex items-center gap-3">
+                      <User className="w-5 h-5 text-hostsuite-primary" />
+                      <span className="text-hostsuite-primary font-medium">
+                        {user.email?.split('@')[0]}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        closeMenu();
+                        handleSignOut();
+                      }}
+                      className="w-full px-6 py-3 text-left flex items-center gap-3 text-hostsuite-text hover:bg-hostsuite-primary/5 hover:text-hostsuite-primary transition-all duration-200"
+                    >
+                      <LogOut className="w-5 h-5" />
+                      Esci
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </>
