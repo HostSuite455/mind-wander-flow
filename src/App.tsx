@@ -16,6 +16,7 @@ import HostIcalConfig from "./pages/host-ical-config";
 import HostUnansweredQuestions from "./pages/host-unanswered-questions";
 import Calendar from "./pages/calendar";
 import Properties from "./pages/properties";
+import Export from "./pages/export";
 import AdminUsers from "./pages/admin-users";
 import ProtectedRoute from "./components/ProtectedRoute";
 import GuestGuard from "./components/GuestGuard";
@@ -45,6 +46,7 @@ const App = () => (
               <Route path="/host-dashboard" element={<ProtectedRoute><HostDashboard /></ProtectedRoute>} />
               <Route path="/properties" element={<ProtectedRoute><Properties /></ProtectedRoute>} />
               <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
+              <Route path="/export" element={<ProtectedRoute><Export /></ProtectedRoute>} />
               <Route path="/host-agent-home" element={<ProtectedRoute><HostAgentHome /></ProtectedRoute>} />
               <Route path="/host-agent-config" element={<ProtectedRoute><HostAgentConfig /></ProtectedRoute>} />
               <Route path="/host-bookings" element={<ProtectedRoute><HostBookings /></ProtectedRoute>} />

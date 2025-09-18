@@ -20,6 +20,7 @@ const HostNavbar = () => {
     { path: "/host-dashboard", label: "Dashboard", icon: LayoutDashboard },
     { path: "/properties", label: "Proprietà", icon: Settings },
     { path: "/calendar", label: "Calendario", icon: Calendar },
+    { path: "/export", label: "Export", icon: Settings },
     { path: "/host-agent-home", label: "iAgent Home", icon: Bot },
     { path: "/host-agent-config", label: "Config Agent", icon: Settings },
     { path: "/host-bookings", label: "Prenotazioni", icon: Calendar },

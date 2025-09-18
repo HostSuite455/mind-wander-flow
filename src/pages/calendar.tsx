@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/ui/Badges";
 import { 
   Calendar as CalendarIcon, 
@@ -16,10 +17,12 @@ import {
   ExternalLink,
   CheckCircle,
   XCircle,
-  Clock
+  Clock,
+  Eye
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supaSelect, pickName } from "@/lib/supaSafe";
+import { IcsPreview } from "@/components/IcsPreview";
 import HostNavbar from "@/components/HostNavbar";
 
 interface Property {
@@ -385,39 +388,56 @@ const Calendar = () => {
                                 URL iCal ({urls.length})
                               </h4>
                               <Table>
-                                <TableHeader>
-                                  <TableRow>
-                                    <TableHead>Origine</TableHead>
-                                    <TableHead>URL</TableHead>
-                                    <TableHead>Stato</TableHead>
-                                    <TableHead>Ultima Sync</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {urls.map((url) => (
-                                    <TableRow key={url.id}>
-                                      <TableCell>
-                                        {url.source || '—'}
-                                      </TableCell>
-                                      <TableCell>
-                                        <code className="text-xs bg-hostsuite-light/20 px-2 py-1 rounded">
-                                          {formatUrl(url.url)}
-                                        </code>
-                                      </TableCell>
-                                      <TableCell>
-                                        <Badge variant={url.is_active ? "default" : "secondary"}>
-                                          {url.is_active ? "Attivo" : "Inattivo"}
-                                        </Badge>
-                                      </TableCell>
-                                      <TableCell>
-                                        <div className="flex items-center gap-2">
-                                          <Clock className="w-3 h-3 text-hostsuite-text/50" />
-                                          {formatDate(url.last_sync_at)}
-                                        </div>
-                                      </TableCell>
-                                    </TableRow>
-                                  ))}
-                                </TableBody>
+                                 <TableHeader>
+                                   <TableRow>
+                                     <TableHead>Origine</TableHead>
+                                     <TableHead>URL</TableHead>
+                                     <TableHead>Stato</TableHead>
+                                     <TableHead>Ultima Sync</TableHead>
+                                     <TableHead>Azioni</TableHead>
+                                   </TableRow>
+                                 </TableHeader>
+                                 <TableBody>
+                                   {urls.map((url) => (
+                                     <TableRow key={url.id}>
+                                       <TableCell>
+                                         {url.source || '—'}
+                                       </TableCell>
+                                       <TableCell>
+                                         <code className="text-xs bg-hostsuite-light/20 px-2 py-1 rounded">
+                                           {formatUrl(url.url)}
+                                         </code>
+                                       </TableCell>
+                                       <TableCell>
+                                         <Badge variant={url.is_active ? "default" : "secondary"}>
+                                           {url.is_active ? "Attivo" : "Inattivo"}
+                                         </Badge>
+                                       </TableCell>
+                                       <TableCell>
+                                         <div className="flex items-center gap-2">
+                                           <Clock className="w-3 h-3 text-hostsuite-text/50" />
+                                           {formatDate(url.last_sync_at)}
+                                         </div>
+                                       </TableCell>
+                                       <TableCell>
+                                         <Dialog>
+                                           <DialogTrigger asChild>
+                                             <Button variant="outline" size="sm" className="gap-1">
+                                               <Eye className="h-3 w-3" />
+                                               Preview
+                                             </Button>
+                                           </DialogTrigger>
+                                           <DialogContent className="max-w-4xl max-h-[80vh] overflow-auto">
+                                             <DialogHeader>
+                                               <DialogTitle>Preview Prenotazioni iCal</DialogTitle>
+                                             </DialogHeader>
+                                             <IcsPreview url={url.url} />
+                                           </DialogContent>
+                                         </Dialog>
+                                       </TableCell>
+                                     </TableRow>
+                                   ))}
+                                 </TableBody>
                               </Table>
                             </div>
                           )}

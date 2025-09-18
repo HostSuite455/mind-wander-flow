@@ -8,7 +8,7 @@ const Home = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section - 2 Column Responsive Layout */}
-      <section className="relative py-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
+      <section className="relative py-20 px-4 sm:px-6 lg:px-8 overflow-hidden min-h-[70vh] flex items-center">
         <div className="absolute inset-0 bg-gradient-to-br from-hostsuite-primary/10 to-hostsuite-secondary/10" />
         <div className="relative container max-w-screen-xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
@@ -21,16 +21,27 @@ const Home = () => {
                 Messaggi, pulizie, prezzi dinamici e dashboard AI. Tutto in un unico posto.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                <Button asChild size="lg" className="bg-gradient-hostsuite hover:scale-105 transition-all duration-300 shadow-lg">
+                <Button 
+                  asChild 
+                  size="lg" 
+                  className="bg-gradient-hostsuite hover:scale-105 transition-all duration-300 shadow-lg"
+                  aria-label="Accedi come Host - Inizia a gestire le tue proprietà"
+                >
                   <Link to="/host-login">
                     <HomeIcon className="w-5 h-5 mr-2" />
-                    Accedi Host
+                    Inizia (Host)
                   </Link>
                 </Button>
-                <Button asChild variant="outline" size="lg" className="border-hostsuite-primary text-hostsuite-primary hover:bg-hostsuite-primary hover:text-white transition-all duration-300">
+                <Button 
+                  asChild 
+                  variant="outline" 
+                  size="lg" 
+                  className="border-hostsuite-primary text-hostsuite-primary hover:bg-hostsuite-primary hover:text-white transition-all duration-300"
+                  aria-label="Accedi come Ospite - Visualizza informazioni della tua prenotazione"
+                >
                   <Link to="/guest">
                     <Users className="w-5 h-5 mr-2" />
-                    Accedi Guest
+                    Accedi come Ospite
                   </Link>
                 </Button>
               </div>
@@ -42,9 +53,9 @@ const Home = () => {
                 src={sienaDayImage} 
                 alt="Gestione intelligente case vacanza con vista panoramica di Siena - HostSuite dashboard AI"
                 className="w-full h-auto rounded-2xl shadow-xl"
-                loading="lazy"
                 width="600"
                 height="400"
+                loading="eager"
               />
             </div>
           </div>
@@ -75,6 +86,12 @@ const Home = () => {
                 <CardDescription className="text-hostsuite-text">
                   Template smart per check-in/out e FAQ ricorrenti.
                 </CardDescription>
+                <img 
+                  src={sienaDayImage} 
+                  alt="Automazioni AI per gestione case vacanza"
+                  className="w-full h-32 object-cover rounded-lg mt-4"
+                  loading="lazy"
+                />
               </CardContent>
             </Card>
 
@@ -89,6 +106,12 @@ const Home = () => {
                 <CardDescription className="text-hostsuite-text">
                   Planner turni, checklist e tracciamento biancheria.
                 </CardDescription>
+                <img 
+                  src={sienaDayImage} 
+                  alt="Gestione pulizie e biancheria per case vacanza"
+                  className="w-full h-32 object-cover rounded-lg mt-4"
+                  loading="lazy"
+                />
               </CardContent>
             </Card>
 
@@ -103,6 +126,12 @@ const Home = () => {
                 <CardDescription className="text-hostsuite-text">
                   Strategie stagionali e adeguamenti automatici.
                 </CardDescription>
+                <img 
+                  src={sienaDayImage} 
+                  alt="Prezzi dinamici per ottimizzazione ricavi case vacanza"
+                  className="w-full h-32 object-cover rounded-lg mt-4"
+                  loading="lazy"
+                />
               </CardContent>
             </Card>
           </div>
