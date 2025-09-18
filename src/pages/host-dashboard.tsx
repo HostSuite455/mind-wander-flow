@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge, SourceBadge } from "@/components/ui/Badges";
@@ -11,6 +13,7 @@ import HostNavbar from "@/components/HostNavbar";
 import PropertyDetailModal from "@/components/PropertyDetailModal";
 import KpiTrend from "@/components/KpiTrend";
 import { supabase, getUserSafe } from "@/lib/supabase";
+import { createProperty, type NewProperty } from "@/lib/properties";
 import { useToast } from "@/hooks/use-toast";
 import { 
   LayoutDashboard, 
@@ -36,6 +39,10 @@ interface Property {
   nome: string;
   host_id: string;
   created_at: string;
+  city?: string;
+  max_guests?: number;
+  status?: string;
+  address?: string;
 }
 
 interface UnansweredQuestion {
@@ -63,6 +70,23 @@ const HostDashboard = () => {
   const [questionSourceFilter, setQuestionSourceFilter] = useState("all");
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // New property creation modal state
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [createForm, setCreateForm] = useState<NewProperty>({
+    nome: "",
+    city: "",
+    max_guests: undefined,
+    status: "active",
+    address: ""
+  });
+  
+  // Multi-property selection
+  const [activePropertyId, setActivePropertyId] = useState<string | null>(() => {
+    return localStorage.getItem("active_property_id");
+  });
+  
   const [properties, setProperties] = useState<Property[]>([]);
   const [unansweredQuestions, setUnansweredQuestions] = useState<UnansweredQuestion[]>([]);
   const [stats, setStats] = useState<DashboardStats>({ 
@@ -95,14 +119,20 @@ const HostDashboard = () => {
       }
 
       // Load all data in parallel
+      let unansweredQuery = supabase
+        .from('unanswered_questions')
+        .select('id, question, property_id, guest_code, created_at, status');
+      
+      if (activePropertyId) {
+        unansweredQuery = unansweredQuery.eq('property_id', activePropertyId);
+      }
+      
       const [propertiesResult, unansweredResult, icalResult] = await Promise.all([
         supabase
           .from('properties')
-          .select('id, nome, host_id, created_at')
+          .select('id, nome, host_id, created_at, city, max_guests, status, address')
           .order('created_at', { ascending: false }),
-        supabase
-          .from('unanswered_questions')
-          .select('id, question, property_id, guest_code, created_at, status')
+        unansweredQuery
           .order('created_at', { ascending: false })
           .limit(25),
         supabase.from('ical_configs').select('id', { count: 'exact', head: true })
@@ -152,6 +182,76 @@ const HostDashboard = () => {
 
   const retryLoad = () => {
     loadDashboardData();
+  };
+
+  // Property creation functions
+  const handleCreateProperty = async () => {
+    if (!createForm.nome.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Errore",
+        description: "Il nome della proprietà è obbligatorio",
+      });
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      const { data, error } = await createProperty(createForm);
+      
+      if (error) {
+        throw error;
+      }
+
+      if (data) {
+        // Optimistic update
+        setProperties(prev => [data, ...prev]);
+        
+        // Set as active property if it's the first one
+        if (properties.length === 0) {
+          setActivePropertyId(data.id);
+          localStorage.setItem("active_property_id", data.id);
+        }
+        
+        toast({
+          title: "Successo",
+          description: "Proprietà creata con successo",
+        });
+        
+        // Reset form and close modal
+        setCreateForm({
+          nome: "",
+          city: "",
+          max_guests: undefined,
+          status: "active",
+          address: ""
+        });
+        setIsCreateModalOpen(false);
+        
+        // Reload data to get updated stats
+        loadDashboardData();
+      }
+    } catch (error: any) {
+      console.error('Error creating property:', error);
+      toast({
+        variant: "destructive",
+        title: "Errore",
+        description: error.message || "Errore nella creazione della proprietà",
+      });
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handlePropertyChange = (propertyId: string) => {
+    if (propertyId === "all") {
+      setActivePropertyId(null);
+      localStorage.removeItem("active_property_id");
+    } else {
+      setActivePropertyId(propertyId);
+      localStorage.setItem("active_property_id", propertyId);
+    }
+    loadDashboardData(); // Reload with new filter
   };
 
   // Generate trend data (client-side placeholder)
@@ -304,10 +404,126 @@ const HostDashboard = () => {
                     </Button>
                   </div>
                   
-                  <Button disabled className="bg-gradient-hostsuite opacity-50 cursor-not-allowed">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Nuova Proprietà
-                  </Button>
+                  <div className="flex items-center gap-4">
+                    {/* Property Selector */}
+                    {properties.length > 0 && (
+                      <Select value={activePropertyId || "all"} onValueChange={handlePropertyChange}>
+                        <SelectTrigger className="w-48 border-hostsuite-primary/20">
+                          <SelectValue placeholder="Seleziona proprietà" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white z-50">
+                          <SelectItem value="all">Tutte le proprietà</SelectItem>
+                          {properties.map((property) => (
+                            <SelectItem key={property.id} value={property.id}>
+                              {property.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    
+                    {/* Create Property Button */}
+                    <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+                      <DialogTrigger asChild>
+                        <Button className="bg-gradient-hostsuite hover:opacity-90">
+                          <Plus className="w-4 h-4 mr-2" />
+                          Nuova Proprietà
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-md bg-white">
+                        <DialogHeader>
+                          <DialogTitle>Crea Nuova Proprietà</DialogTitle>
+                        </DialogHeader>
+                        
+                        <div className="space-y-4 py-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="nome">Nome Proprietà *</Label>
+                            <Input
+                              id="nome"
+                              value={createForm.nome}
+                              onChange={(e) => setCreateForm(prev => ({ ...prev, nome: e.target.value }))}
+                              placeholder="Es. Villa Sunset"
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor="city">Città</Label>
+                            <Input
+                              id="city"
+                              value={createForm.city}
+                              onChange={(e) => setCreateForm(prev => ({ ...prev, city: e.target.value }))}
+                              placeholder="Es. Roma"
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor="address">Indirizzo</Label>
+                            <Input
+                              id="address"
+                              value={createForm.address}
+                              onChange={(e) => setCreateForm(prev => ({ ...prev, address: e.target.value }))}
+                              placeholder="Es. Via Roma 123"
+                            />
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="max_guests">Ospiti Max</Label>
+                              <Input
+                                id="max_guests"
+                                type="number"
+                                min="1"
+                                value={createForm.max_guests || ""}
+                                onChange={(e) => setCreateForm(prev => ({ 
+                                  ...prev, 
+                                  max_guests: e.target.value ? parseInt(e.target.value) : undefined 
+                                }))}
+                                placeholder="Es. 4"
+                              />
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <Label htmlFor="status">Stato</Label>
+                              <Select 
+                                value={createForm.status} 
+                                onValueChange={(value) => setCreateForm(prev => ({ 
+                                  ...prev, 
+                                  status: value as "active" | "inactive"
+                                }))}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-white z-50">
+                                  <SelectItem value="active">Attiva</SelectItem>
+                                  <SelectItem value="inactive">Inattiva</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                          
+                          <div className="flex justify-end gap-2 pt-4">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => setIsCreateModalOpen(false)}
+                              disabled={isCreating}
+                            >
+                              Annulla
+                            </Button>
+                            <Button
+                              type="button"
+                              onClick={handleCreateProperty}
+                              disabled={isCreating}
+                              className="bg-gradient-hostsuite hover:opacity-90"
+                            >
+                              {isCreating ? "Creazione..." : "Crea Proprietà"}
+                            </Button>
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
                 </div>
               </div>
 
@@ -516,64 +732,77 @@ const HostDashboard = () => {
                       </Button>
                     </EmptyState>
                   ) : (
-                    // Properties Table - Responsive
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="border-b border-hostsuite-primary/20">
-                            <th className="text-left py-3 px-2 text-hostsuite-text font-medium">Nome</th>
-                            <th className="text-left py-3 px-2 text-hostsuite-text font-medium hidden sm:table-cell">Data Creazione</th>
-                            <th className="text-left py-3 px-2 text-hostsuite-text font-medium">Azioni</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredProperties.map((property) => (
-                            <tr key={property.id} className="border-b border-gray-100 hover:bg-hostsuite-light/10 transition-colors">
-                              <td className="py-4 px-2">
-                                <div className="font-medium text-hostsuite-primary">{property.nome}</div>
-                                <div className="text-sm text-hostsuite-text sm:hidden">
-                                  {new Date(property.created_at).toLocaleDateString('it-IT')}
-                                </div>
-                              </td>
-                              <td className="py-4 px-2 hidden sm:table-cell text-hostsuite-text">
-                                {new Date(property.created_at).toLocaleDateString('it-IT')}
-                              </td>
-                              <td className="py-4 px-2">
-                                <div className="flex gap-2">
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline" 
-                                    onClick={() => handlePropertyDetail(property.id)}
-                                    className="text-hostsuite-primary hover:bg-hostsuite-primary hover:text-white"
-                                  >
-                                    <Eye className="w-3 h-3 mr-1" />
-                                    Dettagli
-                                  </Button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </main>
-        </div>
-      </div>
-
-      {/* Property Detail Modal */}
-      {selectedPropertyId && (
-        <PropertyDetailModal 
-          open={isModalOpen}
-          onClose={handleCloseModal}
-          propertyId={selectedPropertyId}
-        />
-      )}
-    </div>
-  );
-};
+                     // Properties Table - Responsive
+                     <div className="overflow-x-auto">
+                       <table className="w-full">
+                         <thead>
+                           <tr className="border-b border-hostsuite-primary/20">
+                             <th className="text-left py-3 px-2 text-hostsuite-text font-medium">Nome</th>
+                             <th className="text-left py-3 px-2 text-hostsuite-text font-medium hidden md:table-cell">Città</th>
+                             <th className="text-left py-3 px-2 text-hostsuite-text font-medium hidden lg:table-cell">Ospiti</th>
+                             <th className="text-left py-3 px-2 text-hostsuite-text font-medium hidden sm:table-cell">Stato</th>
+                             <th className="text-left py-3 px-2 text-hostsuite-text font-medium hidden sm:table-cell">Data Creazione</th>
+                             <th className="text-left py-3 px-2 text-hostsuite-text font-medium">Azioni</th>
+                           </tr>
+                         </thead>
+                         <tbody>
+                           {filteredProperties.map((property) => (
+                             <tr key={property.id} className="border-b border-gray-100 hover:bg-hostsuite-light/10 transition-colors">
+                               <td className="py-4 px-2">
+                                 <div className="font-medium text-hostsuite-primary">{property.nome}</div>
+                                 {property.address && (
+                                   <div className="text-sm text-hostsuite-text">{property.address}</div>
+                                 )}
+                                 <div className="text-sm text-hostsuite-text sm:hidden">
+                                   {new Date(property.created_at).toLocaleDateString('it-IT')}
+                                 </div>
+                               </td>
+                               <td className="py-4 px-2 text-hostsuite-text hidden md:table-cell">
+                                 {property.city || "—"}
+                               </td>
+                               <td className="py-4 px-2 text-hostsuite-text hidden lg:table-cell">
+                                 {property.max_guests ? `${property.max_guests} ospiti` : "—"}
+                               </td>
+                               <td className="py-4 px-2 hidden sm:table-cell">
+                                 <StatusBadge status={(property.status === "active" || property.status === "inactive") ? property.status : "active"} />
+                               </td>
+                               <td className="py-4 px-2 text-hostsuite-text hidden sm:table-cell">
+                                 {new Date(property.created_at).toLocaleDateString('it-IT')}
+                               </td>
+                               <td className="py-4 px-2">
+                                 <Button 
+                                   size="sm" 
+                                   variant="outline"
+                                   onClick={() => handlePropertyDetail(property.id)}
+                                   className="border-hostsuite-primary/30 text-hostsuite-primary hover:bg-hostsuite-primary/10"
+                                 >
+                                   <Eye className="w-4 h-4 mr-1" />
+                                   Dettagli
+                                 </Button>
+                               </td>
+                             </tr>
+                           ))}
+                         </tbody>
+                       </table>
+                      </div>
+                   )}
+                 </CardContent>
+               </Card>
+             </div>
+           </main>
+         </div>
+       </div>
+ 
+       {/* Property Detail Modal */}
+       {selectedPropertyId && (
+         <PropertyDetailModal 
+           open={isModalOpen}
+           onClose={handleCloseModal}
+           propertyId={selectedPropertyId}
+         />
+       )}
+     </div>
+   );
+ };
 
 export default HostDashboard;

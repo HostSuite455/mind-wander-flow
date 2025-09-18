@@ -310,38 +310,50 @@ export type Database = {
       }
       properties: {
         Row: {
+          address: string | null
           ai_home_prompt: string | null
           auto_send_credentials: boolean | null
+          city: string | null
           created_at: string | null
           host_id: string | null
           ical_url: string | null
           ical_url_hash: string | null
           id: string
+          max_guests: number | null
           nome: string | null
+          status: string | null
           updated_at: string | null
           whatsapp_link: string | null
         }
         Insert: {
+          address?: string | null
           ai_home_prompt?: string | null
           auto_send_credentials?: boolean | null
+          city?: string | null
           created_at?: string | null
           host_id?: string | null
           ical_url?: string | null
           ical_url_hash?: string | null
           id?: string
+          max_guests?: number | null
           nome?: string | null
+          status?: string | null
           updated_at?: string | null
           whatsapp_link?: string | null
         }
         Update: {
+          address?: string | null
           ai_home_prompt?: string | null
           auto_send_credentials?: boolean | null
+          city?: string | null
           created_at?: string | null
           host_id?: string | null
           ical_url?: string | null
           ical_url_hash?: string | null
           id?: string
+          max_guests?: number | null
           nome?: string | null
+          status?: string | null
           updated_at?: string | null
           whatsapp_link?: string | null
         }
