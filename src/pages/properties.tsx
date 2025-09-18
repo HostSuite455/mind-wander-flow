@@ -20,12 +20,14 @@ import {
   MapPin,
   Users,
   Calendar,
-  Plus
+  Plus,
+  Info
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { createProperty, type NewProperty } from "@/lib/properties";
 import HostNavbar from "@/components/HostNavbar";
+import { useActiveProperty } from "@/hooks/useActiveProperty";
 
 interface Property {
   id: string;
@@ -43,6 +45,7 @@ const Properties = () => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { id: activePropertyId } = useActiveProperty();
   
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -267,6 +270,13 @@ const Properties = () => {
                 <p className="text-hostsuite-text/60 mt-2">
                   Gestisci tutte le tue proprietà in un unico posto
                 </p>
+                {/* Active property badge */}
+                {activePropertyId !== 'all' && (
+                  <Badge variant="outline" className="flex items-center gap-2 w-fit mt-2">
+                    <Info className="h-3 w-3" />
+                    Attiva: {properties.find(p => p.id === activePropertyId)?.nome || activePropertyId}
+                  </Badge>
+                )}
               </div>
               
               <div className="flex items-center gap-3">

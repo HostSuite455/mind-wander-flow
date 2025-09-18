@@ -2,12 +2,13 @@ import { useEffect } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { useActiveProperty } from "@/hooks/useActiveProperty";
 
 type Property = { id: string; nome: string };
 
 interface PropertySwitchProps {
-  value: string | 'all';
-  onChange: (id: string | 'all') => void;
+  value?: string | 'all';
+  onChange?: (id: string | 'all') => void;
   items: Property[];
   className?: string;
   label?: string;
@@ -15,13 +16,19 @@ interface PropertySwitchProps {
 }
 
 export default function PropertySwitch({
-  value,
-  onChange,
+  value: controlledValue,
+  onChange: controlledOnChange,
   items,
   className,
   label = "Proprietà",
-  storageKey = "active_property_id"
+  storageKey
 }: PropertySwitchProps) {
+  const globalState = useActiveProperty();
+  
+  // Use global state if no controlled value/onChange provided
+  const value = controlledValue ?? globalState.id;
+  const onChange = controlledOnChange ?? globalState.setId;
+  
   // Save to localStorage when value changes (if storageKey provided)
   useEffect(() => {
     if (storageKey && value !== 'all') {
@@ -49,7 +56,7 @@ export default function PropertySwitch({
       >
         <SelectTrigger
           id="property-select"
-          className="w-full focus:ring-2 focus:ring-hostsuite-primary/20 focus:border-hostsuite-primary"
+          className="w-full min-w-[200px] focus:ring-2 focus:ring-hostsuite-primary/20 focus:border-hostsuite-primary"
           aria-label="Filtra per proprietà"
         >
           <SelectValue placeholder="Seleziona proprietà" />

@@ -7,6 +7,7 @@ import HostNavbar from "@/components/HostNavbar";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { useActiveProperty } from "@/hooks/useActiveProperty";
 
 type UnansweredQuestion = {
   id: string;
@@ -36,18 +37,11 @@ const getStatusBadge = (status: string) => {
 const HostUnansweredQuestions = () => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [questions, setQuestions] = useState<UnansweredQuestion[]>([]);
-  const [propertyId, setPropertyId] = useState<string | 'all'>(() =>
-    (localStorage.getItem('uq_active_property_id') as any) || 'all'
-  );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Save property filter to localStorage
-  useEffect(() => {
-    if (propertyId) {
-      localStorage.setItem('uq_active_property_id', propertyId as string);
-    }
-  }, [propertyId]);
+  // Global active property state
+  const { id: propertyId, setId: setPropertyId } = useActiveProperty();
 
   // Load host's properties
   const loadProperties = async () => {

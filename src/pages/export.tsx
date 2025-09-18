@@ -5,8 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Download, Database } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Toggle } from "@/components/ui/toggle";
+import { Download, Database, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useActiveProperty } from "@/hooks/useActiveProperty";
 
 type AnyRow = Record<string, any>;
 
@@ -21,6 +24,8 @@ interface DatasetPanel {
 
 export default function Export() {
   const { toast } = useToast();
+  const { id: activePropertyId } = useActiveProperty();
+  const [showOnlyActive, setShowOnlyActive] = useState(false);
   const [datasets, setDatasets] = useState<DatasetPanel[]>([
     { title: "Proprietà", table: "properties", columns: "id, host_id, nome, city, max_guests, status, created_at", data: [], loading: true, error: null },
     { title: "Configurazioni iCal", table: "ical_configs", columns: "id, property_id, channel_manager_name, config_type, is_active, last_sync_at, created_at", data: [], loading: true, error: null },
@@ -83,81 +88,125 @@ export default function Export() {
         </div>
       </div>
 
+      {/* Active property badge */}
+      {activePropertyId !== 'all' && (
+        <Badge variant="outline" className="flex items-center gap-2 w-fit">
+          <Info className="h-3 w-3" />
+          Proprietà attiva filtrata
+        </Badge>
+      )}
+
+      {/* Pill toggle for showing only active property data */}
+      {activePropertyId !== 'all' && (
+        <div className="flex items-center gap-4">
+          <span className="text-sm font-medium">Visualizzazione dati:</span>
+          <div className="flex items-center gap-2">
+            <Toggle 
+              pressed={!showOnlyActive}
+              onPressedChange={(pressed) => setShowOnlyActive(!pressed)}
+              aria-label="Mostra tutti i dati"
+            >
+              Tutte le proprietà
+            </Toggle>
+            <Toggle 
+              pressed={showOnlyActive}
+              onPressedChange={setShowOnlyActive}
+              aria-label="Mostra solo proprietà attiva"
+            >
+              Solo attiva
+            </Toggle>
+          </div>
+        </div>
+      )}
+
       <div className="grid gap-6 md:grid-cols-2">
-        {datasets.map((dataset, index) => (
-          <Card key={index}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-              <CardTitle className="text-lg">{dataset.title}</CardTitle>
-              <PrimaryButton
-                onClick={() => handleExport(dataset)}
-                disabled={dataset.loading || dataset.data.length === 0}
-                size="sm"
-                aria-label={`Esporta ${dataset.title} in formato CSV`}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                Esporta CSV
-              </PrimaryButton>
-            </CardHeader>
-            
-            <CardContent>
-              {dataset.loading ? (
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-4 w-1/2" />
-                </div>
-              ) : dataset.error ? (
-                <Alert>
-                  <AlertDescription>
-                    Errore nel caricamento dei dati: {dataset.error.message || 'Errore sconosciuto'}
-                  </AlertDescription>
-                </Alert>
-              ) : dataset.data.length === 0 ? (
-                <div className="text-center py-4 text-muted-foreground">
-                  Nessun dato disponibile (possibile restrizione RLS)
-                </div>
-              ) : (
-                <div>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    {dataset.data.length} record{dataset.data.length !== 1 ? 's' : ''} disponibili
-                  </p>
-                  
-                  {/* Preview table */}
-                  <div className="overflow-x-auto border rounded-lg">
-                    <table className="w-full text-xs">
-                      <thead className="bg-muted">
-                        <tr>
-                          {Object.keys(dataset.data[0] || {}).slice(0, 4).map(key => (
-                            <th key={key} className="text-left py-2 px-3 font-medium">
-                              {key}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {dataset.data.slice(0, 3).map((row, rowIndex) => (
-                          <tr key={rowIndex} className="border-t">
-                            {Object.values(row).slice(0, 4).map((value: any, colIndex) => (
-                              <td key={colIndex} className="py-2 px-3 max-w-[100px] truncate">
-                                {value === null || value === undefined ? '—' : String(value)}
-                              </td>
+        {datasets.map((dataset, index) => {
+          // Filter data if showOnlyActive is true and activePropertyId is set
+          const displayData = (showOnlyActive && activePropertyId !== 'all') 
+            ? dataset.data.filter(row => row.property_id === activePropertyId)
+            : dataset.data;
+
+          return (
+            <Card key={index}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <CardTitle className="text-lg">{dataset.title}</CardTitle>
+                <PrimaryButton
+                  onClick={() => handleExport({...dataset, data: displayData})}
+                  disabled={dataset.loading || displayData.length === 0}
+                  size="sm"
+                  aria-label={`Esporta ${dataset.title} in formato CSV`}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Esporta CSV
+                </PrimaryButton>
+              </CardHeader>
+              
+              <CardContent>
+                {dataset.loading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                  </div>
+                ) : dataset.error ? (
+                  <Alert>
+                    <AlertDescription>
+                      Errore nel caricamento dei dati: {dataset.error.message || 'Errore sconosciuto'}
+                    </AlertDescription>
+                  </Alert>
+                ) : displayData.length === 0 ? (
+                  <div className="text-center py-4 text-muted-foreground">
+                    {(showOnlyActive && activePropertyId !== 'all') 
+                      ? "Nessun dato per la proprietà attiva"
+                      : "Nessun dato disponibile (possibile restrizione RLS)"
+                    }
+                  </div>
+                ) : (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      {displayData.length} record{displayData.length !== 1 ? 's' : ''} disponibili
+                      {showOnlyActive && activePropertyId !== 'all' && (
+                        <span className="ml-1 text-xs">(filtrati)</span>
+                      )}
+                    </p>
+                    
+                    {/* Preview table */}
+                    <div className="overflow-x-auto border rounded-lg">
+                      <table className="w-full text-xs">
+                        <thead className="bg-muted">
+                          <tr>
+                            {Object.keys(displayData[0] || {}).slice(0, 4).map(key => (
+                              <th key={key} className="text-left py-2 px-3 font-medium">
+                                {key}
+                              </th>
                             ))}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {displayData.slice(0, 3).map((row, rowIndex) => (
+                            <tr key={rowIndex} className="border-t">
+                              {Object.values(row).slice(0, 4).map((value: any, colIndex) => (
+                                <td key={colIndex} className="py-2 px-3 max-w-[100px] truncate">
+                                  {value === null || value === undefined ? '—' : String(value)}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    
+                    {displayData.length > 3 && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        ... e altri {displayData.length - 3} record
+                      </p>
+                    )}
                   </div>
-                  
-                  {dataset.data.length > 3 && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      ... e altri {dataset.data.length - 3} record
-                    </p>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );

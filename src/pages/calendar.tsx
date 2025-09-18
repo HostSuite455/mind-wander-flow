@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supaSelect, pickName } from "@/lib/supaSafe";
 import { IcsPreview } from "@/components/IcsPreview";
 import HostNavbar from "@/components/HostNavbar";
+import { useActiveProperty } from "@/hooks/useActiveProperty";
 
 interface Property {
   id: string;
@@ -61,6 +62,7 @@ const Calendar = () => {
   const [icalUrls, setIcalUrls] = useState<IcalUrl[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { id: activePropertyId } = useActiveProperty();
   
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -109,6 +111,9 @@ const Calendar = () => {
   const filteredData = useMemo(() => {
     const term = (searchTerm ?? '').toLowerCase();
     const propId = selectedProperty === 'all' ? null : selectedProperty;
+    
+    // Apply global active property filter if different from local filter
+    const effectivePropertyFilter = activePropertyId === 'all' ? propId : activePropertyId;
     
     let filteredProps = properties.filter(prop => {
       const name = pickName(prop).toLowerCase();

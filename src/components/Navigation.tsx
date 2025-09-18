@@ -1,14 +1,28 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X, Home as HomeIcon, User, Users } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
+import { useActiveProperty } from "@/hooks/useActiveProperty";
+import { supaSelect } from "@/lib/supaSafe";
+import PropertySwitch from "./PropertySwitch";
 import logoImage from "@/assets/logo.png";
 
 const Navigation = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [properties, setProperties] = useState<{ id: string; nome: string }[]>([]);
   const location = useLocation();
+  const { id: activePropertyId } = useActiveProperty();
   
   const isActive = (path: string) => location.pathname === path;
+
+  // Load properties for authenticated users
+  useEffect(() => {
+    const loadProperties = async () => {
+      const { data } = await supaSelect('properties', 'id,nome');
+      setProperties(data || []);
+    };
+    loadProperties();
+  }, []);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-lg border-b border-white/20">
@@ -52,6 +66,17 @@ const Navigation = () => {
               Login Guest
             </Link>
           </div>
+
+          {/* Property Switch - visible for authenticated routes */}
+          {(location.pathname.startsWith('/host-') || location.pathname === '/properties' || location.pathname === '/calendar' || location.pathname === '/export') && properties.length > 0 && (
+            <div className="hidden sm:block">
+              <PropertySwitch 
+                items={properties}
+                label=""
+                className="w-auto"
+              />
+            </div>
+          )}
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-4">

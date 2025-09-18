@@ -16,6 +16,7 @@ import KpiTrend from "@/components/KpiTrend";
 import { supabase } from "@/lib/supabase";
 import { createProperty, type NewProperty } from "@/lib/properties";
 import { useToast } from "@/hooks/use-toast";
+import { useActiveProperty } from "@/hooks/useActiveProperty";
 import { 
   LayoutDashboard, 
   Home, 
@@ -83,11 +84,8 @@ const HostDashboard = () => {
     address: ""
   });
   
-  // Multi-property selection with new storage key
-  const [activePropertyId, setActivePropertyId] = useState<string | 'all'>(() => {
-    const stored = localStorage.getItem("hd_active_property_id");
-    return stored ? stored : 'all';
-  });
+  // Global active property state
+  const { id: activePropertyId, setId: setActivePropertyId } = useActiveProperty();
   
   const [properties, setProperties] = useState<Property[]>([]);
   const [unansweredQuestions, setUnansweredQuestions] = useState<UnansweredQuestion[]>([]);

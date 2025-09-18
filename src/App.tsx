@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { ActivePropertyProvider } from "@/hooks/useActiveProperty";
 import Navigation from "@/components/Navigation";
 import Home from "./pages/Home";
 import HostLogin from "./pages/HostLogin";
@@ -31,12 +32,13 @@ const App = () => (
   <AppErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <div className="min-h-screen bg-background">
-            <Navigation />
-            <Routes>
+        <ActivePropertyProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <div className="min-h-screen bg-background">
+              <Navigation />
+              <Routes>
               {/* Public Routes */}
               <Route path="/" element={<Home />} />
               <Route path="/host-login" element={<HostLogin />} />
@@ -63,9 +65,10 @@ const App = () => (
               
               {/* Catch-all route */}
               <Route path="*" element={<NotFound />} />
-            </Routes>
-          </div>
-        </BrowserRouter>
+              </Routes>
+            </div>
+          </BrowserRouter>
+        </ActivePropertyProvider>
       </TooltipProvider>
     </QueryClientProvider>
   </AppErrorBoundary>
