@@ -1,18 +1,15 @@
-import React, { Component, ReactNode } from 'react';
+import React, { Component } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle, RefreshCw, ChevronDown } from 'lucide-react';
 
-interface Props {
-  children: ReactNode;
-}
-
-interface State {
+type Props = { children: React.ReactNode };
+type State = {
   hasError: boolean;
   error: Error | null;
   errorInfo: any;
   showDetails: boolean;
-}
+};
 
 export class AppErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {

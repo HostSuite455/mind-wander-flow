@@ -25,44 +25,44 @@ import AppErrorBoundary from "./components/AppErrorBoundary";
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <AppErrorBoundary>
+  <AppErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
         <BrowserRouter>
           <div className="min-h-screen bg-background">
             <Navigation />
             <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<Home />} />
-            <Route path="/host-login" element={<HostLogin />} />
-            <Route path="/login/host" element={<Navigate to="/host-login" replace />} />
-            <Route path="/guest" element={<GuestLogin />} />
-            <Route path="/login/guest" element={<GuestLogin />} />
-            
-            {/* Protected Host Routes */}
-            <Route path="/host-dashboard" element={<ProtectedRoute><HostDashboard /></ProtectedRoute>} />
-            <Route path="/host-agent-home" element={<ProtectedRoute><HostAgentHome /></ProtectedRoute>} />
-            <Route path="/host-agent-config" element={<ProtectedRoute><HostAgentConfig /></ProtectedRoute>} />
-            <Route path="/host-bookings" element={<ProtectedRoute><HostBookings /></ProtectedRoute>} />
-            <Route path="/host-ical-config" element={<ProtectedRoute><HostIcalConfig /></ProtectedRoute>} />
-            <Route path="/host-unanswered-questions" element={<ProtectedRoute><HostUnansweredQuestions /></ProtectedRoute>} />
-            <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
-            <Route path="/properties" element={<ProtectedRoute><Properties /></ProtectedRoute>} />
-            <Route path="/admin-users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
-            
-            {/* Protected Guest Routes */}
-            <Route path="/guest-dashboard" element={<GuestGuard><GuestDashboard /></GuestGuard>} />
-            
-            {/* Catch-all route */}
-            <Route path="*" element={<NotFound />} />
+              {/* Public Routes */}
+              <Route path="/" element={<Home />} />
+              <Route path="/host-login" element={<HostLogin />} />
+              <Route path="/login/host" element={<Navigate to="/host-login" replace />} />
+              <Route path="/guest" element={<GuestLogin />} />
+              <Route path="/login/guest" element={<GuestLogin />} />
+              
+              {/* Protected Host Routes */}
+              <Route path="/host-dashboard" element={<ProtectedRoute><HostDashboard /></ProtectedRoute>} />
+              <Route path="/properties" element={<ProtectedRoute><Properties /></ProtectedRoute>} />
+              <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
+              <Route path="/host-agent-home" element={<ProtectedRoute><HostAgentHome /></ProtectedRoute>} />
+              <Route path="/host-agent-config" element={<ProtectedRoute><HostAgentConfig /></ProtectedRoute>} />
+              <Route path="/host-bookings" element={<ProtectedRoute><HostBookings /></ProtectedRoute>} />
+              <Route path="/host-ical-config" element={<ProtectedRoute><HostIcalConfig /></ProtectedRoute>} />
+              <Route path="/host-unanswered-questions" element={<ProtectedRoute><HostUnansweredQuestions /></ProtectedRoute>} />
+              <Route path="/admin-users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
+              
+              {/* Protected Guest Routes */}
+              <Route path="/guest-dashboard" element={<GuestGuard><GuestDashboard /></GuestGuard>} />
+              
+              {/* Catch-all route */}
+              <Route path="*" element={<NotFound />} />
             </Routes>
           </div>
         </BrowserRouter>
-      </AppErrorBoundary>
-    </TooltipProvider>
-  </QueryClientProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </AppErrorBoundary>
 );
 
 export default App;

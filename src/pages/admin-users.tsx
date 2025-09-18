@@ -93,30 +93,13 @@ const AdminUsers = () => {
     });
   };
 
-  const getRoleBadge = (role?: string) => {
-    const userRole = role || 'host'; // Default to 'host' if no role
-    
-    switch (userRole.toLowerCase()) {
-      case 'admin':
-        return <Badge variant="destructive">Admin</Badge>;
-      case 'moderator':
-        return <Badge variant="secondary">Moderator</Badge>;
-      case 'guest':
-        return <Badge variant="outline">Guest</Badge>;
-      default:
-        return <Badge variant="default">Host</Badge>;
-    }
-  };
+  const roleLabel = (role?: string) => (role?.toLowerCase() || "host");
 
-  const getStatusBadge = (isActive?: boolean) => {
-    if (isActive === undefined) return null;
-    
-    return (
-      <Badge variant={isActive ? "default" : "secondary"}>
-        {isActive ? "Attivo" : "Inattivo"}
-      </Badge>
-    );
-  };
+  const getStatusBadge = (isActive?: boolean) => (
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>
+      {isActive ? "Attivo" : "Inattivo"}
+    </span>
+  );
 
   if (isLoading) {
     return (
@@ -271,9 +254,11 @@ const AdminUsers = () => {
                               <span className="text-hostsuite-text/50">—</span>
                             )}
                           </TableCell>
-                          <TableCell>
-                            {getRoleBadge(user.role)}
-                          </TableCell>
+                           <TableCell>
+                             <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800">
+                               {roleLabel(user.role)}
+                             </span>
+                           </TableCell>
                           <TableCell>
                             {getStatusBadge(user.is_active)}
                           </TableCell>

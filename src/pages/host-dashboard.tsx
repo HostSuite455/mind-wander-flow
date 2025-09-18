@@ -74,6 +74,7 @@ const HostDashboard = () => {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [propertiesError, setPropertiesError] = useState<any>(null);
   const { toast } = useToast();
 
   // Load data on mount
@@ -109,18 +110,18 @@ const HostDashboard = () => {
 
       if (propertiesResult.error) {
         console.error('Error loading properties:', propertiesResult.error);
-        setError("Errore nel caricamento delle proprietà");
-        return;
+        setPropertiesError(propertiesResult.error);
+      } else {
+        setPropertiesError(null);
       }
 
       if (unansweredResult.error) {
         console.error('Error loading unanswered questions:', unansweredResult.error);
-        setError("Errore nel caricamento delle domande");
-        return;
+        // Don't return early, just log the error and use empty array
       }
 
       const propertiesData = propertiesResult.data || [];
-      const unansweredData = unansweredResult.data || [];
+      const unansweredData: UnansweredQuestion[] = unansweredResult.error ? [] : (unansweredResult.data || []);
 
       // Calculate client-side KPIs
       const adr = propertiesData.length * 5 + 70;  // Placeholder calculation
@@ -310,20 +311,20 @@ const HostDashboard = () => {
                 </div>
               </div>
 
-              {error && (
+              {propertiesError && (
                 <div className="mb-8">
                   <Card className="border-red-200 bg-red-50">
                     <CardContent className="pt-6">
                       <div className="flex items-center gap-2 text-red-700">
                         <AlertCircle className="w-5 h-5" />
                         <div>
-                          <p className="font-medium">Errore nel caricamento</p>
-                          <p className="text-sm">{error}</p>
+                          <p className="font-medium">Errore nel caricamento delle proprietà</p>
+                          <p className="text-sm">Problema di accesso ai dati delle proprietà</p>
                         </div>
                         <Button 
                           variant="outline" 
                           size="sm" 
-                          onClick={retryLoad}
+                          onClick={loadDashboardData}
                           className="ml-auto"
                         >
                           Riprova

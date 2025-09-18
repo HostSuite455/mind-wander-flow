@@ -315,7 +315,7 @@ const Properties = () => {
                             <TableHead className="min-w-[200px]">Nome</TableHead>
                             <TableHead>Città</TableHead>
                             <TableHead>Ospiti</TableHead>
-                            {'status' in filteredProperties[0] && <TableHead>Stato</TableHead>}
+                            {filteredProperties.length > 0 && 'status' in filteredProperties[0] && <TableHead>Stato</TableHead>}
                             <TableHead>Creato il</TableHead>
                             <TableHead className="text-right">Azioni</TableHead>
                           </TableRow>
@@ -348,15 +348,15 @@ const Properties = () => {
                                   <span className="text-hostsuite-text/50">—</span>
                                 )}
                               </TableCell>
-                              {'status' in property && (
-                                <TableCell>
-                                  {property.status ? (
-                                    <StatusBadge status={property.status as any} />
-                                  ) : (
-                                    <span className="text-hostsuite-text/50">—</span>
-                                  )}
-                                </TableCell>
-                              )}
+                               {'status' in property && (
+                                 <TableCell>
+                                   {property.status ? (
+                                     <StatusBadge status={property.status as any} />
+                                   ) : (
+                                     <span className="text-hostsuite-text/50">—</span>
+                                   )}
+                                 </TableCell>
+                               )}
                               <TableCell>
                                 <div className="flex items-center gap-1 text-hostsuite-text/60">
                                   <Calendar className="w-3 h-3" />
