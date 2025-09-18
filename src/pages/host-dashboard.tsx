@@ -198,16 +198,24 @@ const HostDashboard = () => {
 
   // Memoized filtered data for performance
   const filteredProperties = useMemo(() => {
-    return properties.filter(property => {
-      const matchesSearch = property.nome.toLowerCase().includes(searchTerm.toLowerCase());
-      return matchesSearch;
+    const list = properties ?? [];
+    const term = (searchTerm ?? '').toLowerCase();
+    return list.filter(property => {
+      const propertyName = (property?.nome ?? '').toLowerCase();
+      return propertyName.includes(term);
     });
   }, [properties, searchTerm]);
 
   const filteredQuestions = useMemo(() => {
-    return unansweredQuestions.filter(question => {
-      const matchesSearch = question.question.toLowerCase().includes(questionSearch.toLowerCase());
-      const matchesSource = questionSourceFilter === "all" || question.guest_code.includes(questionSourceFilter);
+    const list = unansweredQuestions ?? [];
+    const term = (questionSearch ?? '').toLowerCase();
+    const src = (questionSourceFilter ?? 'all').toLowerCase();
+
+    return list.filter(question => {
+      const qText = (question?.question ?? '').toLowerCase();
+      const matchesSearch = qText.includes(term);
+      const qSource = (question?.guest_code ?? '').toLowerCase();
+      const matchesSource = src === 'all' || qSource === src || qSource.includes(src);
       return matchesSearch && matchesSource;
     });
   }, [unansweredQuestions, questionSearch, questionSourceFilter]);
@@ -404,16 +412,17 @@ const HostDashboard = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Tutte le origini</SelectItem>
-                        <SelectItem value="SIENA">Siena</SelectItem>
-                        <SelectItem value="ROMA">Roma</SelectItem>
-                        <SelectItem value="FIRE">Firenze</SelectItem>
+                        <SelectItem value="airbnb">Airbnb</SelectItem>
+                        <SelectItem value="booking">Booking.com</SelectItem>
+                        <SelectItem value="email">Email</SelectItem>
+                        <SelectItem value="whatsapp">WhatsApp</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </CardHeader>
                 
                 <CardContent>
-                  {filteredQuestions.length === 0 ? (
+                  {(filteredQuestions ?? []).length === 0 ? (
                     <EmptyState
                       icon={<HelpCircle className="w-16 h-16 text-hostsuite-primary/30" />}
                       title={questionSearch || questionSourceFilter !== "all" 
