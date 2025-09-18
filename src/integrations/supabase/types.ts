@@ -315,12 +315,12 @@ export type Database = {
           auto_send_credentials: boolean | null
           city: string | null
           created_at: string | null
-          host_id: string | null
+          host_id: string
           ical_url: string | null
           ical_url_hash: string | null
           id: string
           max_guests: number | null
-          nome: string | null
+          nome: string
           status: string | null
           updated_at: string | null
           whatsapp_link: string | null
@@ -331,12 +331,12 @@ export type Database = {
           auto_send_credentials?: boolean | null
           city?: string | null
           created_at?: string | null
-          host_id?: string | null
+          host_id: string
           ical_url?: string | null
           ical_url_hash?: string | null
           id?: string
           max_guests?: number | null
-          nome?: string | null
+          nome?: string
           status?: string | null
           updated_at?: string | null
           whatsapp_link?: string | null
@@ -347,12 +347,12 @@ export type Database = {
           auto_send_credentials?: boolean | null
           city?: string | null
           created_at?: string | null
-          host_id?: string | null
+          host_id?: string
           ical_url?: string | null
           ical_url_hash?: string | null
           id?: string
           max_guests?: number | null
-          nome?: string | null
+          nome?: string
           status?: string | null
           updated_at?: string | null
           whatsapp_link?: string | null

@@ -156,10 +156,24 @@ const Properties = () => {
 
     setIsCreating(true);
     try {
+      const { data: { user }, error: authErr } = await supabase.auth.getUser();
+      
+      if (authErr || !user) {
+        throw new Error("Utente non autenticato");
+      }
+
       const { data, error } = await createProperty(createForm);
       
       if (error) {
-        throw error;
+        console.error('Property creation error:', error);
+        
+        // Debug mode error display
+        const debugMode = localStorage.getItem('debug') === '1';
+        const errorMessage = debugMode 
+          ? `RLS error: ${error.message}` 
+          : error.message || "Errore nella creazione della proprietà";
+          
+        throw new Error(errorMessage);
       }
 
       if (data) {
@@ -186,6 +200,7 @@ const Properties = () => {
       }
     } catch (error: any) {
       console.error('Error creating property:', error);
+      
       toast({
         variant: "destructive",
         title: "Errore",
