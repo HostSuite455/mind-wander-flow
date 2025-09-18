@@ -114,26 +114,32 @@ export default function CreatePropertyModal({
                 </select>
               </div>
             </div>
+            
+            {/* Error display area */}
+            <div aria-live="polite" aria-atomic="true">
+              {/* Any error messages would go here */}
+            </div>
           </div>
 
-          {/* Sticky footer */}
+          {/* Sticky footer with visible buttons */}
           <div className="sticky bottom-0 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-t p-4 flex justify-end gap-2 mt-auto">
             <button 
               type="button"
               onClick={onClose} 
               disabled={creating} 
-              className="rounded-lg border px-3 py-2 hover:bg-gray-50 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-hostsuite-primary"
+              className="rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-hostsuite-primary/50"
               aria-label="Annulla creazione proprietà"
             >
               Annulla
             </button>
-            <PrimaryButton
+            <button
               type="submit"
               disabled={creating || !form.nome.trim()}
+              className="bg-hostsuite-primary hover:bg-hostsuite-primary/90 text-white font-medium px-4 py-2 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hostsuite-primary/40 disabled:opacity-50 disabled:cursor-not-allowed"
               aria-label={creating ? "Creazione in corso..." : "Crea nuova proprietà"}
             >
               {creating ? "Creazione..." : "Crea Proprietà"}
-            </PrimaryButton>
+            </button>
           </div>
         </form>
       </div>
