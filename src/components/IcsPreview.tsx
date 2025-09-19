@@ -176,3 +176,6 @@ export const IcsPreview = ({ url }: IcsPreviewProps) => {
     </Card>
   );
 };
+
+// Add default export for compatibility
+export default IcsPreview;
