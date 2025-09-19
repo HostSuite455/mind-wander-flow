@@ -14,11 +14,13 @@ export type IcalUrl = {
   updated_at: string;
 };
 
+export type IcalConfigType = 'ota_direct' | 'channel_manager';
+
 export type IcalConfig = {
   id: string;
   property_id: string;
   is_active: boolean;
-  config_type: string;
+  config_type: IcalConfigType;
   channel_manager_name?: string;
   status: string;
   created_at: string;
@@ -266,12 +268,12 @@ export async function unsetPrimaryByConfig(ical_config_id: string) {
 /** Create a new iCal config */
 export async function createIcalConfig({
   property_id,
-  config_type = 'direct',
+  config_type = 'ota_direct',
   channel_manager_name,
   is_active = true
 }: {
   property_id: string;
-  config_type?: string;
+  config_type?: IcalConfigType;
   channel_manager_name?: string;
   is_active?: boolean;
 }) {

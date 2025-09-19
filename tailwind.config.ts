@@ -61,6 +61,12 @@ export default {
           DEFAULT: "hsl(var(--seafoam))",
           light: "hsl(var(--seafoam-light))",
         },
+        // HostSuite theme colors
+        'hostsuite-primary': 'hsl(var(--hostsuite-primary))',
+        'hostsuite-secondary': 'hsl(var(--hostsuite-secondary))',
+        'hostsuite-accent': 'hsl(var(--hostsuite-accent))',
+        'hostsuite-text': 'hsl(var(--hostsuite-primary))',
+        'hostsuite-light': 'hsl(var(--hostsuite-light))',
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -113,5 +119,12 @@ export default {
       },
     },
   },
+  safelist: [
+    // Most used button and badge classes
+    'bg-hostsuite-primary','text-hostsuite-primary','border-hostsuite-primary',
+    'bg-hostsuite-secondary','text-hostsuite-secondary',
+    'bg-hostsuite-accent','text-hostsuite-accent',
+    'hover:bg-hostsuite-primary','hover:text-hostsuite-primary'
+  ],
   plugins: [require("tailwindcss-animate")],
 } satisfies Config;

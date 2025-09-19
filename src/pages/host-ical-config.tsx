@@ -130,7 +130,7 @@ const HostIcalConfig = () => {
       const createConfig = async () => {
         const { data: newConfig } = await createIcalConfig({
           property_id: activePropertyId,
-          config_type: 'direct',
+          config_type: 'ota_direct',
           is_active: true
         });
         
@@ -372,6 +372,10 @@ const HostIcalConfig = () => {
                                 Principale
                               </Badge>
                             )}
+                            {/* Show config type for debugging/support */}
+                            <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700">
+                              OTA Diretto
+                            </Badge>
                           </div>
                           <div className="space-y-1 text-sm text-hostsuite-text">
                             <div className="flex items-center gap-2">
