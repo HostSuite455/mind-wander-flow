@@ -42,7 +42,7 @@ const debugToast = (action: string, error: any) => {
 };
 
 /** List all iCal URLs for a specific property or all properties of the current host */
-export async function listIcalUrls(propertyId?: string): Promise<{ data: IcalUrl[], error: any }> {
+export async function listIcalUrls(propertyId?: string | 'all'): Promise<{ data: IcalUrl[], error: any }> {
   try {
     // Join esplicito: ical_urls -> ical_configs (inner), poi proprietà annidata
     const select = `
@@ -78,7 +78,7 @@ export async function listIcalUrls(propertyId?: string): Promise<{ data: IcalUrl
 }
 
 /** List all iCal configs for a specific property or all properties of the current host */
-export async function listIcalConfigs(propertyId?: string): Promise<{ data: IcalConfig[], error: any }> {
+export async function listIcalConfigs(propertyId?: string | 'all'): Promise<{ data: IcalConfig[], error: any }> {
   try {
     const select = `
       id,

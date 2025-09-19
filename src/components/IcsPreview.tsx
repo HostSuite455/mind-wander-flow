@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { parseICS, CalendarEvent } from "@/lib/ics";
+import { parseICSWithMetadata, ParsedIcsEvent } from "@/lib/ics-parse";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -13,7 +13,7 @@ interface IcsPreviewProps {
 export const IcsPreview = ({ url }: IcsPreviewProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [events, setEvents] = useState<ParsedIcsEvent[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -33,7 +33,7 @@ export const IcsPreview = ({ url }: IcsPreviewProps) => {
         }
         
         const text = await response.text();
-        const parsedEvents = parseICS(text).slice(0, 50);
+        const parsedEvents = parseICSWithMetadata(text).slice(0, 50);
         setEvents(parsedEvents);
       } catch (err) {
         console.error('Failed to fetch ICS:', err);
@@ -142,6 +142,9 @@ export const IcsPreview = ({ url }: IcsPreviewProps) => {
                   <th className="text-left py-2 px-3">Check-in</th>
                   <th className="text-left py-2 px-3">Check-out</th>
                   <th className="text-left py-2 px-3">Titolo</th>
+                  <th className="text-left py-2 px-3">Ospite</th>
+                  <th className="text-left py-2 px-3">Ospiti</th>
+                  <th className="text-left py-2 px-3">Alloggio</th>
                   <th className="text-left py-2 px-3">Stato</th>
                 </tr>
               </thead>
@@ -154,8 +157,17 @@ export const IcsPreview = ({ url }: IcsPreviewProps) => {
                     <td className="py-2 px-3">
                       {event.end ? new Date(event.end).toLocaleDateString('it-IT') : '—'}
                     </td>
-                    <td className="py-2 px-3 max-w-xs truncate">
+                    <td className="py-2 px-3 max-w-xs truncate" title={event.summary}>
                       {event.summary || '—'}
+                    </td>
+                    <td className="py-2 px-3 max-w-xs truncate" title={event.guest_name}>
+                      {event.guest_name || '—'}
+                    </td>
+                    <td className="py-2 px-3 text-center">
+                      {event.guests_count || '—'}
+                    </td>
+                    <td className="py-2 px-3 max-w-xs truncate" title={event.listing_title}>
+                      {event.listing_title || '—'}
                     </td>
                     <td className="py-2 px-3">
                       <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${

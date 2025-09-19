@@ -65,7 +65,7 @@ export default {
         'hostsuite-primary': 'hsl(var(--hostsuite-primary))',
         'hostsuite-secondary': 'hsl(var(--hostsuite-secondary))',
         'hostsuite-accent': 'hsl(var(--hostsuite-accent))',
-        'hostsuite-text': 'hsl(var(--hostsuite-primary))',
+        'hostsuite-text': 'hsl(var(--hostsuite-text))',
         'hostsuite-light': 'hsl(var(--hostsuite-light))',
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
@@ -124,6 +124,7 @@ export default {
     'bg-hostsuite-primary','text-hostsuite-primary','border-hostsuite-primary',
     'bg-hostsuite-secondary','text-hostsuite-secondary',
     'bg-hostsuite-accent','text-hostsuite-accent',
+    'text-hostsuite-text','bg-hostsuite-light',
     'hover:bg-hostsuite-primary','hover:text-hostsuite-primary'
   ],
   plugins: [require("tailwindcss-animate")],
