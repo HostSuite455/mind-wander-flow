@@ -89,6 +89,7 @@ export type Database = {
           is_active: boolean | null
           max_ical_urls: number | null
           property_id: string
+          status: string | null
           subscription_tier: string | null
           updated_at: string | null
         }
@@ -101,6 +102,7 @@ export type Database = {
           is_active?: boolean | null
           max_ical_urls?: number | null
           property_id: string
+          status?: string | null
           subscription_tier?: string | null
           updated_at?: string | null
         }
@@ -113,6 +115,7 @@ export type Database = {
           is_active?: boolean | null
           max_ical_urls?: number | null
           property_id?: string
+          status?: string | null
           subscription_tier?: string | null
           updated_at?: string | null
         }
@@ -134,8 +137,10 @@ export type Database = {
           is_active: boolean | null
           is_primary: boolean | null
           last_sync: string | null
+          last_sync_at: string | null
           last_sync_status: string | null
           ota_name: string
+          source: string | null
           sync_frequency_minutes: number | null
           updated_at: string | null
           url: string
@@ -147,8 +152,10 @@ export type Database = {
           is_active?: boolean | null
           is_primary?: boolean | null
           last_sync?: string | null
+          last_sync_at?: string | null
           last_sync_status?: string | null
           ota_name: string
+          source?: string | null
           sync_frequency_minutes?: number | null
           updated_at?: string | null
           url: string
@@ -160,8 +167,10 @@ export type Database = {
           is_active?: boolean | null
           is_primary?: boolean | null
           last_sync?: string | null
+          last_sync_at?: string | null
           last_sync_status?: string | null
           ota_name?: string
+          source?: string | null
           sync_frequency_minutes?: number | null
           updated_at?: string | null
           url?: string

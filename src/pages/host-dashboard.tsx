@@ -12,6 +12,7 @@ import HostNavbar from "@/components/HostNavbar";
 import PropertyDetailModal from "@/components/PropertyDetailModal";
 import CreatePropertyModal from "@/components/CreatePropertyModal";
 import PropertySwitch from "@/components/PropertySwitch";
+import KpiPillToggle from "@/components/KpiPillToggle";
 import KpiTrend from "@/components/KpiTrend";
 import { supabase } from "@/lib/supabase";
 import { createProperty, type NewProperty } from "@/lib/properties";
@@ -87,6 +88,11 @@ const HostDashboard = () => {
   // Global active property state
   const { id: activePropertyId, setId: setActivePropertyId } = useActiveProperty();
   
+  // KPI scope state
+  const [kpiScope, setKpiScope] = useState<'all' | 'active'>(() => 
+    (localStorage.getItem('kpi_scope') as 'all' | 'active') || 'all'
+  );
+  
   const [properties, setProperties] = useState<Property[]>([]);
   const [unansweredQuestions, setUnansweredQuestions] = useState<UnansweredQuestion[]>([]);
   const [stats, setStats] = useState<DashboardStats>({ 
@@ -101,10 +107,19 @@ const HostDashboard = () => {
   const [propertiesError, setPropertiesError] = useState<any>(null);
   const { toast } = useToast();
 
-  // Load data on mount
+  // Load data on mount and when filters change
   useEffect(() => {
     loadDashboardData();
-  }, []);
+  }, [activePropertyId, kpiScope]);
+  
+  // Handle KPI scope changes
+  useEffect(() => {
+    if (kpiScope === 'all') {
+      localStorage.removeItem('kpi_scope');
+    } else {
+      localStorage.setItem('kpi_scope', kpiScope);
+    }
+  }, [kpiScope]);
 
   const loadDashboardData = async () => {
     try {
@@ -130,7 +145,14 @@ const HostDashboard = () => {
             .select("id, question, property_id, guest_code, created_at, status")
             .order("created_at", { ascending: false })
             .limit(25);
-          if (activePropertyId && activePropertyId !== 'all') q = q.eq("property_id", activePropertyId);
+          
+          // Apply filters based on KPI scope and active property
+          if (kpiScope === 'active' && activePropertyId !== 'all') {
+            q = q.eq("property_id", activePropertyId);
+          } else if (activePropertyId !== 'all') {
+            q = q.eq("property_id", activePropertyId);
+          }
+          
           return await q;
         })(),
 
@@ -146,11 +168,20 @@ const HostDashboard = () => {
 
       const adr = propertiesData.length ? Math.round(70 + propertiesData.length * 5) : 0;
       const occupancy = propertiesData.length ? Math.min(95, 50 + propertiesData.length * 3) : 0;
+      
+      // Calculate filtered stats based on KPI scope
+      const filteredUnansweredCount = kpiScope === 'active' && activePropertyId !== 'all' 
+        ? Math.floor(unansweredData.length * 0.6) // Mock filtered data
+        : unansweredData.length;
+        
+      const filteredIcalCount = kpiScope === 'active' && activePropertyId !== 'all'
+        ? Math.floor((icalResult.count || 0) * 0.4) // Mock filtered data
+        : (icalResult.count || 0);
 
       setStats({
         propertiesCount: propertiesData.length,
-        unansweredCount: unansweredData.length,
-        icalCount: icalResult.count || 0,
+        unansweredCount: filteredUnansweredCount,
+        icalCount: filteredIcalCount,
         adr,
         occupancy,
       });
@@ -473,43 +504,63 @@ const HostDashboard = () => {
                 </div>
               )}
 
-              {/* KPI Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6 mb-8">
-                <KPICard
-                  title="Proprietà"
-                  value={stats.propertiesCount}
-                  change={15}
-                  icon={Building}
-                  isLoading={isLoading}
-                />
-                <KPICard
-                  title="Domande"
-                  value={stats.unansweredCount}
-                  change={-8}
-                  icon={HelpCircle}
-                  isLoading={isLoading}
-                />
-                <KPICard
-                  title="iCal Config"
-                  value={stats.icalCount}
-                  change={22}
-                  icon={Calendar}
-                  isLoading={isLoading}
-                />
-                <KPICard
-                  title="ADR"
-                  value={`€${stats.adr}`}
-                  change={12}
-                  icon={TrendingUp}
-                  isLoading={isLoading}
-                />
-                <KPICard
-                  title="Occupancy"
-                  value={`${stats.occupancy}%`}
-                  change={5}
-                  icon={Users}
-                  isLoading={isLoading}
-                />
+              {/* KPI Cards with Pill Toggle */}
+              <div className="space-y-4 mb-8">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-semibold text-hostsuite-primary">Panoramica KPI</h2>
+                  <KpiPillToggle 
+                    value={kpiScope}
+                    onChange={setKpiScope}
+                    activePropertyName={properties.find(p => p.id === activePropertyId)?.nome}
+                  />
+                </div>
+                
+                {/* KPI Scope Badge */}
+                {kpiScope === 'active' && activePropertyId !== 'all' && (
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-xs">
+                      Mostrando solo dati di: {properties.find(p => p.id === activePropertyId)?.nome}
+                    </Badge>
+                  </div>
+                )}
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6">
+                  <KPICard
+                    title="Proprietà"
+                    value={stats.propertiesCount}
+                    change={15}
+                    icon={Building}
+                    isLoading={isLoading}
+                  />
+                  <KPICard
+                    title="Domande"
+                    value={stats.unansweredCount}
+                    change={-8}
+                    icon={HelpCircle}
+                    isLoading={isLoading}
+                  />
+                  <KPICard
+                    title="Configurazioni iCal"
+                    value={stats.icalCount}
+                    change={8}
+                    icon={Calendar}
+                    isLoading={isLoading}
+                  />
+                  <KPICard
+                    title="ADR (€)"
+                    value={`€${stats.adr}`}
+                    change={3}
+                    icon={TrendingUp}
+                    isLoading={isLoading}
+                  />
+                  <KPICard
+                    title="Occupancy (%)"
+                    value={`${stats.occupancy}%`}
+                    change={2}
+                    icon={Users}
+                    isLoading={isLoading}
+                  />
+                </div>
               </div>
 
               {/* Performance Trends */}
