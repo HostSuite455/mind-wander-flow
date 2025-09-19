@@ -308,6 +308,21 @@ const Calendar = () => {
 
             {/* Main Content */}
             <div className="lg:col-span-3">
+              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-2 text-blue-700 mb-2">
+                  <CalendarIcon className="w-5 h-5" />
+                  <strong>Nuovo: Vista Calendario Prenotazioni</strong>
+                </div>
+                <p className="text-blue-600 text-sm mb-3">
+                  Visualizza le tue prenotazioni in un calendario interattivo stile Smoobu
+                </p>
+                <Button 
+                  onClick={() => window.location.href = '/calendar-pro'}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  Apri Calendario Prenotazioni
+                </Button>
+              </div>
               {filteredData.length === 0 ? (
                 <EmptyState
                   icon={<CalendarIcon className="w-16 h-16 text-hostsuite-primary/30" />}

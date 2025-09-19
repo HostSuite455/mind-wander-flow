@@ -1,215 +1,185 @@
 import { useState, useEffect, useMemo } from "react";
 import FullCalendar from '@fullcalendar/react';
-import dayGridPlugin from '@fullcalendar/daygrid';
 import resourceTimelinePlugin from '@fullcalendar/resource-timeline';
+import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { 
-  Calendar as CalendarIcon, 
-  RefreshCw, 
-  BarChart3,
-  Grid3X3,
-  Info,
-  AlertCircle
-} from "lucide-react";
-import { toast } from "@/hooks/use-toast";
-import HostNavbar from "@/components/HostNavbar";
-import PropertySwitch from "@/components/PropertySwitch";
-import { useActiveProperty } from "@/hooks/useActiveProperty";
-import { supaSelect } from "@/lib/supaSafe";
-import { listIcalUrls, type IcalUrl } from "@/lib/supaIcal";
+import { CalendarIcon, RefreshCw, Users, Building } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { supaSelect, pickName } from "@/lib/supaSafe";
 import { parseAndEnrichICS, IcsEventEnriched } from "@/lib/ics-parse";
+import HostNavbar from "@/components/HostNavbar";
+import { useActiveProperty } from "@/hooks/useActiveProperty";
 
 interface Property {
   id: string;
-  nome: string;
+  nome?: string;
+  name?: string;
   city?: string;
   status?: string;
 }
 
-interface CalendarEvent extends IcsEventEnriched {
+interface IcalUrl {
   id: string;
-  title: string;
-  start: string;
-  end?: string;
-  resourceId?: string;
-  extendedProps: {
-    guests?: number;
-    unit?: string;
-    channel?: string;
-    status?: string;
-    guestName?: string;
+  ical_config_id: string;
+  url: string;
+  source?: string;
+  is_active?: boolean;
+  ical_configs?: {
+    property_id: string;
+    is_active: boolean;
+    properties?: Property;
   };
 }
 
 const CalendarPro = () => {
-  const { id: activePropertyId } = useActiveProperty();
-  
+  const [view, setView] = useState<'multi' | 'single'>('multi');
   const [properties, setProperties] = useState<Property[]>([]);
   const [icalUrls, setIcalUrls] = useState<IcalUrl[]>([]);
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [corsErrors, setCorsErrors] = useState<string[]>([]);
-  
-  // View state
-  const [viewMode, setViewMode] = useState<'single' | 'multi'>('single');
-  const [showActiveOnly, setShowActiveOnly] = useState(false);
+  const [events, setEvents] = useState<IcsEventEnriched[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedProperty, setSelectedProperty] = useState<string>('all');
+  const { id: activePropertyId } = useActiveProperty();
+  const { toast } = useToast();
 
   useEffect(() => {
     loadCalendarData();
-  }, [activePropertyId]);
+  }, []);
 
   const loadCalendarData = async () => {
-    setLoading(true);
-    setError(null);
-    setCorsErrors([]);
-    
     try {
-      // Load properties
-      const { data: propertiesData, error: propertiesError } = await supaSelect<Property>(
-        'properties', 
-        'id,nome,city,status'
-      );
-      if (propertiesError) throw propertiesError;
-      setProperties(propertiesData || []);
-
-      // Load iCal URLs (filtered by active property if not 'all')
-      const { data: urlsData, error: urlsError } = await listIcalUrls(
-        activePropertyId !== 'all' ? activePropertyId : undefined
-      );
-      if (urlsError) throw urlsError;
+      setIsLoading(true);
       
-      const activeUrls = (urlsData || []).filter(url => url.is_active);
-      setIcalUrls(activeUrls);
+      // Load properties and iCal URLs
+      const [propertiesResult, icalUrlsResult] = await Promise.all([
+        supaSelect<Property>('properties', '*'),
+        supaSelect<IcalUrl>('ical_urls', `
+          id, url, source, is_active, ical_config_id,
+          ical_configs!inner(
+            property_id, is_active,
+            properties:property_id(id, nome)
+          )
+        `)
+      ]);
 
-      // Fetch and parse iCal data
-      await fetchAllIcalData(activeUrls);
+      const props = propertiesResult.data || [];
+      const urls = icalUrlsResult.data || [];
+      
+      setProperties(props);
+      setIcalUrls(urls);
 
+      // Fetch and parse all iCal feeds
+      const allEvents: IcsEventEnriched[] = [];
+      
+      for (const url of urls.slice(0, 10)) { // Limit to prevent too many requests
+        try {
+          const response = await fetch(url.url, { mode: 'cors' });
+          if (response.ok) {
+            const icsText = await response.text();
+            const parsedEvents = parseAndEnrichICS(icsText);
+            
+            // Add property info to events
+            const propertyId = url.ical_configs?.property_id;
+            const property = props.find(p => p.id === propertyId);
+            
+            parsedEvents.forEach(event => {
+              (event as any).propertyId = propertyId;
+              (event as any).propertyName = property ? pickName(property) : 'Unknown';
+              (event as any).source = url.source || 'Unknown';
+            });
+            
+            allEvents.push(...parsedEvents);
+          }
+        } catch (err) {
+          console.warn('Failed to fetch iCal:', url.url, err);
+        }
+      }
+      
+      setEvents(allEvents);
+      
     } catch (err) {
       console.error('Error loading calendar data:', err);
-      setError('Errore nel caricamento dei dati del calendario');
       toast({
+        variant: "destructive",
         title: "Errore",
-        description: "Errore nel caricamento dei dati",
-        variant: "destructive"
+        description: "Errore nel caricamento del calendario",
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const fetchAllIcalData = async (urls: IcalUrl[]) => {
-    const allEvents: CalendarEvent[] = [];
-    const corsErrorUrls: string[] = [];
-
-    for (const url of urls) {
-      try {
-        // Try with CORS first
-        let response = await fetch(url.url, { mode: 'cors' });
-        
-        if (!response.ok) {
-          // Retry with no-cors - but this won't give us the actual content
-          response = await fetch(url.url, { mode: 'no-cors' });
-          if (!response.ok) {
-            throw new Error('CORS blocked');
-          }
-        }
-        
-        const text = await response.text();
-        const parsedEvents = parseAndEnrichICS(text);
-        
-        // Convert to FullCalendar format
-        const calendarEvents: CalendarEvent[] = parsedEvents.map(event => ({
-          ...event,
-          id: event.uid || `${url.id}-${event.start}`,
-          title: event.guestName || event.summary || 'Prenotazione',
-          start: event.start || '',
-          end: event.end,
-          resourceId: getPropertyIdFromUrl(url),
-          extendedProps: {
-            guests: event.guestsCount,
-            unit: event.unitName,
-            channel: event.channel,
-            status: event.status,
-            guestName: event.guestName
-          }
-        }));
-        
-        allEvents.push(...calendarEvents);
-        
-      } catch (err) {
-        console.error(`Failed to fetch iCal from ${url.source}:`, err);
-        corsErrorUrls.push(url.source || url.url);
-      }
-    }
-    
-    setEvents(allEvents);
-    setCorsErrors(corsErrorUrls);
-  };
-
-  const getPropertyIdFromUrl = (url: IcalUrl): string => {
-    // Get property_id from the related ical_config
-    return (url as any).ical_configs?.property_id || 'unknown';
-  };
-
-  // Filter events for active properties only
+  // Filter events by active property and selected property
   const filteredEvents = useMemo(() => {
-    if (!showActiveOnly) return events;
+    const effectiveFilter = activePropertyId === 'all' ? selectedProperty : activePropertyId;
     
-    const activePropertyIds = properties
-      .filter(p => p.status === 'active')
-      .map(p => p.id);
-    
-    return events.filter(event => 
-      activePropertyIds.includes(event.resourceId || '')
-    );
-  }, [events, properties, showActiveOnly]);
+    return events.filter(event => {
+      if (effectiveFilter === 'all') return true;
+      return (event as any).propertyId === effectiveFilter;
+    });
+  }, [events, activePropertyId, selectedProperty]);
 
   // Prepare resources for timeline view
   const resources = useMemo(() => {
-    return properties.map(property => ({
-      id: property.id,
-      title: property.nome,
-      extendedProps: {
-        city: property.city,
-        status: property.status
-      }
-    }));
-  }, [properties]);
-
-  const eventContent = (eventInfo: any) => {
-    const { event } = eventInfo;
-    const { guests, channel, guestName } = event.extendedProps;
+    const effectiveFilter = activePropertyId === 'all' ? selectedProperty : activePropertyId;
     
-    return (
-      <div className="p-1 text-xs">
-        <div className="font-medium truncate">{guestName || event.title}</div>
-        <div className="flex items-center gap-1 mt-1">
-          {guests && (
-            <span className="bg-white/20 px-1 rounded">{guests}👥</span>
-          )}
-          {channel && (
-            <span className="bg-white/20 px-1 rounded capitalize">{channel}</span>
-          )}
-        </div>
-      </div>
-    );
+    let availableProperties = properties;
+    if (effectiveFilter !== 'all') {
+      availableProperties = properties.filter(p => p.id === effectiveFilter);
+    }
+    
+    return availableProperties.map(property => ({
+      id: property.id,
+      title: pickName(property),
+      city: property.city
+    }));
+  }, [properties, activePropertyId, selectedProperty]);
+
+  // Convert events to FullCalendar format
+  const fcEvents = useMemo(() => {
+    return filteredEvents.map((event, index) => ({
+      id: event.uid || `event-${index}`,
+      title: event.guestName || event.summary || 'Prenotazione',
+      start: event.start,
+      end: event.end,
+      resourceId: (event as any).propertyId,
+      extendedProps: {
+        guestName: event.guestName,
+        guestsCount: event.guestsCount,
+        channel: event.channel,
+        status: event.statusHuman,
+        unit: event.unitName,
+        source: (event as any).source,
+        summary: event.summary
+      },
+      className: `calendar-event calendar-event-${event.channel}`,
+      backgroundColor: getChannelColor(event.channel),
+      borderColor: getChannelColor(event.channel, true)
+    }));
+  }, [filteredEvents]);
+
+  const getChannelColor = (channel?: string, border = false) => {
+    const colors = {
+      'airbnb': border ? '#FF385C' : '#FF385C20',
+      'booking.com': border ? '#003580' : '#00358020',
+      'vrbo': border ? '#1866B4' : '#1866B420',
+      'smoobu': border ? '#FF6B35' : '#FF6B3520',
+      'other': border ? '#6B7280' : '#6B728020'
+    };
+    return colors[channel as keyof typeof colors] || colors.other;
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
         <HostNavbar />
-        <div className="pt-20 container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="space-y-6">
-            <Skeleton className="h-16 w-full" />
+        <div className="pt-16">
+          <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <Skeleton className="h-16 w-full mb-6" />
             <Skeleton className="h-96 w-full" />
           </div>
         </div>
@@ -220,202 +190,155 @@ const CalendarPro = () => {
   return (
     <div className="min-h-screen bg-background">
       <HostNavbar />
-      <div className="pt-20 container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-hostsuite-primary flex items-center gap-3">
-                <CalendarIcon className="w-8 h-8" />
-                Calendario Pro
-              </h1>
-              <p className="text-hostsuite-text/60 mt-2">
-                Vista calendario avanzata delle prenotazioni sincronizzate
-              </p>
+      <div className="pt-16">
+        <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          
+          {/* Header */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h1 className="text-3xl font-bold text-hostsuite-primary flex items-center gap-3">
+                  <CalendarIcon className="w-8 h-8" />
+                  Calendario Prenotazioni
+                </h1>
+                <p className="text-hostsuite-text/60 mt-2">
+                  Vista calendario in stile Smoobu delle tue prenotazioni
+                </p>
+              </div>
+              <Button onClick={loadCalendarData} disabled={isLoading}>
+                <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                Aggiorna
+              </Button>
             </div>
-            <Button onClick={loadCalendarData} disabled={loading}>
-              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Aggiorna
-            </Button>
-          </div>
-        </div>
 
-        {/* CORS Errors Alert */}
-        {corsErrors.length > 0 && (
-          <Alert className="mb-6">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              CORS bloccato per: {corsErrors.join(', ')}. 
-              Configura CORS lato sorgente o usa un proxy Edge Function.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Controls */}
-        <Card className="mb-6">
-          <CardContent className="p-4">
-            <div className="flex flex-wrap items-center gap-6">
-              
-              {/* View Mode Toggle */}
+            {/* Controls */}
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <Label className="text-sm font-medium">Vista:</Label>
-                <div className="flex items-center gap-2">
+                {/* View Toggle */}
+                <div className="flex bg-muted rounded-lg p-1">
                   <Button
-                    variant={viewMode === 'single' ? 'default' : 'outline'}
+                    variant={view === 'multi' ? "default" : "ghost"}
                     size="sm"
-                    onClick={() => setViewMode('single')}
-                    className="flex items-center gap-2"
+                    onClick={() => setView('multi')}
+                    className="text-xs"
                   >
-                    <Grid3X3 className="w-4 h-4" />
-                    Mensile
+                    <Building className="w-4 h-4 mr-1" />
+                    Multi
                   </Button>
                   <Button
-                    variant={viewMode === 'multi' ? 'default' : 'outline'}
+                    variant={view === 'single' ? "default" : "ghost"}
                     size="sm"
-                    onClick={() => setViewMode('multi')}
-                    className="flex items-center gap-2"
+                    onClick={() => setView('single')}
+                    className="text-xs"
                   >
-                    <BarChart3 className="w-4 h-4" />
-                    Timeline
+                    <Users className="w-4 h-4 mr-1" />
+                    Singola
                   </Button>
                 </div>
-              </div>
 
-              {/* Active Only Filter */}
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="active-only"
-                  checked={showActiveOnly}
-                  onCheckedChange={setShowActiveOnly}
-                />
-                <Label htmlFor="active-only" className="text-sm">
-                  Solo proprietà attive
-                </Label>
+                {/* Property Filter */}
+                {activePropertyId === 'all' && (
+                  <Select value={selectedProperty} onValueChange={setSelectedProperty}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Tutte le proprietà" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tutte le proprietà</SelectItem>
+                      {properties.map((prop) => (
+                        <SelectItem key={prop.id} value={prop.id}>
+                          {pickName(prop)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               {/* Stats */}
               <div className="flex items-center gap-4 text-sm text-hostsuite-text/60">
                 <span>{filteredEvents.length} prenotazioni</span>
-                <span>{properties.length} proprietà</span>
-                <span>{icalUrls.length} feed iCal</span>
+                <span>{resources.length} proprietà</span>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Calendar */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              {viewMode === 'single' ? (
-                <>
-                  <Grid3X3 className="w-5 h-5" />
-                  Vista Mensile
-                </>
-              ) : (
-                <>
-                  <BarChart3 className="w-5 h-5" />
-                  Timeline Proprietà
-                </>
-              )}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {filteredEvents.length === 0 ? (
-              <div className="text-center py-12">
-                <CalendarIcon className="w-16 h-16 text-hostsuite-primary/30 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-hostsuite-text mb-2">
-                  Nessuna prenotazione
-                </h3>
-                <p className="text-hostsuite-text/60">
-                  {icalUrls.length === 0 
-                    ? 'Configura i link iCal per vedere le prenotazioni' 
-                    : 'Controlla i filtri o verifica i feed iCal'
+          {/* Calendar */}
+          <Card>
+            <CardContent className="p-6">
+              <FullCalendar
+                plugins={[resourceTimelinePlugin, dayGridPlugin, interactionPlugin]}
+                initialView={view === 'multi' ? 'resourceTimelineMonth' : 'dayGridMonth'}
+                headerToolbar={{
+                  left: 'prev,next today',
+                  center: 'title',
+                  right: view === 'multi' ? 'resourceTimelineMonth,resourceTimelineWeek' : 'dayGridMonth,dayGridWeek'
+                }}
+                resources={view === 'multi' ? resources : []}
+                events={fcEvents}
+                height="auto"
+                selectable={false}
+                resourceAreaWidth="200px"
+                resourceAreaHeaderContent="Proprietà"
+                slotMinWidth={40}
+                eventDidMount={(info) => {
+                  const { guestName, guestsCount, channel, status, unit, source } = info.event.extendedProps;
+                  
+                  // Tooltip
+                  const tooltipParts = [
+                    guestName ? `Ospite: ${guestName}` : '',
+                    typeof guestsCount === 'number' ? `Ospiti: ${guestsCount}` : '',
+                    channel ? `Canale: ${channel}` : '',
+                    unit ? `Alloggio: ${unit}` : '',
+                    source ? `Fonte: ${source}` : '',
+                    status ? `Stato: ${status}` : ''
+                  ].filter(Boolean);
+                  
+                  info.el.title = tooltipParts.join('\n');
+                  
+                  // Add channel badge if space allows
+                  if (channel && channel !== 'other') {
+                    const badge = document.createElement('span');
+                    badge.className = 'text-xs opacity-75 font-medium';
+                    badge.textContent = channel.charAt(0).toUpperCase();
+                    badge.style.marginLeft = '4px';
+                    info.el.querySelector('.fc-event-title')?.appendChild(badge);
                   }
-                </p>
-              </div>
-            ) : (
-              <div className="calendar-container">
-                <FullCalendar
-                  plugins={[dayGridPlugin, resourceTimelinePlugin, interactionPlugin]}
-                  initialView={viewMode === 'single' ? 'dayGridMonth' : 'resourceTimelineMonth'}
-                  headerToolbar={{
-                    left: 'prev,next today',
-                    center: 'title',
-                    right: viewMode === 'single' ? 'dayGridMonth,dayGridWeek' : 'resourceTimelineMonth,resourceTimelineWeek'
-                  }}
-                  resources={viewMode === 'multi' ? resources : undefined}
-                  events={filteredEvents}
-                  eventContent={eventContent}
-                  height="auto"
-                  locale="it"
-                  firstDay={1} // Monday
-                  eventClassNames="cursor-pointer"
-                  eventClick={(info) => {
-                    const { event } = info;
-                    const props = event.extendedProps;
-                    
-                    toast({
-                      title: event.title,
-                      description: `
-                        ${props.guestName ? `Ospite: ${props.guestName}` : ''}
-                        ${props.guests ? ` • ${props.guests} ospiti` : ''}
-                        ${props.channel ? ` • ${props.channel}` : ''}
-                        ${props.unit ? ` • ${props.unit}` : ''}
-                      `.trim()
-                    });
-                  }}
-                  eventDidMount={(info) => {
-                    const { event } = info;
-                    const { channel } = event.extendedProps;
-                    
-                    // Color events by channel
-                    const colors = {
-                      airbnb: '#FF5A5F',
-                      'booking.com': '#003580',
-                      vrbo: '#7B2CBF',
-                      smoobu: '#FF8C00',
-                      other: '#6B7280'
-                    };
-                    
-                    info.el.style.backgroundColor = colors[channel as keyof typeof colors] || colors.other;
-                    info.el.style.borderColor = colors[channel as keyof typeof colors] || colors.other;
-                  }}
-                />
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                }}
+                locale="it"
+                firstDay={1}
+                weekends={true}
+                dayMaxEvents={false}
+                eventDisplay="block"
+              />
+            </CardContent>
+          </Card>
 
-        {/* Channel Legend */}
-        {filteredEvents.length > 0 && (
+          {/* Legend */}
           <Card className="mt-6">
             <CardHeader>
               <CardTitle className="text-lg">Legenda Canali</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-3">
-                <Badge style={{ backgroundColor: '#FF5A5F', color: 'white' }}>
-                  Airbnb
-                </Badge>
-                <Badge style={{ backgroundColor: '#003580', color: 'white' }}>
-                  Booking.com
-                </Badge>
-                <Badge style={{ backgroundColor: '#7B2CBF', color: 'white' }}>
-                  VRBO
-                </Badge>
-                <Badge style={{ backgroundColor: '#FF8C00', color: 'white' }}>
-                  Smoobu
-                </Badge>
-                <Badge style={{ backgroundColor: '#6B7280', color: 'white' }}>
-                  Altro
-                </Badge>
+                {[
+                  { channel: 'airbnb', name: 'Airbnb' },
+                  { channel: 'booking.com', name: 'Booking.com' },
+                  { channel: 'vrbo', name: 'VRBO' },
+                  { channel: 'smoobu', name: 'Smoobu' },
+                  { channel: 'other', name: 'Altri' }
+                ].map(({ channel, name }) => (
+                  <div key={channel} className="flex items-center gap-2">
+                    <div 
+                      className="w-4 h-4 rounded"
+                      style={{ backgroundColor: getChannelColor(channel) }}
+                    />
+                    <span className="text-sm text-hostsuite-text">{name}</span>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
-        )}
-
+        </div>
       </div>
     </div>
   );

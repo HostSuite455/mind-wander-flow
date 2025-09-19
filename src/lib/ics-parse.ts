@@ -49,8 +49,8 @@ const rx = {
   airbnbConfirmed: /reservation\s+confirmed\s*[–-]\s*(.+)/i,
 };
 
-function detectChannel(summary?: string, desc?: string): IcsEventEnriched['channel'] {
-  const s = `${summary ?? ''} ${desc ?? ''}`.toLowerCase();
+function detectChannel(summary?: string, desc?: string, location?: string): IcsEventEnriched['channel'] {
+  const s = `${summary ?? ''} ${desc ?? ''} ${location ?? ''}`.toLowerCase();
   if (s.includes('booking.com')) return 'booking.com';
   if (s.includes('airbnb')) return 'airbnb';
   if (s.includes('vrbo')) return 'vrbo';
@@ -67,7 +67,7 @@ function mapStatus(status?: string): IcsEventEnriched['statusHuman'] {
 }
 
 export function enrichIcsEvent(ev: IcsEventRaw): IcsEventEnriched {
-  const channel = detectChannel(ev.summary, ev.description);
+  const channel = detectChannel(ev.summary, ev.description, ev.location);
   const desc = (ev.description || '').replace(/\\n/g, '\n');
 
   // 1) guestName from ATTENDEE/ORGANIZER (CN=...)
@@ -106,6 +106,11 @@ export function enrichIcsEvent(ev: IcsEventRaw): IcsEventEnriched {
   if (!guestName && ev.summary) {
     const airbnbMatch = ev.summary.match(rx.airbnbConfirmed);
     if (airbnbMatch) guestName = airbnbMatch[1].trim();
+  }
+
+  // 6) For "Not available" events, try to extract from location or show as blocked
+  if (!guestName && ev.summary === 'Not available') {
+    guestName = 'Occupato';
   }
 
   // guests count

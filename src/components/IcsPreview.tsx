@@ -267,10 +267,9 @@ export const IcsPreview = ({ url }: IcsPreviewProps) => {
               </thead>
               <tbody>
                 {filteredEvents.map((event, index) => {
-                  const eventKey = event.uid || index;
+                  const eventKey = event.uid || `event-${index}`;
                   return (
-                    <>
-                      <tr key={eventKey} className="border-b hover:bg-muted/50">
+                    <tr key={eventKey} className="border-b hover:bg-muted/50">
                         <td className="py-2 px-3 whitespace-nowrap">
                           {event.start ? new Date(event.start).toLocaleDateString('it-IT') : '—'}
                         </td>
@@ -308,19 +307,18 @@ export const IcsPreview = ({ url }: IcsPreviewProps) => {
                               </CollapsibleContent>
                             </Collapsible>
                           </td>
-                        )}
-                      </tr>
-                    </>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-};
+                         )}
+                       </tr>
+                     );
+                   })}
+                 </tbody>
+               </table>
+             </div>
+           )}
+         </CardContent>
+       </Card>
+     );
+   };
 
-// Add default export for compatibility
-export default IcsPreview;
+   // Add default export for compatibility
+   export default IcsPreview;
