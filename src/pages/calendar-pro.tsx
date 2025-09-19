@@ -14,6 +14,7 @@ import { supaSelect, pickName } from "@/lib/supaSafe";
 import { parseAndEnrichICS, IcsEventEnriched } from "@/lib/ics-parse";
 import HostNavbar from "@/components/HostNavbar";
 import { useActiveProperty } from "@/hooks/useActiveProperty";
+import "@/styles/fullcalendar.css";
 
 interface Property {
   id: string;
@@ -123,6 +124,13 @@ const CalendarPro = () => {
     });
   }, [events, activePropertyId, selectedProperty]);
 
+  // Heuristic: Smoobu 'Not available' feed without guest details
+  const hasLimitedDetails = useMemo(() => {
+    if (!filteredEvents.length) return false;
+    const blocked = filteredEvents.filter(ev => (ev.summary || '').toLowerCase() === 'not available' && !ev.guestName);
+    return blocked.length / filteredEvents.length > 0.6;
+  }, [filteredEvents]);
+
   // Prepare resources for timeline view
   const resources = useMemo(() => {
     const effectiveFilter = activePropertyId === 'all' ? selectedProperty : activePropertyId;
@@ -153,25 +161,30 @@ const CalendarPro = () => {
 
   // Convert events to FullCalendar format
   const fcEvents = useMemo(() => {
-    return filteredEvents.map((event, index) => ({
-      id: event.uid || `event-${index}`,
-      title: event.guestName || event.summary || 'Prenotazione',
-      start: event.start,
-      end: event.end,
-      resourceId: (event as any).propertyId,
-      extendedProps: {
-        guestName: event.guestName,
-        guestsCount: event.guestsCount,
-        channel: event.channel,
-        status: event.statusHuman,
-        unit: event.unitName,
-        source: (event as any).source,
-        summary: event.summary
-      },
-      className: `calendar-event calendar-event-${event.channel}`,
-      backgroundColor: getChannelColor(event.channel),
-      borderColor: getChannelColor(event.channel, true)
-    }));
+    return filteredEvents.map((event, index) => {
+      const title = event.guestName || (
+        event.summary && event.summary.toLowerCase() !== 'not available'
+          ? event.summary
+          : 'Occupato'
+      );
+      return {
+        id: event.uid || `event-${index}`,
+        title,
+        start: event.start,
+        end: event.end,
+        resourceId: (event as any).propertyId,
+        extendedProps: {
+          guestName: event.guestName,
+          guestsCount: event.guestsCount,
+          channel: event.channel,
+          status: event.statusHuman,
+          unit: event.unitName,
+          source: (event as any).source,
+          summary: event.summary
+        },
+        className: `calendar-event calendar-event-${event.channel || 'other'}`
+      };
+    });
   }, [filteredEvents]);
 
   if (isLoading) {
@@ -264,6 +277,13 @@ const CalendarPro = () => {
           </div>
 
           {/* Calendar */}
+          {hasLimitedDetails && (
+            <Card className="mb-4 border-amber-200 bg-amber-50">
+              <CardContent className="py-4 text-amber-800 text-sm">
+                Il link iCal Smoobu in uso sembra essere l'ICS di disponibilità (solo "Not available"). Non contiene nomi/ospiti. Per vedere i dettagli usa l'ICS "Prenotazioni" in Smoobu oppure collega l'API. Nel frattempo mostriamo "Occupato".
+              </CardContent>
+            </Card>
+          )}
           <Card>
             <CardContent className="p-6">
               <FullCalendar
@@ -278,38 +298,35 @@ const CalendarPro = () => {
                 events={fcEvents}
                 height="auto"
                 selectable={false}
-                resourceAreaWidth="200px"
+                resourceAreaWidth="220px"
                 resourceAreaHeaderContent="Proprietà"
                 slotMinWidth={40}
-                eventDidMount={(info) => {
-                  const { guestName, guestsCount, channel, status, unit, source } = info.event.extendedProps;
-                  
-                  // Tooltip
-                  const tooltipParts = [
-                    guestName ? `Ospite: ${guestName}` : '',
-                    typeof guestsCount === 'number' ? `Ospiti: ${guestsCount}` : '',
-                    channel ? `Canale: ${channel}` : '',
-                    unit ? `Alloggio: ${unit}` : '',
-                    source ? `Fonte: ${source}` : '',
-                    status ? `Stato: ${status}` : ''
-                  ].filter(Boolean);
-                  
-                  info.el.title = tooltipParts.join('\n');
-                  
-                  // Add channel badge if space allows
-                  if (channel && channel !== 'other') {
-                    const badge = document.createElement('span');
-                    badge.className = 'text-xs opacity-75 font-medium';
-                    badge.textContent = channel.charAt(0).toUpperCase();
-                    badge.style.marginLeft = '4px';
-                    info.el.querySelector('.fc-event-title')?.appendChild(badge);
-                  }
-                }}
+                nowIndicator={true}
                 locale="it"
                 firstDay={1}
                 weekends={true}
                 dayMaxEvents={false}
                 eventDisplay="block"
+                eventContent={(arg) => {
+                  const { guestName, guestsCount, channel, status, unit } = arg.event.extendedProps as any;
+                  const ch = (channel || 'other') as string;
+                  const initial = ch.startsWith('booking') ? 'B' : ch.startsWith('airbnb') ? 'A' : ch.startsWith('vrbo') ? 'V' : 'S';
+                  const title = guestName || arg.event.title;
+                  // Tooltip text
+                  const tooltip = [
+                    guestName ? `Ospite: ${guestName}` : '',
+                    typeof guestsCount === 'number' ? `Ospiti: ${guestsCount}` : '',
+                    status ? `Stato: ${status}` : '',
+                    unit ? `Alloggio: ${unit}` : ''
+                  ].filter(Boolean).join('\n');
+                  return (
+                    <div className="flex items-center gap-2 px-2 py-1" title={tooltip}>
+                      <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-semibold chip-${ch}`}>{initial}</span>
+                      <span className="truncate text-xs font-medium">{title}</span>
+                      {typeof guestsCount === 'number' && <span className="text-[10px] text-muted-foreground ml-1">({guestsCount})</span>}
+                    </div>
+                  );
+                }}
               />
             </CardContent>
           </Card>

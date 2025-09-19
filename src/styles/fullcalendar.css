@@ -1,0 +1,47 @@
+/* FullCalendar custom styles with design tokens (HSL) */
+
+/* Channel color tokens - rely on CSS variables defined in index.css */
+:root {
+  --channel-airbnb: 350 84% 60%;
+  --channel-booking: 223 100% 35%;
+  --channel-vrbo: 210 65% 40%;
+  --channel-smoobu: var(--hostsuite-secondary);
+  --channel-other: 215 15% 58%;
+}
+
+/* Base event look */
+.calendar-event {
+  border-width: 1px;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+/* Channel themed backgrounds (subtle) and borders */
+.calendar-event-airbnb { background-color: hsl(var(--channel-airbnb) / 0.18); border-color: hsl(var(--channel-airbnb)); }
+.calendar-event-booking\.com { background-color: hsl(var(--channel-booking) / 0.18); border-color: hsl(var(--channel-booking)); }
+.calendar-event-vrbo { background-color: hsl(var(--channel-vrbo) / 0.18); border-color: hsl(var(--channel-vrbo)); }
+.calendar-event-smoobu { background-color: hsl(var(--channel-smoobu) / 0.18); border-color: hsl(var(--channel-smoobu)); }
+.calendar-event-other { background-color: hsl(var(--channel-other) / 0.18); border-color: hsl(var(--channel-other)); }
+
+/* Small round channel chip */
+.chip-airbnb { background-color: hsl(var(--channel-airbnb)); color: white; }
+.chip-booking\.com { background-color: hsl(var(--channel-booking)); color: white; }
+.chip-vrbo { background-color: hsl(var(--channel-vrbo)); color: white; }
+.chip-smoobu { background-color: hsl(var(--channel-smoobu)); color: white; }
+.chip-other { background-color: hsl(var(--channel-other)); color: white; }
+
+/* Tweak FullCalendar headers slightly for a cleaner look */
+.fc .fc-toolbar-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.fc .fc-button-primary {
+  background: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+  border: 1px solid hsl(var(--border));
+}
+
+.fc .fc-daygrid-event, .fc .fc-timeline-event {
+  padding: 0 !important;
+}
