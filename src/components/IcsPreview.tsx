@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
-import { parseICSWithMetadata, ParsedIcsEvent } from "@/lib/ics-parse";
+import { parseAndEnrichICS, IcsEventEnriched } from "@/lib/ics-parse";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CalendarIcon, SearchIcon } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CalendarIcon, SearchIcon, FilterIcon } from "lucide-react";
 
 interface IcsPreviewProps {
   url: string;
@@ -13,10 +14,11 @@ interface IcsPreviewProps {
 export const IcsPreview = ({ url }: IcsPreviewProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [events, setEvents] = useState<ParsedIcsEvent[]>([]);
+  const [events, setEvents] = useState<IcsEventEnriched[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [channelFilter, setChannelFilter] = useState<string>("all");
 
   useEffect(() => {
     const fetchICS = async () => {
@@ -33,7 +35,7 @@ export const IcsPreview = ({ url }: IcsPreviewProps) => {
         }
         
         const text = await response.text();
-        const parsedEvents = parseICSWithMetadata(text).slice(0, 50);
+        const parsedEvents = parseAndEnrichICS(text).slice(0, 200);
         setEvents(parsedEvents);
       } catch (err) {
         console.error('Failed to fetch ICS:', err);
@@ -52,15 +54,50 @@ export const IcsPreview = ({ url }: IcsPreviewProps) => {
     return events.filter(event => {
       const matchesSearch = !searchTerm || 
         (event.summary?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-        (event.guest_name?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+        (event.guestName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+        (event.unitName?.toLowerCase() || '').includes(searchTerm.toLowerCase());
       
       const eventDate = event.start?.split('T')[0] || event.start;
       const matchesDateRange = (!startDate || eventDate >= startDate) && 
                               (!endDate || eventDate <= endDate);
       
-      return matchesSearch && matchesDateRange;
+      const matchesChannel = channelFilter === 'all' || event.channel === channelFilter;
+      
+      return matchesSearch && matchesDateRange && matchesChannel;
     });
-  }, [events, searchTerm, startDate, endDate]);
+  }, [events, searchTerm, startDate, endDate, channelFilter]);
+
+  const StatusBadge = ({ value }: { value?: string }) => {
+    const status = value?.toLowerCase();
+    const className = status?.includes('cancel') ? 'bg-red-100 text-red-800'
+      : status?.includes('provv') ? 'bg-yellow-100 text-yellow-800'
+      : status?.includes('conferm') ? 'bg-green-100 text-green-800'
+      : 'bg-gray-100 text-gray-800';
+    
+    return (
+      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${className}`}>
+        {value || 'Sconosciuto'}
+      </span>
+    );
+  };
+
+  const ChannelBadge = ({ channel }: { channel?: string }) => {
+    const getChannelColor = (ch?: string) => {
+      switch (ch) {
+        case 'airbnb': return 'bg-pink-100 text-pink-800';
+        case 'booking.com': return 'bg-blue-100 text-blue-800';
+        case 'vrbo': return 'bg-purple-100 text-purple-800';
+        case 'smoobu': return 'bg-orange-100 text-orange-800';
+        default: return 'bg-gray-100 text-gray-800';
+      }
+    };
+    
+    return (
+      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getChannelColor(channel)}`}>
+        {channel || 'other'}
+      </span>
+    );
+  };
 
   if (loading) {
     return (
@@ -104,7 +141,7 @@ export const IcsPreview = ({ url }: IcsPreviewProps) => {
             <div className="relative">
               <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Cerca per titolo o ospite..."
+                placeholder="Cerca per titolo, ospite o alloggio..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -126,6 +163,19 @@ export const IcsPreview = ({ url }: IcsPreviewProps) => {
               onChange={(e) => setEndDate(e.target.value)}
               className="w-40"
             />
+            <Select value={channelFilter} onValueChange={setChannelFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutti i canali</SelectItem>
+                <SelectItem value="airbnb">Airbnb</SelectItem>
+                <SelectItem value="booking.com">Booking.com</SelectItem>
+                <SelectItem value="vrbo">VRBO</SelectItem>
+                <SelectItem value="smoobu">Smoobu</SelectItem>
+                <SelectItem value="other">Altro</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </CardHeader>
@@ -146,6 +196,7 @@ export const IcsPreview = ({ url }: IcsPreviewProps) => {
                   <th className="text-left py-2 px-3">Ospite</th>
                   <th className="text-left py-2 px-3">Ospiti</th>
                   <th className="text-left py-2 px-3">Alloggio</th>
+                  <th className="text-left py-2 px-3">Canale</th>
                   <th className="text-left py-2 px-3">Stato</th>
                 </tr>
               </thead>
@@ -161,23 +212,20 @@ export const IcsPreview = ({ url }: IcsPreviewProps) => {
                     <td className="py-2 px-3 max-w-xs truncate" title={event.summary}>
                       {event.summary || '—'}
                     </td>
-                    <td className="py-2 px-3 max-w-xs truncate" title={event.guest_name}>
-                      {event.guest_name || '—'}
+                    <td className="py-2 px-3 max-w-xs truncate" title={event.guestName}>
+                      {event.guestName || '—'}
                     </td>
                     <td className="py-2 px-3 text-center">
-                      {event.guests_count || '—'}
+                      {typeof event.guestsCount === 'number' ? event.guestsCount : '—'}
                     </td>
-                    <td className="py-2 px-3 max-w-xs truncate" title={event.listing_title}>
-                      {event.listing_title || '—'}
+                    <td className="py-2 px-3 max-w-xs truncate" title={event.unitName}>
+                      {event.unitName || '—'}
                     </td>
                     <td className="py-2 px-3">
-                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                        event.status?.toLowerCase() === 'confirmed' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {event.status || 'Sconosciuto'}
-                      </span>
+                      <ChannelBadge channel={event.channel} />
+                    </td>
+                    <td className="py-2 px-3">
+                      <StatusBadge value={event.status} />
                     </td>
                   </tr>
                 ))}

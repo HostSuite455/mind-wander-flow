@@ -1,6 +1,24 @@
 // Advanced ICS parsing utilities for extracting booking metadata
 import { CalendarEvent } from "@/lib/ics";
 
+export interface IcsEventRaw {
+  uid?: string;
+  start?: string;
+  end?: string;
+  summary?: string;
+  description?: string;
+  status?: string;
+  location?: string;
+}
+
+export interface IcsEventEnriched extends IcsEventRaw {
+  guestName?: string;
+  guestsCount?: number;
+  unitName?: string;
+  channel?: 'airbnb' | 'booking.com' | 'vrbo' | 'smoobu' | 'other';
+}
+
+// Legacy interface for backward compatibility
 export interface ParsedIcsEvent extends CalendarEvent {
   guest_name?: string;
   guests_count?: number;
@@ -10,36 +28,121 @@ export interface ParsedIcsEvent extends CalendarEvent {
   attendees?: string[];
 }
 
-export function enrichIcsEvent(rawEvent: CalendarEvent, description?: string, attendees?: string[]): ParsedIcsEvent {
-  const event: ParsedIcsEvent = { ...rawEvent };
+// Enhanced regex patterns for robust parsing
+const rx = {
+  guestLine: /(guest(?: name)?|ospite|name)\s*:\s*([^\n,]+)/i,
+  pax: /(guests?|ospiti|pax|persons?)\s*:\s*(\d+)/i,
+  adults: /adults?\s*:\s*(\d+)/i,
+  children: /child(?:ren)?\s*:\s*(\d+)/i,
+  unit: /(apartment|appartamento|alloggio|unit|property|camera)\s*:\s*([^\n,]+)/i,
+  // Platform-specific patterns
+  fromSummary: /(?:airbnb|booking\.com|vrbo|smoobu)\s*[-:]\s*([A-Za-zÀ-ÖØ-öø-ÿ''. \-]+)/i,
+  bookingStyle: /^(.+?)\s*\((\d+)\)\s*$/i, // "Name (2)" format
+  airbnbConfirmed: /reservation\s+confirmed\s*[–-]\s*(.+)/i,
+};
+
+function detectChannel(summary?: string, desc?: string): IcsEventEnriched['channel'] {
+  const s = `${summary ?? ''} ${desc ?? ''}`.toLowerCase();
+  if (s.includes('booking.com')) return 'booking.com';
+  if (s.includes('airbnb')) return 'airbnb';
+  if (s.includes('vrbo')) return 'vrbo';
+  if (s.includes('smoobu')) return 'smoobu';
+  return 'other';
+}
+
+export function enrichIcsEvent(ev: IcsEventRaw): IcsEventEnriched {
+  const channel = detectChannel(ev.summary, ev.description);
+  const desc = (ev.description || '').replace(/\\n/g, '\n');
+
+  // Extract guest name using enhanced patterns
+  let guestName: string | undefined;
   
-  // Combine all text fields for pattern matching (case-insensitive)
-  const allText = [
-    rawEvent.summary || '',
-    description || '',
-    ...(attendees || [])
-  ].join(' ').toLowerCase();
+  // Try direct guest pattern in description
+  const directGuest = desc.match(rx.guestLine);
+  if (directGuest) guestName = directGuest[2].trim();
   
-  const summary = rawEvent.summary || '';
-  const desc = description || '';
-  
-  // Extract guest name using various patterns
-  event.guest_name = extractGuestName(summary, desc, attendees || []);
-  
+  // Try platform-specific patterns in summary
+  if (!guestName && ev.summary) {
+    const platformMatch = ev.summary.match(rx.fromSummary);
+    if (platformMatch) guestName = platformMatch[1].trim();
+    
+    // Try Booking.com style "Name (2)" 
+    if (!guestName) {
+      const bookingMatch = ev.summary.match(rx.bookingStyle);
+      if (bookingMatch) guestName = bookingMatch[1].trim();
+    }
+    
+    // Try Airbnb confirmed style
+    if (!guestName) {
+      const airbnbMatch = ev.summary.match(rx.airbnbConfirmed);
+      if (airbnbMatch) guestName = airbnbMatch[1].trim();
+    }
+  }
+
   // Extract guest count
-  event.guests_count = extractGuestCount(allText);
+  let guestsCount: number | undefined;
   
-  // Extract listing title
-  event.listing_title = extractListingTitle(summary, desc);
+  // Check for Booking.com style number in parentheses first
+  if (ev.summary) {
+    const bookingMatch = ev.summary.match(rx.bookingStyle);
+    if (bookingMatch) {
+      guestsCount = parseInt(bookingMatch[2], 10);
+    }
+  }
   
-  // Extract booking reference/ID
-  event.source_ref = extractSourceRef(allText);
+  // If not found, try other patterns
+  if (!guestsCount) {
+    const paxMatch = desc.match(rx.pax);
+    if (paxMatch) {
+      guestsCount = parseInt(paxMatch[2], 10);
+    } else {
+      // Try to sum adults + children
+      let total = 0;
+      const adultsMatch = desc.match(rx.adults);
+      const childrenMatch = desc.match(rx.children);
+      if (adultsMatch) total += parseInt(adultsMatch[1], 10);
+      if (childrenMatch) total += parseInt(childrenMatch[1], 10);
+      if (total > 0) guestsCount = total;
+    }
+  }
+
+  // Extract unit name
+  let unitName: string | undefined;
+  const unitMatch = desc.match(rx.unit);
+  if (unitMatch) unitName = unitMatch[2].trim();
+
+  // Map status to friendly names
+  const status = (ev.status || '').toLowerCase();
+  const statusHuman = status.includes('cancel') ? 'Cancellato'
+    : status.includes('tent') ? 'Provvisorio'
+    : status ? 'Confermato'
+    : 'Sconosciuto';
+
+  return {
+    ...ev,
+    status: statusHuman,
+    guestName,
+    guestsCount,
+    unitName,
+    channel,
+  };
+}
+
+// Legacy function for backward compatibility
+export function enrichIcsEventLegacy(rawEvent: CalendarEvent, description?: string, attendees?: string[]): ParsedIcsEvent {
+  const enriched = enrichIcsEvent({
+    ...rawEvent,
+    description
+  });
   
-  // Store original description and attendees
-  event.description = description;
-  event.attendees = attendees;
-  
-  return event;
+  return {
+    ...rawEvent,
+    guest_name: enriched.guestName,
+    guests_count: enriched.guestsCount,
+    listing_title: enriched.unitName,
+    description,
+    attendees
+  };
 }
 
 function extractGuestName(summary: string, description: string, attendees: string[]): string | undefined {
@@ -207,29 +310,28 @@ function extractSourceRef(text: string): string | undefined {
   return undefined;
 }
 
-// Enhanced ICS parser that captures more fields
-export function parseICSWithMetadata(text: string): ParsedIcsEvent[] {
-  const events: ParsedIcsEvent[] = [];
+// Enhanced ICS parser with metadata extraction
+export function parseAndEnrichICS(text: string): IcsEventEnriched[] {
+  const events: IcsEventEnriched[] = [];
   const lines = text.split('\n').map(line => line.trim());
   
-  let currentEvent: Partial<ParsedIcsEvent> = {};
+  let currentEvent: Partial<IcsEventRaw> = {};
   let inEvent = false;
   let description = '';
-  let attendees: string[] = [];
   
   for (const line of lines) {
     if (line === 'BEGIN:VEVENT') {
       inEvent = true;
       currentEvent = {};
       description = '';
-      attendees = [];
       continue;
     }
     
     if (line === 'END:VEVENT') {
       if (currentEvent.start) {
-        // Enrich the event with extracted metadata
-        const enriched = enrichIcsEvent(currentEvent as CalendarEvent, description, attendees);
+        // Add description to event and enrich
+        const eventWithDesc = { ...currentEvent, description } as IcsEventRaw;
+        const enriched = enrichIcsEvent(eventWithDesc);
         events.push(enriched);
       }
       inEvent = false;
@@ -259,19 +361,34 @@ export function parseICSWithMetadata(text: string): ParsedIcsEvent[] {
       case 'STATUS':
         currentEvent.status = value;
         break;
-      case 'DTSTAMP':
-        currentEvent.dtstamp = formatDate(value);
+      case 'LOCATION':
+        currentEvent.location = value;
         break;
       case 'DESCRIPTION':
         description = value.replace(/\\n/g, '\n').replace(/\\,/g, ',');
-        break;
-      case 'ATTENDEE':
-        attendees.push(value);
         break;
     }
   }
   
   return events;
+}
+
+// Legacy function for backward compatibility
+export function parseICSWithMetadata(text: string): ParsedIcsEvent[] {
+  const enriched = parseAndEnrichICS(text);
+  return enriched.map(ev => ({
+    uid: ev.uid,
+    start: ev.start,
+    end: ev.end,
+    summary: ev.summary,
+    status: ev.status,
+    dtstamp: ev.start, // fallback
+    guest_name: ev.guestName,
+    guests_count: ev.guestsCount,
+    listing_title: ev.unitName,
+    description: ev.description,
+    attendees: []
+  }));
 }
 
 function formatDate(dateString: string): string {

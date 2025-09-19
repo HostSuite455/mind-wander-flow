@@ -14,6 +14,7 @@ import HostAgentHome from "./pages/host-agent-home";
 import HostAgentConfig from "./pages/host-agent-config";
 import HostBookings from "./pages/host-bookings";
 import HostIcalConfig from "./pages/host-ical-config";
+import CalendarPro from "./pages/calendar-pro";
 import HostUnansweredQuestions from "./pages/host-unanswered-questions";
 import Calendar from "./pages/calendar";
 import Properties from "./pages/properties";
@@ -51,6 +52,7 @@ const App = () => (
               <Route path="/host-dashboard" element={<ProtectedRoute><HostDashboard /></ProtectedRoute>} />
               <Route path="/properties" element={<ProtectedRoute><Properties /></ProtectedRoute>} />
               <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
+              <Route path="/calendar-pro" element={<ProtectedRoute><CalendarPro /></ProtectedRoute>} />
               <Route path="/export" element={<ProtectedRoute><Export /></ProtectedRoute>} />
               <Route path="/host-agent-home" element={<ProtectedRoute><HostAgentHome /></ProtectedRoute>} />
               <Route path="/host-agent-config" element={<ProtectedRoute><HostAgentConfig /></ProtectedRoute>} />
