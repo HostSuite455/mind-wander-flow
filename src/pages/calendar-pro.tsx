@@ -139,6 +139,18 @@ const CalendarPro = () => {
     }));
   }, [properties, activePropertyId, selectedProperty]);
 
+  // Helper function for channel colors
+  const getChannelColor = (channel?: string, border = false) => {
+    const colors = {
+      'airbnb': border ? '#FF385C' : '#FF385C20',
+      'booking.com': border ? '#003580' : '#00358020',
+      'vrbo': border ? '#1866B4' : '#1866B420',
+      'smoobu': border ? '#FF6B35' : '#FF6B3520',
+      'other': border ? '#6B7280' : '#6B728020'
+    };
+    return colors[channel as keyof typeof colors] || colors.other;
+  };
+
   // Convert events to FullCalendar format
   const fcEvents = useMemo(() => {
     return filteredEvents.map((event, index) => ({
@@ -161,17 +173,6 @@ const CalendarPro = () => {
       borderColor: getChannelColor(event.channel, true)
     }));
   }, [filteredEvents]);
-
-  const getChannelColor = (channel?: string, border = false) => {
-    const colors = {
-      'airbnb': border ? '#FF385C' : '#FF385C20',
-      'booking.com': border ? '#003580' : '#00358020',
-      'vrbo': border ? '#1866B4' : '#1866B420',
-      'smoobu': border ? '#FF6B35' : '#FF6B3520',
-      'other': border ? '#6B7280' : '#6B728020'
-    };
-    return colors[channel as keyof typeof colors] || colors.other;
-  };
 
   if (isLoading) {
     return (
