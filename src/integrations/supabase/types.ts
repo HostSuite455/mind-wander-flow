@@ -84,7 +84,7 @@ export type Database = {
           channel_manager_name: string | null
           config_type: string | null
           created_at: string | null
-          host_id: string
+          host_id: string | null
           id: string
           is_active: boolean | null
           max_ical_urls: number | null
@@ -97,7 +97,7 @@ export type Database = {
           channel_manager_name?: string | null
           config_type?: string | null
           created_at?: string | null
-          host_id: string
+          host_id?: string | null
           id?: string
           is_active?: boolean | null
           max_ical_urls?: number | null
@@ -110,7 +110,7 @@ export type Database = {
           channel_manager_name?: string | null
           config_type?: string | null
           created_at?: string | null
-          host_id?: string
+          host_id?: string | null
           id?: string
           is_active?: boolean | null
           max_ical_urls?: number | null

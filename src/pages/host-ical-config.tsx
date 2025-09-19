@@ -130,7 +130,6 @@ const HostIcalConfig = () => {
       const createConfig = async () => {
         const { data: newConfig } = await createIcalConfig({
           property_id: activePropertyId,
-          host_id: 'current-user', // This should be the actual user ID
           config_type: 'direct',
           is_active: true
         });

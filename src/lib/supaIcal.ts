@@ -276,10 +276,17 @@ export async function createIcalConfig({
   is_active?: boolean;
 }) {
   try {
+    // Get current user ID for host_id
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
+
     const { data, error } = await supabase
       .from('ical_configs')
       .insert([{
         property_id,
+        host_id: user.id,
         config_type,
         channel_manager_name,
         is_active,
