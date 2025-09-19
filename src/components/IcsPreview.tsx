@@ -5,7 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarIcon, SearchIcon, FilterIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { CalendarIcon, SearchIcon, FilterIcon, ChevronDownIcon, InfoIcon } from "lucide-react";
 
 interface IcsPreviewProps {
   url: string;
@@ -19,6 +21,8 @@ export const IcsPreview = ({ url }: IcsPreviewProps) => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [channelFilter, setChannelFilter] = useState<string>("all");
+  const [showRawDetails, setShowRawDetails] = useState(false);
+  const [selectedEventForRaw, setSelectedEventForRaw] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchICS = async () => {
@@ -37,6 +41,11 @@ export const IcsPreview = ({ url }: IcsPreviewProps) => {
         const text = await response.text();
         const parsedEvents = parseAndEnrichICS(text).slice(0, 200);
         setEvents(parsedEvents);
+        
+        // Debug logging if enabled
+        if (localStorage.getItem('debug') === '2') {
+          console.log('Parsed events (debug):', parsedEvents.slice(0, 2));
+        }
       } catch (err) {
         console.error('Failed to fetch ICS:', err);
         setError('CORS bloccato: configura un Edge Function proxy (TODO) o abilita CORS lato sorgente');
@@ -98,6 +107,52 @@ export const IcsPreview = ({ url }: IcsPreviewProps) => {
       </span>
     );
   };
+
+  const RawEventDetails = ({ event }: { event: IcsEventEnriched }) => (
+    <div className="bg-gray-50 p-3 rounded text-xs font-mono space-y-2">
+      <div>
+        <strong>Summary:</strong> {event.summary || '—'}
+      </div>
+      <div>
+        <strong>Status:</strong> {event.status || '—'}
+      </div>
+      {event.description && (
+        <div>
+          <strong>Description (primi 200 char):</strong>
+          <div className="bg-white p-2 rounded mt-1 whitespace-pre-wrap">
+            {event.description.substring(0, 200)}
+            {event.description.length > 200 && '...'}
+          </div>
+        </div>
+      )}
+      {event.attendees && event.attendees.length > 0 && (
+        <div>
+          <strong>Attendees:</strong>
+          <ul className="bg-white p-2 rounded mt-1">
+            {event.attendees.map((att, i) => (
+              <li key={i}>{att}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {event.organizer && (
+        <div>
+          <strong>Organizer:</strong>
+          <div className="bg-white p-2 rounded mt-1">{event.organizer}</div>
+        </div>
+      )}
+      {event.rawLines && (
+        <div>
+          <strong>Raw Lines (prime 10):</strong>
+          <ul className="bg-white p-2 rounded mt-1 max-h-32 overflow-y-auto">
+            {event.rawLines.slice(0, 10).map((line, i) => (
+              <li key={i} className="text-xs">{line}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
 
   if (loading) {
     return (
@@ -176,6 +231,15 @@ export const IcsPreview = ({ url }: IcsPreviewProps) => {
                 <SelectItem value="other">Altro</SelectItem>
               </SelectContent>
             </Select>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowRawDetails(!showRawDetails)}
+              className="flex items-center gap-2"
+            >
+              <InfoIcon className="w-4 h-4" />
+              {showRawDetails ? 'Nascondi Raw' : 'Mostra Raw'}
+            </Button>
           </div>
         </div>
       </CardHeader>
@@ -198,37 +262,57 @@ export const IcsPreview = ({ url }: IcsPreviewProps) => {
                   <th className="text-left py-2 px-3">Alloggio</th>
                   <th className="text-left py-2 px-3">Canale</th>
                   <th className="text-left py-2 px-3">Stato</th>
+                  {showRawDetails && <th className="text-left py-2 px-3">Debug</th>}
                 </tr>
               </thead>
               <tbody>
-                {filteredEvents.map((event, index) => (
-                  <tr key={event.uid || index} className="border-b hover:bg-muted/50">
-                    <td className="py-2 px-3">
-                      {event.start ? new Date(event.start).toLocaleDateString('it-IT') : '—'}
-                    </td>
-                    <td className="py-2 px-3">
-                      {event.end ? new Date(event.end).toLocaleDateString('it-IT') : '—'}
-                    </td>
-                    <td className="py-2 px-3 max-w-xs truncate" title={event.summary}>
-                      {event.summary || '—'}
-                    </td>
-                    <td className="py-2 px-3 max-w-xs truncate" title={event.guestName}>
-                      {event.guestName || '—'}
-                    </td>
-                    <td className="py-2 px-3 text-center">
-                      {typeof event.guestsCount === 'number' ? event.guestsCount : '—'}
-                    </td>
-                    <td className="py-2 px-3 max-w-xs truncate" title={event.unitName}>
-                      {event.unitName || '—'}
-                    </td>
-                    <td className="py-2 px-3">
-                      <ChannelBadge channel={event.channel} />
-                    </td>
-                    <td className="py-2 px-3">
-                      <StatusBadge value={event.status} />
-                    </td>
-                  </tr>
-                ))}
+                {filteredEvents.map((event, index) => {
+                  const eventKey = event.uid || index;
+                  return (
+                    <>
+                      <tr key={eventKey} className="border-b hover:bg-muted/50">
+                        <td className="py-2 px-3 whitespace-nowrap">
+                          {event.start ? new Date(event.start).toLocaleDateString('it-IT') : '—'}
+                        </td>
+                        <td className="py-2 px-3 whitespace-nowrap">
+                          {event.end ? new Date(event.end).toLocaleDateString('it-IT') : '—'}
+                        </td>
+                        <td className="py-2 px-3 max-w-xs truncate" title={event.summary}>
+                          {event.summary || '—'}
+                        </td>
+                        <td className="py-2 px-3 whitespace-nowrap" title={event.guestName}>
+                          {event.guestName || '—'}
+                        </td>
+                        <td className="py-2 px-3 text-center">
+                          {typeof event.guestsCount === 'number' ? event.guestsCount : '—'}
+                        </td>
+                        <td className="py-2 px-3 truncate max-w-[220px]" title={event.unitName}>
+                          {event.unitName || '—'}
+                        </td>
+                        <td className="py-2 px-3">
+                          <ChannelBadge channel={event.channel} />
+                        </td>
+                        <td className="py-2 px-3">
+                          <StatusBadge value={event.statusHuman || 'Sconosciuto'} />
+                        </td>
+                        {showRawDetails && (
+                          <td className="py-2 px-3">
+                            <Collapsible>
+                              <CollapsibleTrigger asChild>
+                                <Button variant="outline" size="sm">
+                                  <ChevronDownIcon className="w-4 h-4" />
+                                </Button>
+                              </CollapsibleTrigger>
+                              <CollapsibleContent className="mt-2">
+                                <RawEventDetails event={event} />
+                              </CollapsibleContent>
+                            </Collapsible>
+                          </td>
+                        )}
+                      </tr>
+                    </>
+                  );
+                })}
               </tbody>
             </table>
           </div>

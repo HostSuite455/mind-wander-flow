@@ -9,6 +9,10 @@ export interface IcsEventRaw {
   description?: string;
   status?: string;
   location?: string;
+  // New fields for enhanced parsing
+  attendees?: string[];   // ATTENDEE;CN=...
+  organizer?: string;     // ORGANIZER;CN=...
+  rawLines?: string[];    // for debug matching
 }
 
 export interface IcsEventEnriched extends IcsEventRaw {
@@ -16,6 +20,7 @@ export interface IcsEventEnriched extends IcsEventRaw {
   guestsCount?: number;
   unitName?: string;
   channel?: 'airbnb' | 'booking.com' | 'vrbo' | 'smoobu' | 'other';
+  statusHuman?: 'Confermato' | 'Provvisorio' | 'Cancellato' | 'Sconosciuto';
 }
 
 // Legacy interface for backward compatibility
@@ -28,15 +33,18 @@ export interface ParsedIcsEvent extends CalendarEvent {
   attendees?: string[];
 }
 
-// Enhanced regex patterns for robust parsing
+// Enhanced regex patterns for robust parsing (localized)
 const rx = {
-  guestLine: /(guest(?: name)?|ospite|name)\s*:\s*([^\n,]+)/i,
-  pax: /(guests?|ospiti|pax|persons?)\s*:\s*(\d+)/i,
-  adults: /adults?\s*:\s*(\d+)/i,
-  children: /child(?:ren)?\s*:\s*(\d+)/i,
-  unit: /(apartment|appartamento|alloggio|unit|property|camera)\s*:\s*([^\n,]+)/i,
-  // Platform-specific patterns
+  // Lines in DESCRIPTION (common localizations)
+  guestLine: /(guest(?: name)?|ospite|name)\s*[:=]\s*([^\n]+)/i,
+  pax: /(guests?|ospiti|pax|persons?)\s*[:=]\s*(\d+)/i,
+  adults: /adults?\s*[:=]\s*(\d+)/i,
+  children: /child(?:ren)?|bambin[io]\s*[:=]\s*(\d+)/i,
+  unit: /(apartment|appartamento|alloggio|unit|property|camera)\s*[:=]\s*([^\n]+)/i,
+  // From SUMMARY: "Booking.com - Joanna Starczewska", "Airbnb: Mario Rossi"
   fromSummary: /(?:airbnb|booking\.com|vrbo|smoobu)\s*[-:]\s*([A-Za-zÀ-ÖØ-öø-ÿ''. \-]+)/i,
+  // CN= Name from ATTENDEE/ORGANIZER
+  cn: /CN=([^;:]+)/,
   bookingStyle: /^(.+?)\s*\((\d+)\)\s*$/i, // "Name (2)" format
   airbnbConfirmed: /reservation\s+confirmed\s*[–-]\s*(.+)/i,
 };
@@ -50,81 +58,81 @@ function detectChannel(summary?: string, desc?: string): IcsEventEnriched['chann
   return 'other';
 }
 
+function mapStatus(status?: string): IcsEventEnriched['statusHuman'] {
+  const s = (status || '').toLowerCase();
+  if (s.includes('cancel')) return 'Cancellato';
+  if (s.includes('tent')) return 'Provvisorio';
+  if (s) return 'Confermato';
+  return 'Sconosciuto';
+}
+
 export function enrichIcsEvent(ev: IcsEventRaw): IcsEventEnriched {
   const channel = detectChannel(ev.summary, ev.description);
   const desc = (ev.description || '').replace(/\\n/g, '\n');
 
-  // Extract guest name using enhanced patterns
+  // 1) guestName from ATTENDEE/ORGANIZER (CN=...)
   let guestName: string | undefined;
-  
-  // Try direct guest pattern in description
-  const directGuest = desc.match(rx.guestLine);
-  if (directGuest) guestName = directGuest[2].trim();
-  
-  // Try platform-specific patterns in summary
+  const searchCN = (lines?: string[]) => {
+    if (!lines) return undefined;
+    for (const ln of lines) {
+      if (ln.startsWith('ATTENDEE') || ln.startsWith('ORGANIZER')) {
+        const m = ln.match(rx.cn);
+        if (m) return m[1].trim();
+      }
+    }
+    return undefined;
+  };
+  guestName = searchCN(ev.rawLines);
+
+  // 2) fallback: from DESCRIPTION
+  if (!guestName) {
+    const m = desc.match(rx.guestLine);
+    if (m) guestName = m[2].trim();
+  }
+
+  // 3) fallback: from SUMMARY "Channel - Name"
   if (!guestName && ev.summary) {
-    const platformMatch = ev.summary.match(rx.fromSummary);
-    if (platformMatch) guestName = platformMatch[1].trim();
-    
-    // Try Booking.com style "Name (2)" 
-    if (!guestName) {
-      const bookingMatch = ev.summary.match(rx.bookingStyle);
-      if (bookingMatch) guestName = bookingMatch[1].trim();
-    }
-    
-    // Try Airbnb confirmed style
-    if (!guestName) {
-      const airbnbMatch = ev.summary.match(rx.airbnbConfirmed);
-      if (airbnbMatch) guestName = airbnbMatch[1].trim();
-    }
+    const m = ev.summary.match(rx.fromSummary);
+    if (m) guestName = m[1].trim();
   }
 
-  // Extract guest count
-  let guestsCount: number | undefined;
-  
-  // Check for Booking.com style number in parentheses first
-  if (ev.summary) {
+  // 4) Try Booking.com style "Name (2)" 
+  if (!guestName && ev.summary) {
     const bookingMatch = ev.summary.match(rx.bookingStyle);
-    if (bookingMatch) {
-      guestsCount = parseInt(bookingMatch[2], 10);
-    }
+    if (bookingMatch) guestName = bookingMatch[1].trim();
   }
   
-  // If not found, try other patterns
-  if (!guestsCount) {
-    const paxMatch = desc.match(rx.pax);
-    if (paxMatch) {
-      guestsCount = parseInt(paxMatch[2], 10);
-    } else {
-      // Try to sum adults + children
-      let total = 0;
-      const adultsMatch = desc.match(rx.adults);
-      const childrenMatch = desc.match(rx.children);
-      if (adultsMatch) total += parseInt(adultsMatch[1], 10);
-      if (childrenMatch) total += parseInt(childrenMatch[1], 10);
-      if (total > 0) guestsCount = total;
-    }
+  // 5) Try Airbnb confirmed style
+  if (!guestName && ev.summary) {
+    const airbnbMatch = ev.summary.match(rx.airbnbConfirmed);
+    if (airbnbMatch) guestName = airbnbMatch[1].trim();
   }
 
-  // Extract unit name
-  let unitName: string | undefined;
-  const unitMatch = desc.match(rx.unit);
-  if (unitMatch) unitName = unitMatch[2].trim();
+  // guests count
+  let guestsCount: number | undefined;
+  const mPax = desc.match(rx.pax);
+  if (mPax) guestsCount = parseInt(mPax[2], 10);
+  else {
+    let tot = 0;
+    const a = desc.match(rx.adults);
+    const c = desc.match(rx.children);
+    if (a) tot += parseInt(a[1], 10);
+    if (c) tot += parseInt(c[1], 10);
+    if (tot > 0) guestsCount = tot;
+  }
 
-  // Map status to friendly names
-  const status = (ev.status || '').toLowerCase();
-  const statusHuman = status.includes('cancel') ? 'Cancellato'
-    : status.includes('tent') ? 'Provvisorio'
-    : status ? 'Confermato'
-    : 'Sconosciuto';
+  // unit name
+  let unitName: string | undefined;
+  const mUnit = desc.match(rx.unit);
+  if (mUnit) unitName = mUnit[2].trim();
 
   return {
     ...ev,
-    status: statusHuman,
+    channel,
     guestName,
     guestsCount,
     unitName,
-    channel,
+    statusHuman: mapStatus(ev.status),
   };
 }
 
@@ -310,29 +318,41 @@ function extractSourceRef(text: string): string | undefined {
   return undefined;
 }
 
-// Enhanced ICS parser with metadata extraction
-export function parseAndEnrichICS(text: string): IcsEventEnriched[] {
-  const events: IcsEventEnriched[] = [];
+// Enhanced ICS parser with ATTENDEE/ORGANIZER + raw lines
+function parseICS(text: string): IcsEventRaw[] {
+  const events: IcsEventRaw[] = [];
   const lines = text.split('\n').map(line => line.trim());
   
   let currentEvent: Partial<IcsEventRaw> = {};
   let inEvent = false;
   let description = '';
+  let attendees: string[] = [];
+  let organizer = '';
+  let rawLines: string[] = [];
   
   for (const line of lines) {
     if (line === 'BEGIN:VEVENT') {
       inEvent = true;
       currentEvent = {};
       description = '';
+      attendees = [];
+      organizer = '';
+      rawLines = [];
       continue;
     }
     
     if (line === 'END:VEVENT') {
       if (currentEvent.start) {
-        // Add description to event and enrich
-        const eventWithDesc = { ...currentEvent, description } as IcsEventRaw;
-        const enriched = enrichIcsEvent(eventWithDesc);
-        events.push(enriched);
+        // Add all collected data to event
+        const completeEvent: IcsEventRaw = {
+          ...currentEvent,
+          description,
+          attendees: attendees.length > 0 ? attendees : undefined,
+          organizer: organizer || undefined,
+          rawLines: rawLines.length > 0 ? rawLines : undefined
+        } as IcsEventRaw;
+        
+        events.push(completeEvent);
       }
       inEvent = false;
       currentEvent = {};
@@ -340,6 +360,9 @@ export function parseAndEnrichICS(text: string): IcsEventEnriched[] {
     }
     
     if (!inEvent) continue;
+    
+    // Save raw line for debug
+    rawLines.push(line);
     
     const [key, ...valueParts] = line.split(':');
     const value = valueParts.join(':');
@@ -367,10 +390,22 @@ export function parseAndEnrichICS(text: string): IcsEventEnriched[] {
       case 'DESCRIPTION':
         description = value.replace(/\\n/g, '\n').replace(/\\,/g, ',');
         break;
+      case 'ATTENDEE':
+        attendees.push(line);
+        break;
+      case 'ORGANIZER':
+        organizer = line;
+        break;
     }
   }
   
   return events;
+}
+
+// API di comodo: parse + enrich
+export function parseAndEnrichICS(text: string): IcsEventEnriched[] {
+  const base = parseICS(text);
+  return base.map(enrichIcsEvent);
 }
 
 // Legacy function for backward compatibility
