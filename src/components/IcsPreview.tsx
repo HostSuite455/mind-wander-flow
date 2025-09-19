@@ -51,7 +51,8 @@ export const IcsPreview = ({ url }: IcsPreviewProps) => {
   const filteredEvents = useMemo(() => {
     return events.filter(event => {
       const matchesSearch = !searchTerm || 
-        (event.summary?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+        (event.summary?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+        (event.guest_name?.toLowerCase() || '').includes(searchTerm.toLowerCase());
       
       const eventDate = event.start?.split('T')[0] || event.start;
       const matchesDateRange = (!startDate || eventDate >= startDate) && 
@@ -103,7 +104,7 @@ export const IcsPreview = ({ url }: IcsPreviewProps) => {
             <div className="relative">
               <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Cerca per titolo..."
+                placeholder="Cerca per titolo o ospite..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"

@@ -53,8 +53,30 @@ function extractGuestName(summary: string, description: string, attendees: strin
     }
   }
   
+  // Try ORGANIZER CN field
+  const organizerMatch = text.match(/ORGANIZER[^:]*CN=([^;:]+)/i);
+  if (organizerMatch) {
+    return organizerMatch[1].trim();
+  }
+  
+  // Booking.com style: "Name (2)" in summary
+  const bookingStyleMatch = summary.match(/^(.+?)\s*\((\d+)\)\s*$/i);
+  if (bookingStyleMatch && bookingStyleMatch[1]) {
+    const name = bookingStyleMatch[1].trim();
+    if (name.length >= 2 && name.length <= 50) {
+      return name;
+    }
+  }
+  
+  // Airbnb confirmed style: "Reservation confirmed – John Doe"
+  const airbnbConfirmedMatch = summary.match(/reservation\s+confirmed\s*[–-]\s*(.+)/i);
+  if (airbnbConfirmedMatch && airbnbConfirmedMatch[1]) {
+    return airbnbConfirmedMatch[1].trim();
+  }
+  
   // Common patterns for guest names
   const patterns = [
+    /primary\s+guest:?\s*([a-zA-ZÀ-ÿ\s]+?)(?:\n|$|,|\d)/i,
     /guest:?\s*([a-zA-ZÀ-ÿ\s]+?)(?:\n|$|,|\d)/i,
     /ospite:?\s*([a-zA-ZÀ-ÿ\s]+?)(?:\n|$|,|\d)/i,
     /prenotazione\s+di:?\s*([a-zA-ZÀ-ÿ\s]+?)(?:\n|$|,|\d)/i,
@@ -63,7 +85,7 @@ function extractGuestName(summary: string, description: string, attendees: strin
     /nome:?\s*([a-zA-ZÀ-ÿ\s]+?)(?:\n|$|,|\d)/i,
     // Airbnb pattern: "Guest Name - Listing Name"
     /^([a-zA-ZÀ-ÿ\s]+?)\s*-\s*[^-]+$/i,
-    // Booking.com pattern often has guest name at start
+    // Generic start pattern for name-like strings
     /^([a-zA-ZÀ-ÿ\s]{2,30}?)(?:\s*-|\s*\d|\s*\(|$)/i
   ];
   
@@ -73,7 +95,7 @@ function extractGuestName(summary: string, description: string, attendees: strin
       const name = match[1].trim();
       // Filter out common false positives
       if (name.length >= 2 && name.length <= 50 && 
-          !name.match(/^(apartment|listing|booking|guest|ospite|prenotazione)$/i)) {
+          !name.match(/^(apartment|listing|booking|guest|ospite|prenotazione|confirmed|reservation)$/i)) {
         return name;
       }
     }
@@ -83,7 +105,17 @@ function extractGuestName(summary: string, description: string, attendees: strin
 }
 
 function extractGuestCount(text: string): number | undefined {
+  // Check for Booking.com style: "Name (2)" in summary first
+  const bookingStyleMatch = text.match(/\((\d+)\)/);
+  if (bookingStyleMatch) {
+    const count = parseInt(bookingStyleMatch[1], 10);
+    if (count > 0 && count <= 50) {
+      return count;
+    }
+  }
+  
   const patterns = [
+    /number\s+of\s+guests?:?\s*(\d+)/i,
     /guests?:?\s*(\d+)/i,
     /ospiti:?\s*(\d+)/i,
     /adults?:?\s*(\d+)/i,
@@ -92,7 +124,8 @@ function extractGuestCount(text: string): number | undefined {
     /(\d+)\s*guests?/i,
     /(\d+)\s*ospiti/i,
     /(\d+)\s*adults?/i,
-    /(\d+)\s*pax/i
+    /(\d+)\s*pax/i,
+    /(\d+)\s+people/i
   ];
   
   for (const pattern of patterns) {

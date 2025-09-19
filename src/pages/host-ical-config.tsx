@@ -13,15 +13,16 @@ import HostNavbar from "@/components/HostNavbar";
 import PropertySwitch from "@/components/PropertySwitch";
 import IcalUrlModal from "@/components/IcalUrlModal";
 import { IcsPreview } from "@/components/IcsPreview";
+import { CalendarBlocksCard } from "@/components/CalendarBlocksCard";
 import { useActiveProperty } from "@/hooks/useActiveProperty";
 import { supaSelect } from "@/lib/supaSafe";
 import { 
   listIcalUrls, 
   listIcalConfigs, 
   deleteIcalUrl, 
-  formatUrl, 
-  getSourceIcon, 
   createIcalConfig,
+  formatUrl,
+  getSourceIcon,
   type IcalUrl,
   type IcalConfig 
 } from "@/lib/supaIcal";
@@ -580,6 +581,14 @@ const HostIcalConfig = () => {
               </div>
             </CardContent>
           </Card>
+          
+          {/* Single property view with calendar blocks */}
+          {selectedPropertyId !== 'all' && (
+            <CalendarBlocksCard 
+              propertyId={selectedPropertyId}
+              propertyName={selectedPropertyName || 'Proprietà'}
+            />
+          )}
         </div>
       </div>
 

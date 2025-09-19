@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      calendar_blocks: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          end_date: string
+          host_id: string
+          id: string
+          is_active: boolean | null
+          property_id: string
+          reason: string | null
+          source: string | null
+          start_date: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          end_date: string
+          host_id: string
+          id?: string
+          is_active?: boolean | null
+          property_id: string
+          reason?: string | null
+          source?: string | null
+          start_date: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          end_date?: string
+          host_id?: string
+          id?: string
+          is_active?: boolean | null
+          property_id?: string
+          reason?: string | null
+          source?: string | null
+          start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_blocks_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chats: {
         Row: {
           created_at: string
