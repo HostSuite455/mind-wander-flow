@@ -17,7 +17,6 @@ export type IcalUrl = {
 export type IcalConfig = {
   id: string;
   property_id: string;
-  host_id: string;
   is_active: boolean;
   config_type: string;
   channel_manager_name?: string;
@@ -41,40 +40,35 @@ const debugToast = (action: string, error: any) => {
 };
 
 /** List all iCal URLs for a specific property or all properties of the current host */
-export async function listIcalUrls(propertyId?: string) {
+export async function listIcalUrls(propertyId?: string): Promise<{ data: IcalUrl[], error: any }> {
   try {
-    let query = `
-      ical_urls.id,
-      ical_urls.ical_config_id,
-      ical_urls.url,
-      ical_urls.source,
-      ical_urls.is_active,
-      ical_urls.is_primary,
-      ical_urls.last_sync_at,
-      ical_urls.created_at,
-      ical_urls.updated_at,
-      ical_configs.property_id,
-      properties.nome
+    // Join esplicito: ical_urls -> ical_configs (inner), poi proprietà annidata
+    const select = `
+      id,url,source,is_active,is_primary,last_sync_at,created_at,updated_at,
+      ical_config_id,
+      ical_configs!inner (
+        id, property_id, is_active,
+        properties:property_id ( id, nome )
+      )
     `;
 
-    let baseQuery = supabase
-      .from('ical_urls')
-      .select(query)
-      .eq('ical_configs.is_active', true)
-      .order('created_at', { ascending: false });
+    let query = supabase.from('ical_urls').select(select).order('created_at', { ascending: false });
 
+    // Filtra per property se passato
     if (propertyId && propertyId !== 'all') {
-      baseQuery = baseQuery.eq('ical_configs.property_id', propertyId);
+      query = query.eq('ical_configs.property_id', propertyId);
     }
 
-    const { data, error } = await baseQuery;
+    // Opzionale: mostra solo config attive
+    query = query.eq('ical_configs.is_active', true);
 
+    const { data, error } = await query;
     if (error) {
       debugToast('listIcalUrls', error);
       return { data: [], error };
     }
-
-    return { data: data || [], error: null };
+    
+    return { data: data as any ?? [], error: null };
   } catch (err) {
     debugToast('listIcalUrls', err);
     return { data: [], error: err };
@@ -82,12 +76,11 @@ export async function listIcalUrls(propertyId?: string) {
 }
 
 /** List all iCal configs for a specific property or all properties of the current host */
-export async function listIcalConfigs(propertyId?: string) {
+export async function listIcalConfigs(propertyId?: string): Promise<{ data: IcalConfig[], error: any }> {
   try {
-    const columns = `
+    const select = `
       id,
       property_id,
-      host_id,
       is_active,
       config_type,
       channel_manager_name,
@@ -96,13 +89,19 @@ export async function listIcalConfigs(propertyId?: string) {
       updated_at
     `;
 
+    let query = supabase.from('ical_configs').select(select).order('created_at', { ascending: false });
+
     if (propertyId && propertyId !== 'all') {
-      const { data, error } = await supaSelect<IcalConfig>('ical_configs', columns);
-      const filtered = data?.filter(config => config.property_id === propertyId) || [];
-      return { data: filtered, error };
+      query = query.eq('property_id', propertyId);
     }
 
-    return await supaSelect<IcalConfig>('ical_configs', columns);
+    const { data, error } = await query;
+    if (error) {
+      debugToast('listIcalConfigs', error);
+      return { data: [], error };
+    }
+
+    return { data: data as IcalConfig[] ?? [], error: null };
   } catch (err) {
     debugToast('listIcalConfigs', err);
     return { data: [], error: err };
@@ -267,13 +266,11 @@ export async function unsetPrimaryByConfig(ical_config_id: string) {
 /** Create a new iCal config */
 export async function createIcalConfig({
   property_id,
-  host_id,
   config_type = 'direct',
   channel_manager_name,
   is_active = true
 }: {
   property_id: string;
-  host_id: string;
   config_type?: string;
   channel_manager_name?: string;
   is_active?: boolean;
@@ -283,7 +280,6 @@ export async function createIcalConfig({
       .from('ical_configs')
       .insert([{
         property_id,
-        host_id,
         config_type,
         channel_manager_name,
         is_active,
