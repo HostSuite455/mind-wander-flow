@@ -8,12 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CalendarIcon, RefreshCw, Users, Building } from "lucide-react";
+import { CalendarIcon, RefreshCw, Users, Building, RotateCcw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supaSelect, pickName } from "@/lib/supaSafe";
 import { parseAndEnrichICS, IcsEventEnriched } from "@/lib/ics-parse";
 import HostNavbar from "@/components/HostNavbar";
 import { useActiveProperty } from "@/hooks/useActiveProperty";
+import { syncSmoobuBookings } from "@/lib/smoobuSync";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import "@/styles/fullcalendar.css";
 
 interface Property {
@@ -37,15 +40,36 @@ interface IcalUrl {
   };
 }
 
+interface Booking {
+  id: string;
+  property_id: string;
+  guest_name?: string;
+  guest_email?: string;
+  guest_phone?: string;
+  check_in: string;
+  check_out: string;
+  guests_count?: number;
+  adults_count?: number;
+  children_count?: number;
+  channel?: string;
+  booking_status?: string;
+  total_price?: number;
+  currency?: string;
+  booking_reference?: string;
+  special_requests?: string;
+}
+
 const CalendarPro = () => {
   const [view, setView] = useState<'multi' | 'single'>('multi');
   const [properties, setProperties] = useState<Property[]>([]);
   const [icalUrls, setIcalUrls] = useState<IcalUrl[]>([]);
   const [events, setEvents] = useState<IcsEventEnriched[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState<string>('all');
   const { id: activePropertyId } = useActiveProperty();
-  const { toast } = useToast();
+  const { toast: toastHook } = useToast();
 
   useEffect(() => {
     loadCalendarData();
@@ -55,8 +79,8 @@ const CalendarPro = () => {
     try {
       setIsLoading(true);
       
-      // Load properties and iCal URLs
-      const [propertiesResult, icalUrlsResult] = await Promise.all([
+      // Load properties, iCal URLs, and bookings from database
+      const [propertiesResult, icalUrlsResult, bookingsResult] = await Promise.all([
         supaSelect<Property>('properties', '*'),
         supaSelect<IcalUrl>('ical_urls', `
           id, url, source, is_active, ical_config_id,
@@ -64,14 +88,17 @@ const CalendarPro = () => {
             property_id, is_active,
             properties:property_id(id, nome)
           )
-        `)
+        `),
+        supabase.from('bookings').select('*').order('check_in', { ascending: true })
       ]);
 
       const props = propertiesResult.data || [];
       const urls = icalUrlsResult.data || [];
+      const dbBookings = bookingsResult.data || [];
       
       setProperties(props);
       setIcalUrls(urls);
+      setBookings(dbBookings);
 
       // Fetch and parse all iCal feeds
       const allEvents: IcsEventEnriched[] = [];
@@ -104,7 +131,7 @@ const CalendarPro = () => {
       
     } catch (err) {
       console.error('Error loading calendar data:', err);
-      toast({
+      toastHook({
         variant: "destructive",
         title: "Errore",
         description: "Errore nel caricamento del calendario",
@@ -114,7 +141,26 @@ const CalendarPro = () => {
     }
   };
 
-  // Filter events by active property and selected property
+  const handleSmoobuSync = async () => {
+    setIsSyncing(true);
+    try {
+      const result = await syncSmoobuBookings();
+      if (result.success) {
+        toast.success(result.message);
+        // Reload calendar data to show updated bookings
+        loadCalendarData();
+      } else {
+        toast.error(result.message);
+      }
+    } catch (error) {
+      toast.error("Errore durante la sincronizzazione");
+      console.error('Sync error:', error);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // Filter events and bookings by active property and selected property
   const filteredEvents = useMemo(() => {
     const effectiveFilter = activePropertyId === 'all' ? selectedProperty : activePropertyId;
     
@@ -123,6 +169,15 @@ const CalendarPro = () => {
       return (event as any).propertyId === effectiveFilter;
     });
   }, [events, activePropertyId, selectedProperty]);
+
+  const filteredBookings = useMemo(() => {
+    const effectiveFilter = activePropertyId === 'all' ? selectedProperty : activePropertyId;
+    
+    return bookings.filter(booking => {
+      if (effectiveFilter === 'all') return true;
+      return booking.property_id === effectiveFilter;
+    });
+  }, [bookings, activePropertyId, selectedProperty]);
 
   // Heuristic: Smoobu 'Not available' feed without guest details
   const hasLimitedDetails = useMemo(() => {
@@ -159,21 +214,22 @@ const CalendarPro = () => {
     return colors[channel as keyof typeof colors] || colors.other;
   };
 
-  // Convert events to FullCalendar format
+  // Convert events and bookings to FullCalendar format
   const fcEvents = useMemo(() => {
-    return filteredEvents.map((event, index) => {
+    const icalEvents = filteredEvents.map((event, index) => {
       const title = event.guestName || (
         event.summary && event.summary.toLowerCase() !== 'not available'
           ? event.summary
           : 'Occupato'
       );
       return {
-        id: event.uid || `event-${index}`,
+        id: event.uid || `ical-event-${index}`,
         title,
         start: event.start,
         end: event.end,
         resourceId: (event as any).propertyId,
         extendedProps: {
+          type: 'ical',
           guestName: event.guestName,
           guestsCount: event.guestsCount,
           channel: event.channel,
@@ -185,7 +241,36 @@ const CalendarPro = () => {
         className: `calendar-event calendar-event-${event.channel || 'other'}`
       };
     });
-  }, [filteredEvents]);
+
+    const bookingEvents = filteredBookings.map((booking, index) => {
+      return {
+        id: `booking-${booking.id}`,
+        title: booking.guest_name || 'Prenotazione',
+        start: booking.check_in,
+        end: booking.check_out,
+        resourceId: booking.property_id,
+        extendedProps: {
+          type: 'booking',
+          guestName: booking.guest_name,
+          guestEmail: booking.guest_email,
+          guestPhone: booking.guest_phone,
+          guestsCount: booking.guests_count,
+          adultsCount: booking.adults_count,
+          childrenCount: booking.children_count,
+          channel: booking.channel,
+          status: booking.booking_status,
+          reference: booking.booking_reference,
+          totalPrice: booking.total_price,
+          currency: booking.currency,
+          specialRequests: booking.special_requests,
+          source: 'database'
+        },
+        className: `calendar-event calendar-event-${booking.channel || 'other'}`
+      };
+    });
+
+    return [...icalEvents, ...bookingEvents];
+  }, [filteredEvents, filteredBookings]);
 
   if (isLoading) {
     return (
@@ -219,10 +304,16 @@ const CalendarPro = () => {
                   Vista calendario in stile Smoobu delle tue prenotazioni
                 </p>
               </div>
-              <Button onClick={loadCalendarData} disabled={isLoading}>
-                <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                Aggiorna
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={handleSmoobuSync} disabled={isSyncing} variant="outline">
+                  <RotateCcw className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+                  {isSyncing ? 'Sincronizzando...' : 'Sync Smoobu'}
+                </Button>
+                <Button onClick={loadCalendarData} disabled={isLoading}>
+                  <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                  Aggiorna
+                </Button>
+              </div>
             </div>
 
             {/* Controls */}
@@ -270,7 +361,8 @@ const CalendarPro = () => {
 
               {/* Stats */}
               <div className="flex items-center gap-4 text-sm text-hostsuite-text/60">
-                <span>{filteredEvents.length} prenotazioni</span>
+                <span>{filteredEvents.length + filteredBookings.length} prenotazioni</span>
+                <span>{filteredBookings.length} da Smoobu</span>
                 <span>{resources.length} proprietà</span>
               </div>
             </div>
@@ -308,22 +400,29 @@ const CalendarPro = () => {
                 dayMaxEvents={false}
                 eventDisplay="block"
                 eventContent={(arg) => {
-                  const { guestName, guestsCount, channel, status, unit } = arg.event.extendedProps as any;
+                  const props = arg.event.extendedProps as any;
+                  const { guestName, guestsCount, channel, status, unit, type, reference, totalPrice, currency } = props;
                   const ch = (channel || 'other') as string;
                   const initial = ch.startsWith('booking') ? 'B' : ch.startsWith('airbnb') ? 'A' : ch.startsWith('vrbo') ? 'V' : 'S';
                   const title = guestName || arg.event.title;
-                  // Tooltip text
+                  
+                  // Enhanced tooltip for database bookings
                   const tooltip = [
                     guestName ? `Ospite: ${guestName}` : '',
                     typeof guestsCount === 'number' ? `Ospiti: ${guestsCount}` : '',
                     status ? `Stato: ${status}` : '',
-                    unit ? `Alloggio: ${unit}` : ''
+                    unit ? `Alloggio: ${unit}` : '',
+                    reference ? `Riferimento: ${reference}` : '',
+                    totalPrice && currency ? `Prezzo: ${totalPrice} ${currency}` : '',
+                    type === 'booking' ? 'Fonte: Database Smoobu' : 'Fonte: iCal'
                   ].filter(Boolean).join('\n');
+                  
                   return (
                     <div className="flex items-center gap-2 px-2 py-1" title={tooltip}>
-                      <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-semibold chip-${ch}`}>{initial}</span>
+                      <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-semibold chip-${ch} ${type === 'booking' ? 'ring-2 ring-green-400' : ''}`}>{initial}</span>
                       <span className="truncate text-xs font-medium">{title}</span>
                       {typeof guestsCount === 'number' && <span className="text-[10px] text-muted-foreground ml-1">({guestsCount})</span>}
+                      {type === 'booking' && <span className="text-[8px] bg-green-100 text-green-700 px-1 rounded">DB</span>}
                     </div>
                   );
                 }}
