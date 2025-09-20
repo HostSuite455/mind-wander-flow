@@ -14,6 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
+      bookings: {
+        Row: {
+          adults_count: number | null
+          booking_reference: string | null
+          booking_status: string | null
+          channel: string | null
+          check_in: string
+          check_out: string
+          children_count: number | null
+          created_at: string | null
+          currency: string | null
+          external_booking_id: string
+          guest_email: string | null
+          guest_name: string | null
+          guest_phone: string | null
+          guests_count: number | null
+          host_id: string
+          id: string
+          last_sync_at: string | null
+          property_id: string
+          special_requests: string | null
+          total_price: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          adults_count?: number | null
+          booking_reference?: string | null
+          booking_status?: string | null
+          channel?: string | null
+          check_in: string
+          check_out: string
+          children_count?: number | null
+          created_at?: string | null
+          currency?: string | null
+          external_booking_id: string
+          guest_email?: string | null
+          guest_name?: string | null
+          guest_phone?: string | null
+          guests_count?: number | null
+          host_id: string
+          id?: string
+          last_sync_at?: string | null
+          property_id: string
+          special_requests?: string | null
+          total_price?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          adults_count?: number | null
+          booking_reference?: string | null
+          booking_status?: string | null
+          channel?: string | null
+          check_in?: string
+          check_out?: string
+          children_count?: number | null
+          created_at?: string | null
+          currency?: string | null
+          external_booking_id?: string
+          guest_email?: string | null
+          guest_name?: string | null
+          guest_phone?: string | null
+          guests_count?: number | null
+          host_id?: string
+          id?: string
+          last_sync_at?: string | null
+          property_id?: string
+          special_requests?: string | null
+          total_price?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       calendar_blocks: {
         Row: {
           created_at: string | null
