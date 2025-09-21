@@ -22,6 +22,7 @@ export default function ChannelsPage() {
   const [name, setName] = useState("");
   const [pullUrl, setPullUrl] = useState("");
   const [exportToken, setExportToken] = useState("");
+  const [err, setErr] = useState<string | null>(null);
 
   async function load() {
     const { data } = await supabase.from("channel_accounts").select("*").order("created_at", { ascending: false });
@@ -31,11 +32,24 @@ export default function ChannelsPage() {
   useEffect(() => { document.title = "Channels • HostSuite AI"; load(); }, []);
 
   async function addAccount() {
-    if (!name) return;
+    setErr(null);
+    if (!name) { setErr("Inserisci un nome"); return; }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setErr("Devi effettuare l'accesso"); return; }
+
     const { error } = await supabase.from("channel_accounts").insert({
-      name, kind: "ics", ics_pull_url: pullUrl || null, ics_export_token: exportToken || null
+      host_id: user.id,
+      name,
+      kind: "ics",
+      ics_pull_url: pullUrl || null,
+      ics_export_token: exportToken || null,
     });
-    if (!error) { setName(""); setPullUrl(""); setExportToken(""); load(); }
+
+    if (error) { setErr(error.message); return; }
+
+    setName(""); setPullUrl(""); setExportToken("");
+    load();
   }
 
   async function testSync(id: string) {
@@ -50,7 +64,10 @@ export default function ChannelsPage() {
       <h1 className="text-2xl md:text-3xl font-bold mb-6">Channel Manager (ICS)</h1>
 
       <Card className="mb-6">
-        <CardHeader><CardTitle>Aggiungi canale ICS</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Aggiungi canale ICS</CardTitle>
+          {err && <p className="text-sm text-red-600 mt-1">{err}</p>}
+        </CardHeader>
         <CardContent className="grid md:grid-cols-3 gap-3">
           <Input placeholder="Nome (es. Airbnb Pisa)" value={name} onChange={(e)=>setName(e.target.value)} />
           <Input placeholder="ICS pull URL (opzionale)" value={pullUrl} onChange={(e)=>setPullUrl(e.target.value)} />
