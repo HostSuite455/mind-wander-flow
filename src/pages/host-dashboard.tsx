@@ -18,6 +18,7 @@ import { supabase } from "@/lib/supabase";
 import { createProperty, type NewProperty } from "@/lib/properties";
 import { useToast } from "@/hooks/use-toast";
 import { useActiveProperty } from "@/hooks/useActiveProperty";
+import { Link } from "react-router-dom";
 import { 
   LayoutDashboard, 
   Home, 
@@ -393,6 +394,12 @@ const HostDashboard = () => {
                     <Calendar className="mr-3 h-4 w-4" />
                     Calendario
                   </Button>
+                  <Link to="/dashboard/channels">
+                    <Button variant="ghost" className="w-full justify-start text-hostsuite-text hover:text-hostsuite-primary hover:bg-hostsuite-primary/10">
+                      <RefreshCw className="mr-3 h-4 w-4" />
+                      Channels
+                    </Button>
+                  </Link>
                 </nav>
               </div>
             </div>

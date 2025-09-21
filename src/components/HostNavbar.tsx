@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, X, LayoutDashboard, Bot, Calendar, MessageSquare, Settings, HelpCircle, LogOut, User } from "lucide-react";
+import { Menu, X, LayoutDashboard, Bot, Calendar, MessageSquare, Settings, HelpCircle, LogOut, User, RefreshCw } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -20,6 +20,7 @@ const HostNavbar = () => {
     { path: "/host-dashboard", label: "Dashboard", icon: LayoutDashboard },
     { path: "/properties", label: "Proprietà", icon: Settings },
     { path: "/calendar", label: "Calendario", icon: Calendar },
+    { path: "/dashboard/channels", label: "Channels", icon: RefreshCw },
     { path: "/export", label: "Export", icon: Settings },
     { path: "/host-agent-home", label: "iAgent Home", icon: Bot },
     { path: "/host-agent-config", label: "Config Agent", icon: Settings },
