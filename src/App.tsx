@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ActivePropertyProvider } from "@/hooks/useActiveProperty";
 import Navigation from "@/components/Navigation";
 import Home from "./pages/Home";
+import Mission from "./pages/Mission";
+import Pricing from "./pages/Pricing";
 import HostLogin from "./pages/HostLogin";
 import GuestLogin from "./pages/GuestLogin";
 import HostDashboard from "./pages/host-dashboard";
@@ -42,6 +44,8 @@ const App = () => (
               <Routes>
               {/* Public Routes */}
               <Route path="/" element={<Home />} />
+              <Route path="/mission" element={<Mission />} />
+              <Route path="/pricing" element={<Pricing />} />
               <Route path="/host-login" element={<HostLogin />} />
               <Route path="/login/host" element={<Navigate to="/host-login" replace />} />
               <Route path="/guest" element={<GuestLogin />} />

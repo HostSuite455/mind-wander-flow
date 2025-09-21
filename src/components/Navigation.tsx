@@ -46,6 +46,26 @@ const Navigation = () => {
               Home
             </Link>
             <Link 
+              to="/mission" 
+              className={`transition-colors font-medium ${
+                isActive('/mission')
+                  ? 'text-hostsuite-primary font-semibold' 
+                  : 'text-hostsuite-text hover:text-hostsuite-primary'
+              }`}
+            >
+              Mission
+            </Link>
+            <Link 
+              to="/pricing" 
+              className={`transition-colors font-medium ${
+                isActive('/pricing')
+                  ? 'text-hostsuite-primary font-semibold' 
+                  : 'text-hostsuite-text hover:text-hostsuite-primary'
+              }`}
+            >
+              Pricing
+            </Link>
+            <Link 
               to="/host-login" 
               className={`transition-colors font-medium ${
                 isActive('/host-login') || isActive('/login/host')
@@ -134,6 +154,30 @@ const Navigation = () => {
             >
               <HomeIcon className="w-4 h-4 inline mr-2" />
               Home
+            </Link>
+            <Link 
+              to="/mission" 
+              className={`block px-4 py-2 transition-colors font-medium ${
+                isActive('/mission')
+                  ? 'text-hostsuite-primary bg-hostsuite-light/30 font-semibold' 
+                  : 'text-hostsuite-text hover:bg-hostsuite-light/20'
+              }`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <HomeIcon className="w-4 h-4 inline mr-2" />
+              Mission
+            </Link>
+            <Link 
+              to="/pricing" 
+              className={`block px-4 py-2 transition-colors font-medium ${
+                isActive('/pricing')
+                  ? 'text-hostsuite-primary bg-hostsuite-light/30 font-semibold' 
+                  : 'text-hostsuite-text hover:bg-hostsuite-light/20'
+              }`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <HomeIcon className="w-4 h-4 inline mr-2" />
+              Pricing
             </Link>
             <Link 
               to="/host-login" 
