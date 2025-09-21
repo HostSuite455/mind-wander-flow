@@ -24,6 +24,7 @@ import Export from "./pages/export";
 import GuestCodeDemo from "./pages/guest-code-demo";
 import WelcomeBooklet from "./pages/welcome-booklet";
 import AdminUsers from "./pages/admin-users";
+import ChannelsPage from "@/pages/dashboard/ChannelsPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import GuestGuard from "./components/GuestGuard";
 import NotFound from "./pages/NotFound";
@@ -63,6 +64,7 @@ const App = () => (
               <Route path="/host-bookings" element={<ProtectedRoute><HostBookings /></ProtectedRoute>} />
               <Route path="/host-ical-config" element={<ProtectedRoute><HostIcalConfig /></ProtectedRoute>} />
               <Route path="/host-unanswered-questions" element={<ProtectedRoute><HostUnansweredQuestions /></ProtectedRoute>} />
+              <Route path="/dashboard/channels" element={<ProtectedRoute><ChannelsPage /></ProtectedRoute>} />
               <Route path="/admin-users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
               
               {/* Protected Guest Routes */}
