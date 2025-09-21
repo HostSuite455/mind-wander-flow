@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bot, Calendar, TrendingUp, Home as HomeIcon, Building2, Users } from "lucide-react";
+import { Bot, Calendar, TrendingUp, Home as HomeIcon, Building2, Users, LogIn } from "lucide-react";
 import { Link } from "react-router-dom";
 import sienaDayImage from "@/assets/siena-day.png";
 
@@ -20,15 +20,15 @@ const Home = () => {
               <p className="text-xl md:text-2xl text-hostsuite-text mb-8">
                 Messaggi, pulizie, prezzi dinamici e dashboard AI. Tutto in un unico posto.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+              <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center lg:justify-start">
                 <Button 
                   asChild 
                   size="lg" 
-                  className="bg-gradient-hostsuite hover:scale-105 transition-all duration-300 shadow-lg"
-                  aria-label="Accedi come Host - Inizia a gestire le tue proprietà"
+                  className="bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-xl px-6 py-3 shadow-md hover:shadow-lg transition-transform hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600 focus-visible:ring-offset-2"
+                  aria-label="Inizia come Host"
                 >
                   <Link to="/host-login">
-                    <HomeIcon className="w-5 h-5 mr-2" />
+                    <LogIn className="mr-2 h-5 w-5" />
                     Inizia (Host)
                   </Link>
                 </Button>
