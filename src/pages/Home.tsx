@@ -3,6 +3,32 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Bot, Calendar, TrendingUp, Home as HomeIcon, Building2, Users, LogIn } from "lucide-react";
 import { Link } from "react-router-dom";
 import sienaDayImage from "@/assets/siena-day.png";
+import { useHeroTime } from "@/hooks/useHeroTime";
+import { useEffect } from "react";
+
+// Componente per l'immagine hero con switch day/night
+const HeroImage = () => {
+  const mode = useHeroTime();
+  const src = mode === "night" ? "/hero/italy-night.png" : "/hero/italy-day.png";
+
+  // Precarica l'altra immagine per evitare flicker quando cambia
+  useEffect(() => {
+    const other = new Image();
+    other.src = mode === "night" ? "/hero/italy-day.png" : "/hero/italy-night.png";
+  }, [mode]);
+
+  return (
+    <img
+      src={src}
+      alt="Italia al centro del mondo - illustrazione hero"
+      className="w-full h-auto rounded-2xl shadow-xl transition-opacity duration-500"
+      width="600"
+      height="400"
+      loading="eager"
+      fetchPriority="high"
+    />
+  );
+};
 
 const Home = () => {
   return (
@@ -49,14 +75,7 @@ const Home = () => {
             
             {/* Hero Image */}
             <div className="relative">
-              <img 
-                src={sienaDayImage} 
-                alt="Gestione intelligente case vacanza con vista panoramica di Siena - HostSuite dashboard AI"
-                className="w-full h-auto rounded-2xl shadow-xl"
-                width="600"
-                height="400"
-                loading="eager"
-              />
+              <HeroImage />
             </div>
           </div>
         </div>
