@@ -79,14 +79,25 @@ const Navigation = () => {
           )}
 
           {/* Desktop Actions */}
-          <div className="hidden md:flex items-center gap-4">
-            <Button asChild variant="ghost" className="text-hostsuite-primary hover:text-hostsuite-primary-dark">
+          <div className="hidden md:flex items-center gap-2">
+            <Button 
+              asChild 
+              size="sm"
+              className="bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-xl px-4 py-2 shadow-sm hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600 focus-visible:ring-offset-2"
+              aria-label="Accedi Host"
+            >
               <Link to="/host-login">
                 <HomeIcon className="w-4 h-4 mr-2" />
                 Accedi Host
               </Link>
             </Button>
-            <Button asChild className="bg-gradient-hostsuite hover:scale-105 transition-transform shadow-soft">
+            <Button 
+              asChild 
+              variant="outline"
+              size="sm"
+              className="border-gray-300 text-gray-700 bg-white hover:bg-gray-50 rounded-xl"
+              aria-label="Accedi Guest"
+            >
               <Link to="/guest">
                 <Users className="w-4 h-4 mr-2" />
                 Accedi Guest
