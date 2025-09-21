@@ -12,6 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import HostNavbar from "@/components/HostNavbar";
 import PropertySwitch from "@/components/PropertySwitch";
 import IcalUrlModal from "@/components/IcalUrlModal";
+import ChannelManagerWizard from "@/components/ChannelManagerWizard";
 import { IcsPreview } from "@/components/IcsPreview";
 import { CalendarBlocksCard } from "@/components/CalendarBlocksCard";
 import { useActiveProperty } from "@/hooks/useActiveProperty";
@@ -47,6 +48,9 @@ const HostIcalConfig = () => {
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
   const [selectedIcalUrl, setSelectedIcalUrl] = useState<IcalUrl | null>(null);
   const [selectedConfigId, setSelectedConfigId] = useState<string>('');
+  
+  // Wizard states
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
   
   // Preview modal
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -142,6 +146,19 @@ const HostIcalConfig = () => {
     }, {} as Record<string, IcalUrl[]>);
   }, [filteredIcalUrls, selectedPropertyId]);
 
+  const handleCreateConfiguration = () => {
+    if (selectedPropertyId === 'all') {
+      toast({
+        title: "Seleziona una proprietà",
+        description: "Devi selezionare una proprietà specifica per creare una configurazione",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsWizardOpen(true);
+  };
+
   const handleCreateUrl = () => {
     if (selectedPropertyId === 'all') {
       toast({
@@ -156,23 +173,8 @@ const HostIcalConfig = () => {
     let config = icalConfigs.find(c => c.property_id === selectedPropertyId && c.is_active);
     
     if (!config) {
-      // Create new config
-      const createConfig = async () => {
-        const { data: newConfig } = await createIcalConfig({
-          property_id: selectedPropertyId,
-          config_type: 'ota_direct',
-          is_active: true
-        });
-        
-        if (newConfig) {
-          setSelectedConfigId(newConfig.id);
-          setModalMode('create');
-          setSelectedIcalUrl(null);
-          setIsModalOpen(true);
-          loadData(); // Reload to get the new config
-        }
-      };
-      createConfig();
+      // Redirect to wizard for new configuration
+      handleCreateConfiguration();
       return;
     }
 
@@ -278,15 +280,15 @@ const HostIcalConfig = () => {
             </Alert>
           )}
 
-          {/* Add New iCal */}
+          {/* Add New Configuration */}
           <Card className="border-hostsuite-primary/20 mb-8">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-hostsuite-primary">
                 <Plus className="w-6 h-6" />
-                Aggiungi Nuovo iCal
+                Nuova Configurazione Calendario
               </CardTitle>
               <CardDescription>
-                Collega una nuova fonte di calendario per sincronizzare le prenotazioni
+                Configura un Channel Manager o aggiungi piattaforme OTA dirette
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -295,28 +297,46 @@ const HostIcalConfig = () => {
                   <Label>Proprietà Selezionata</Label>
                   <div className="text-sm text-hostsuite-text">
                     {selectedPropertyId === 'all' 
-                      ? 'Seleziona una proprietà specifica per aggiungere iCal'
+                      ? 'Seleziona una proprietà specifica per configurare'
                       : selectedPropertyName || 'Proprietà selezionata'
                     }
                   </div>
                 </div>
                 
-                <Button 
-                  onClick={handleCreateUrl}
-                  disabled={selectedPropertyId === 'all'}
-                  className="bg-hostsuite-primary hover:bg-hostsuite-primary/90 disabled:opacity-50"
-                  title={selectedPropertyId === 'all' ? 'Seleziona una proprietà per aggiungere iCal' : ''}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Aggiungi iCal
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={handleCreateConfiguration}
+                    disabled={selectedPropertyId === 'all'}
+                    className="bg-hostsuite-primary hover:bg-hostsuite-primary/90 disabled:opacity-50"
+                    title={selectedPropertyId === 'all' ? 'Seleziona una proprietà per configurare' : ''}
+                  >
+                    <Settings className="w-4 h-4 mr-2" />
+                    Configura
+                  </Button>
+                  
+                  <Button 
+                    onClick={handleCreateUrl}
+                    disabled={selectedPropertyId === 'all' || !icalConfigs.some(c => c.property_id === selectedPropertyId && c.is_active)}
+                    variant="outline"
+                    title={
+                      selectedPropertyId === 'all' 
+                        ? 'Seleziona una proprietà per aggiungere iCal' 
+                        : !icalConfigs.some(c => c.property_id === selectedPropertyId && c.is_active)
+                        ? 'Crea prima una configurazione'
+                        : 'Aggiungi URL iCal a configurazione esistente'
+                    }
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Aggiungi iCal
+                  </Button>
+                </div>
               </div>
               
               {selectedPropertyId === 'all' && (
                 <Alert>
                   <Info className="h-4 w-4" />
                   <AlertDescription>
-                    Seleziona una proprietà specifica dal menu sopra per aggiungere link iCal.
+                    Seleziona una proprietà specifica dal menu sopra per iniziare la configurazione.
                   </AlertDescription>
                 </Alert>
               )}
@@ -592,7 +612,16 @@ const HostIcalConfig = () => {
         </div>
       </div>
 
-      {/* iCal URL Modal */}
+      {/* Configuration Wizard */}
+      <ChannelManagerWizard
+        isOpen={isWizardOpen}
+        onClose={() => setIsWizardOpen(false)}
+        onSuccess={loadData}
+        propertyId={selectedPropertyId}
+        propertyName={selectedPropertyName || 'Proprietà selezionata'}
+      />
+
+      {/* Add/Edit iCal URL Modal */}
       <IcalUrlModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -602,7 +631,7 @@ const HostIcalConfig = () => {
         mode={modalMode}
       />
 
-      {/* ICS Preview Modal */}
+      {/* Preview Modal */}
       {previewUrl && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-background rounded-lg max-w-4xl w-full max-h-[80vh] overflow-hidden">

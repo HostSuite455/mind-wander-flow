@@ -200,6 +200,8 @@ export type Database = {
       }
       ical_configs: {
         Row: {
+          api_endpoint: string | null
+          api_key_name: string | null
           channel_manager_name: string | null
           config_type: string | null
           created_at: string | null
@@ -208,11 +210,14 @@ export type Database = {
           is_active: boolean | null
           max_ical_urls: number | null
           property_id: string
+          provider_config: Json | null
           status: string | null
           subscription_tier: string | null
           updated_at: string | null
         }
         Insert: {
+          api_endpoint?: string | null
+          api_key_name?: string | null
           channel_manager_name?: string | null
           config_type?: string | null
           created_at?: string | null
@@ -221,11 +226,14 @@ export type Database = {
           is_active?: boolean | null
           max_ical_urls?: number | null
           property_id: string
+          provider_config?: Json | null
           status?: string | null
           subscription_tier?: string | null
           updated_at?: string | null
         }
         Update: {
+          api_endpoint?: string | null
+          api_key_name?: string | null
           channel_manager_name?: string | null
           config_type?: string | null
           created_at?: string | null
@@ -234,6 +242,7 @@ export type Database = {
           is_active?: boolean | null
           max_ical_urls?: number | null
           property_id?: string
+          provider_config?: Json | null
           status?: string | null
           subscription_tier?: string | null
           updated_at?: string | null

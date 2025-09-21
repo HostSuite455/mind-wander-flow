@@ -22,6 +22,9 @@ export type IcalConfig = {
   is_active: boolean;
   config_type: IcalConfigType;
   channel_manager_name?: string;
+  api_endpoint?: string;
+  api_key_name?: string;
+  provider_config?: Record<string, any>;
   status: string;
   created_at: string;
   updated_at: string;
@@ -86,6 +89,9 @@ export async function listIcalConfigs(propertyId?: string | 'all'): Promise<{ da
       is_active,
       config_type,
       channel_manager_name,
+      api_endpoint,
+      api_key_name,
+      provider_config,
       status,
       created_at,
       updated_at
@@ -270,11 +276,17 @@ export async function createIcalConfig({
   property_id,
   config_type = 'ota_direct',
   channel_manager_name,
+  api_endpoint,
+  api_key_name,
+  provider_config,
   is_active = true
 }: {
   property_id: string;
   config_type?: IcalConfigType;
   channel_manager_name?: string;
+  api_endpoint?: string;
+  api_key_name?: string;
+  provider_config?: Record<string, any>;
   is_active?: boolean;
 }) {
   try {
@@ -291,6 +303,9 @@ export async function createIcalConfig({
         host_id: user.id,
         config_type,
         channel_manager_name,
+        api_endpoint,
+        api_key_name,
+        provider_config: provider_config || {},
         is_active,
         status: 'active'
       }])
