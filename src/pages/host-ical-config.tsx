@@ -169,16 +169,22 @@ const HostIcalConfig = () => {
       return;
     }
 
-    // Find or create config for selected property
-    let config = icalConfigs.find(c => c.property_id === selectedPropertyId && c.is_active);
+    // Check if property has any active configuration
+    const existingConfig = icalConfigs.find(c => c.property_id === selectedPropertyId && c.is_active);
     
-    if (!config) {
-      // Redirect to wizard for new configuration
-      handleCreateConfiguration();
+    if (!existingConfig) {
+      // No configuration exists, must use wizard first
+      toast({
+        title: "Configurazione richiesta",
+        description: "Devi prima configurare il tipo di integrazione per questa proprietà",
+        variant: "default"
+      });
+      setIsWizardOpen(true);
       return;
     }
 
-    setSelectedConfigId(config.id);
+    // Configuration exists, open URL modal
+    setSelectedConfigId(existingConfig.id);
     setModalMode('create');
     setSelectedIcalUrl(null);
     setIsModalOpen(true);
@@ -301,6 +307,11 @@ const HostIcalConfig = () => {
                       : selectedPropertyName || 'Proprietà selezionata'
                     }
                   </div>
+                  {selectedPropertyId !== 'all' && !icalConfigs.some(c => c.property_id === selectedPropertyId && c.is_active) && (
+                    <div className="text-xs text-amber-600">
+                      ⚠️ Nessuna configurazione attiva trovata
+                    </div>
+                  )}
                 </div>
                 
                 <div className="flex gap-2">
@@ -311,7 +322,10 @@ const HostIcalConfig = () => {
                     title={selectedPropertyId === 'all' ? 'Seleziona una proprietà per configurare' : ''}
                   >
                     <Settings className="w-4 h-4 mr-2" />
-                    Configura
+                    {icalConfigs.some(c => c.property_id === selectedPropertyId && c.is_active) 
+                      ? 'Riconfigura' 
+                      : 'Configura'
+                    }
                   </Button>
                   
                   <Button 
@@ -322,12 +336,12 @@ const HostIcalConfig = () => {
                       selectedPropertyId === 'all' 
                         ? 'Seleziona una proprietà per aggiungere iCal' 
                         : !icalConfigs.some(c => c.property_id === selectedPropertyId && c.is_active)
-                        ? 'Crea prima una configurazione'
-                        : 'Aggiungi URL iCal a configurazione esistente'
+                        ? 'Configura prima il tipo di integrazione'
+                        : 'Aggiungi URL iCal alla configurazione esistente'
                     }
                   >
                     <Plus className="w-4 h-4 mr-2" />
-                    Aggiungi iCal
+                    Aggiungi URL
                   </Button>
                 </div>
               </div>
@@ -337,6 +351,17 @@ const HostIcalConfig = () => {
                   <Info className="h-4 w-4" />
                   <AlertDescription>
                     Seleziona una proprietà specifica dal menu sopra per iniziare la configurazione.
+                  </AlertDescription>
+                </Alert>
+              )}
+              
+              {selectedPropertyId !== 'all' && !icalConfigs.some(c => c.property_id === selectedPropertyId && c.is_active) && (
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    Prima di aggiungere URL iCal, devi configurare il tipo di integrazione: 
+                    <strong> Channel Manager</strong> (per dati completi via API) o 
+                    <strong> OTA Direct</strong> (per sincronizzazione calendario via iCal).
                   </AlertDescription>
                 </Alert>
               )}
