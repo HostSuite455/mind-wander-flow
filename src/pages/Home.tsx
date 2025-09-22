@@ -16,23 +16,10 @@ const HeroImage = () => {
     const other = new Image();
     other.src = mode === "night" ? "/hero/italy-day.png" : "/hero/italy-night.png";
   }, [mode]);
-
-  return (
-    <img
-      src={src}
-      alt="Italia al centro del mondo - illustrazione hero"
-      className="w-full h-auto rounded-2xl shadow-xl transition-opacity duration-500"
-      width="600"
-      height="400"
-      loading="eager"
-      fetchPriority="high"
-    />
-  );
+  return <img src={src} alt="Italia al centro del mondo - illustrazione hero" className="w-full h-auto rounded-2xl shadow-xl transition-opacity duration-500" width="600" height="400" loading="eager" fetchPriority="high" />;
 };
-
 const Home = () => {
-  return (
-    <div className="min-h-screen bg-background">
+  return <div className="min-h-screen bg-background">
       {/* Hero Section - 2 Column Responsive Layout */}
       <section className="relative py-20 px-4 sm:px-6 lg:px-8 overflow-hidden min-h-[70vh] flex items-center">
         <div className="absolute inset-0 bg-gradient-to-br from-hostsuite-primary/10 to-hostsuite-secondary/10" />
@@ -47,24 +34,13 @@ const Home = () => {
                 Messaggi, pulizie, prezzi dinamici e dashboard AI. Tutto in un unico posto.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center lg:justify-start">
-                <Button 
-                  asChild 
-                  size="lg" 
-                  className="bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-xl px-6 py-3 shadow-md hover:shadow-lg transition-transform hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600 focus-visible:ring-offset-2"
-                  aria-label="Inizia come Host"
-                >
+                <Button asChild size="lg" className="bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-xl px-6 py-3 shadow-md hover:shadow-lg transition-transform hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-600 focus-visible:ring-offset-2" aria-label="Inizia come Host">
                   <Link to="/host-login">
                     <LogIn className="mr-2 h-5 w-5" />
                     Inizia (Host)
                   </Link>
                 </Button>
-                <Button 
-                  asChild 
-                  variant="outline" 
-                  size="lg" 
-                  className="border-hostsuite-primary text-hostsuite-primary hover:bg-hostsuite-primary hover:text-white transition-all duration-300"
-                  aria-label="Accedi come Ospite - Visualizza informazioni della tua prenotazione"
-                >
+                <Button asChild variant="outline" size="lg" className="border-hostsuite-primary text-hostsuite-primary hover:bg-hostsuite-primary hover:text-white transition-all duration-300" aria-label="Accedi come Ospite - Visualizza informazioni della tua prenotazione">
                   <Link to="/guest">
                     <Users className="w-5 h-5 mr-2" />
                     Accedi come Ospite
@@ -105,12 +81,7 @@ const Home = () => {
                 <CardDescription className="text-hostsuite-text">
                   Template smart per check-in/out e FAQ ricorrenti.
                 </CardDescription>
-                <img 
-                  src={sienaDayImage} 
-                  alt="Automazioni AI per gestione case vacanza"
-                  className="w-full h-32 object-cover rounded-lg mt-4"
-                  loading="lazy"
-                />
+                <img src={sienaDayImage} alt="Automazioni AI per gestione case vacanza" className="w-full h-32 object-cover rounded-lg mt-4" loading="lazy" />
               </CardContent>
             </Card>
 
@@ -125,12 +96,7 @@ const Home = () => {
                 <CardDescription className="text-hostsuite-text">
                   Planner turni, checklist e tracciamento biancheria.
                 </CardDescription>
-                <img 
-                  src={sienaDayImage} 
-                  alt="Gestione pulizie e biancheria per case vacanza"
-                  className="w-full h-32 object-cover rounded-lg mt-4"
-                  loading="lazy"
-                />
+                <img src={sienaDayImage} alt="Gestione pulizie e biancheria per case vacanza" className="w-full h-32 object-cover rounded-lg mt-4" loading="lazy" />
               </CardContent>
             </Card>
 
@@ -145,12 +111,7 @@ const Home = () => {
                 <CardDescription className="text-hostsuite-text">
                   Strategie stagionali e adeguamenti automatici.
                 </CardDescription>
-                <img 
-                  src={sienaDayImage} 
-                  alt="Prezzi dinamici per ottimizzazione ricavi case vacanza"
-                  className="w-full h-32 object-cover rounded-lg mt-4"
-                  loading="lazy"
-                />
+                <img src={sienaDayImage} alt="Prezzi dinamici per ottimizzazione ricavi case vacanza" className="w-full h-32 object-cover rounded-lg mt-4" loading="lazy" />
               </CardContent>
             </Card>
           </div>
@@ -229,9 +190,7 @@ const Home = () => {
       <footer className="py-12 px-6 border-t border-hostsuite-primary/20">
         <div className="container mx-auto max-w-4xl">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="text-hostsuite-text">
-              © 2024 HostSuite. Tutti i diritti riservati.
-            </div>
+            <div className="text-hostsuite-text">© 2025 HostSuite. Tutti i diritti riservati.</div>
             <div className="flex gap-6">
               <a href="#" className="text-hostsuite-text hover:text-hostsuite-primary transition-colors">
                 Privacy Policy
@@ -243,8 +202,6 @@ const Home = () => {
           </div>
         </div>
       </footer>
-    </div>
-  );
+    </div>;
 };
-
 export default Home;
