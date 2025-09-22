@@ -25,6 +25,7 @@ import GuestCodeDemo from "./pages/guest-code-demo";
 import WelcomeBooklet from "./pages/welcome-booklet";
 import AdminUsers from "./pages/admin-users";
 import ChannelsPage from "@/pages/dashboard/ChannelsPage";
+import PropertiesNewPage from "@/pages/dashboard/PropertiesNewPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import GuestGuard from "./components/GuestGuard";
 import NotFound from "./pages/NotFound";
@@ -56,6 +57,7 @@ const App = () => (
               {/* Protected Host Routes */}
               <Route path="/host-dashboard" element={<ProtectedRoute><HostDashboard /></ProtectedRoute>} />
               <Route path="/properties" element={<ProtectedRoute><Properties /></ProtectedRoute>} />
+              <Route path="/properties/new" element={<ProtectedRoute><PropertiesNewPage /></ProtectedRoute>} />
               <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
               <Route path="/calendar-pro" element={<ProtectedRoute><CalendarPro /></ProtectedRoute>} />
               <Route path="/export" element={<ProtectedRoute><Export /></ProtectedRoute>} />

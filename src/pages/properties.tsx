@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
@@ -42,6 +43,7 @@ interface Property {
 }
 
 const Properties = () => {
+  const navigate = useNavigate();
   const [properties, setProperties] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -291,7 +293,7 @@ const Properties = () => {
                 </PrimaryButton>
                 
                 <PrimaryButton
-                  onClick={() => setIsCreateModalOpen(true)}
+                  onClick={() => navigate('/properties/new')}
                   aria-label="Crea nuova proprietà"
                 >
                   <Plus className="w-4 h-4 mr-2" />
