@@ -55,8 +55,17 @@ serve(async (req) => {
       const ics = await res.text();
       const events = parseICS(ics);
 
-      // properties dell'host
-      const { data: props } = await supabase.from("properties").select("id").eq("host_id", acc.host_id);
+      // --- nuovo: se l'account ha property_id, usa solo quella; altrimenti fallback a tutte ---
+      let props: Array<{ id: string }> = [];
+      if (acc.property_id) {
+        props = [{ id: acc.property_id }];
+      } else {
+        const { data: all } = await supabase
+          .from("properties")
+          .select("id")
+          .eq("host_id", acc.host_id);
+        props = (all as any) || [];
+      }
 
       for (const p of props || []) {
         // pulizia dei record provenienti da questo account

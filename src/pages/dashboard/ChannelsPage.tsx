@@ -6,9 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { RefreshCw, Link as LinkIcon, Shield, Calendar } from "lucide-react";
 
+type Property = { id: string; name: string };
+
 type ChannelAccount = {
   id: string;
   host_id: string;
+  property_id?: string;
   kind: string;
   name: string;
   ics_pull_url: string | null;
@@ -19,6 +22,8 @@ type ChannelAccount = {
 
 export default function ChannelsPage() {
   const [accounts, setAccounts] = useState<ChannelAccount[]>([]);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [propertyId, setPropertyId] = useState<string>("");
   const [name, setName] = useState("");
   const [pullUrl, setPullUrl] = useState("");
   const [exportToken, setExportToken] = useState("");
@@ -27,12 +32,16 @@ export default function ChannelsPage() {
   async function load() {
     const { data } = await supabase.from("channel_accounts").select("*").order("created_at", { ascending: false });
     setAccounts((data as ChannelAccount[]) || []);
+    
+    const { data: props } = await supabase.from("properties").select("id,name").order("created_at",{ascending:false});
+    setProperties((props as any) || []);
   }
 
   useEffect(() => { document.title = "Channels • HostSuite AI"; load(); }, []);
 
   async function addAccount() {
     setErr(null);
+    if (!propertyId) { setErr("Seleziona un appartamento"); return; }
     if (!name) { setErr("Inserisci un nome"); return; }
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -40,6 +49,7 @@ export default function ChannelsPage() {
 
     const { error } = await supabase.from("channel_accounts").insert({
       host_id: user.id,
+      property_id: propertyId,
       name,
       kind: "ics",
       ics_pull_url: pullUrl || null,
@@ -48,7 +58,7 @@ export default function ChannelsPage() {
 
     if (error) { setErr(error.message); return; }
 
-    setName(""); setPullUrl(""); setExportToken("");
+    setName(""); setPullUrl(""); setExportToken(""); setPropertyId("");
     load();
   }
 
@@ -69,6 +79,16 @@ export default function ChannelsPage() {
           {err && <p className="text-sm text-red-600 mt-1">{err}</p>}
         </CardHeader>
         <CardContent className="grid md:grid-cols-3 gap-3">
+          <select 
+            className="w-full rounded-md border p-2 text-sm" 
+            value={propertyId} 
+            onChange={(e)=>setPropertyId(e.target.value)}
+          >
+            <option value="">Seleziona appartamento…</option>
+            {properties.map(p=>(
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
           <Input placeholder="Nome (es. Airbnb Pisa)" value={name} onChange={(e)=>setName(e.target.value)} />
           <Input placeholder="ICS pull URL (opzionale)" value={pullUrl} onChange={(e)=>setPullUrl(e.target.value)} />
           <div className="flex gap-2">
@@ -89,6 +109,7 @@ export default function ChannelsPage() {
               <div key={a.id} className="rounded-xl border p-3 flex items-center justify-between gap-3">
                 <div>
                   <div className="font-semibold">{a.name} <Badge variant="outline">ICS</Badge></div>
+                  <div className="text-xs text-gray-500">Appartamento: {properties.find(p=>p.id===a.property_id)?.name ?? "—"}</div>
                   <div className="text-sm text-gray-600">
                     Pull: {a.ics_pull_url ? <a className="underline" href={a.ics_pull_url} target="_blank">{a.ics_pull_url}</a> : <span className="opacity-60">—</span>}
                     {" • "}Export URL: {a.ics_export_token ? <code className="bg-gray-50 px-1 py-0.5 rounded">{`/functions/v1/ics-export?property_id=<id>&token=${a.ics_export_token}`}</code> : <span className="opacity-60">—</span>}
