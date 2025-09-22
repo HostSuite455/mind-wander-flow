@@ -394,7 +394,7 @@ const HostDashboard = () => {
                     <Calendar className="mr-3 h-4 w-4" />
                     Calendario
                   </Button>
-                  <Link to="/dashboard/channels">
+                  <Link to="/channels">
                     <Button variant="ghost" className="w-full justify-start text-hostsuite-text hover:text-hostsuite-primary hover:bg-hostsuite-primary/10">
                       <RefreshCw className="mr-3 h-4 w-4" />
                       Channels

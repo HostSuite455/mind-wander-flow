@@ -64,7 +64,7 @@ const App = () => (
               <Route path="/host-bookings" element={<ProtectedRoute><HostBookings /></ProtectedRoute>} />
               <Route path="/host-ical-config" element={<ProtectedRoute><HostIcalConfig /></ProtectedRoute>} />
               <Route path="/host-unanswered-questions" element={<ProtectedRoute><HostUnansweredQuestions /></ProtectedRoute>} />
-              <Route path="/dashboard/channels" element={<ProtectedRoute><ChannelsPage /></ProtectedRoute>} />
+              <Route path="/channels" element={<ProtectedRoute><ChannelsPage /></ProtectedRoute>} />
               <Route path="/admin-users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />
               
               {/* Protected Guest Routes */}
