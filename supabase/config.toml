@@ -3,5 +3,11 @@ project_id = "blsiiqhijlubzhpmtswc"
 [functions.ical-feed]
 verify_jwt = false
 
+[functions.ics-sync]
+verify_jwt = false
+
+[functions.ics-export]
+verify_jwt = false
+
 [functions.sync-smoobu-bookings]
 verify_jwt = true

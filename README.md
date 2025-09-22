@@ -71,3 +71,34 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## Supabase Configuration
+
+### Environment Variables (Frontend)
+The application requires these environment variables:
+- `VITE_SUPABASE_URL` - Your Supabase project URL
+- `VITE_SUPABASE_ANON_KEY` - Your Supabase anonymous key
+
+### Supabase Secrets (Backend)
+Configure these secrets in your Supabase project for edge functions:
+1. **SB_URL** - Your Supabase project URL 
+2. **SB_SERVICE_ROLE_KEY** - Your Supabase service role key
+
+#### Setting Supabase Secrets:
+1. Go to: https://supabase.com/dashboard/project/{project_id}/settings/functions
+2. Add environment variables:
+   - Name: `SB_URL`, Value: `https://your-project-ref.supabase.co`
+   - Name: `SB_SERVICE_ROLE_KEY`, Value: `your_service_role_key`
+
+Find your service role key: Supabase Dashboard → Settings → API → Service Role
+
+### Edge Functions
+- **ics-sync** - Synchronizes iCal data from external sources  
+- **ics-export** - Exports property calendar as iCal (currently stub)
+
+### Database Tables
+Main tables used by the channel manager:
+- `ical_configs` - Configuration for channel connections
+- `ical_urls` - iCal URLs for each configuration  
+- `properties` - Property information
+- `calendar_blocks` - Availability blocks from synced data
