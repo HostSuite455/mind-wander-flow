@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,14 +9,18 @@ export default function PropertiesNewPage() {
   const [isWizardOpen, setIsWizardOpen] = useState(true);
   const navigate = useNavigate();
 
+  useEffect(() => {
+    document.title = "Nuova Proprietà - HostSuite";
+  }, []);
+
   const handleWizardClose = () => {
     setIsWizardOpen(false);
-    navigate('/properties');
+    navigate('/dashboard/properties');
   };
 
   const handleWizardSuccess = () => {
     setIsWizardOpen(false);
-    navigate('/properties');
+    navigate('/dashboard/properties');
   };
 
   return (
@@ -26,7 +30,7 @@ export default function PropertiesNewPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigate('/properties')}
+            onClick={() => navigate('/dashboard/properties')}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Torna alle Proprietà

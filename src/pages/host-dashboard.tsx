@@ -445,13 +445,14 @@ const HostDashboard = () => {
                       </div>
                     )}
 
-                    <PrimaryButton
-                      onClick={() => setIsCreateModalOpen(true)}
-                      aria-label="Crea nuova proprietà"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Nuova Proprietà
-                    </PrimaryButton>
+                    <Link to="/dashboard/properties/new">
+                      <PrimaryButton
+                        aria-label="Crea nuova proprietà"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Nuova Proprietà
+                      </PrimaryButton>
+                    </Link>
                   </div>
                 </div>
               </div>

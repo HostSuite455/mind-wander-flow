@@ -51,7 +51,7 @@ const HostLogin = () => {
           title: "Accesso effettuato",
           description: "Benvenuto nella tua dashboard!",
         });
-        navigate("/host-dashboard");
+        navigate("/dashboard");
       }
     } catch (err) {
       const errorMessage = "Errore durante l'accesso. Riprova.";
@@ -125,7 +125,7 @@ const HostLogin = () => {
 
               <Button
                 type="submit"
-                className="w-full bg-gradient-hostsuite hover:scale-105 transition-transform"
+                className="w-full bg-gradient-hostsuite hover:scale-105 transition-transform disabled:opacity-100 disabled:bg-gradient-hostsuite"
                 disabled={!isFormValid || isLoading}
                 aria-busy={isLoading}
               >

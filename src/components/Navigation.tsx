@@ -88,7 +88,7 @@ const Navigation = () => {
           </div>
 
           {/* Property Switch - visible for authenticated routes */}
-          {(location.pathname.startsWith('/host-') || location.pathname === '/properties' || location.pathname === '/calendar' || location.pathname === '/export') && properties.length > 0 && (
+          {(location.pathname.startsWith('/dashboard/') || location.pathname.startsWith('/host-')) && properties.length > 0 && (
             <div className="hidden sm:block">
               <PropertySwitch 
                 items={properties}

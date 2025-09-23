@@ -17,11 +17,11 @@ const HostNavbar = () => {
   const isActive = (path: string) => location.pathname === path;
 
   const navLinks = [
-    { path: "/host-dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { path: "/properties", label: "Proprietà", icon: Settings },
-    { path: "/calendar", label: "Calendario", icon: Calendar },
-    { path: "/channels", label: "Channels", icon: RefreshCw },
-    { path: "/export", label: "Export", icon: Settings },
+    { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { path: "/dashboard/properties", label: "Proprietà", icon: Settings },
+    { path: "/dashboard/calendar", label: "Calendario", icon: Calendar },
+    { path: "/dashboard/channels", label: "Canali", icon: RefreshCw },
+    { path: "/dashboard/export", label: "Export", icon: Settings },
     { path: "/host-agent-home", label: "iAgent Home", icon: Bot },
     { path: "/host-agent-config", label: "Config Agent", icon: Settings },
     { path: "/host-bookings", label: "Prenotazioni", icon: Calendar },

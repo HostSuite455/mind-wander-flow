@@ -293,7 +293,7 @@ const Properties = () => {
                 </PrimaryButton>
                 
                 <PrimaryButton
-                  onClick={() => navigate('/properties/new')}
+                  onClick={() => navigate('/dashboard/properties/new')}
                   aria-label="Crea nuova proprietà"
                 >
                   <Plus className="w-4 h-4 mr-2" />
