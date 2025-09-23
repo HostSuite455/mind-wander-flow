@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      availability_blocks: {
+        Row: {
+          created_at: string | null
+          end_date: string
+          id: string
+          property_id: string
+          reason: string | null
+          source: string
+          start_date: string
+        }
+        Insert: {
+          created_at?: string | null
+          end_date: string
+          id?: string
+          property_id: string
+          reason?: string | null
+          source: string
+          start_date: string
+        }
+        Update: {
+          created_at?: string | null
+          end_date?: string
+          id?: string
+          property_id?: string
+          reason?: string | null
+          source?: string
+          start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "availability_blocks_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bookings: {
         Row: {
           adults_count: number | null
@@ -126,6 +164,56 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "calendar_blocks_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_accounts: {
+        Row: {
+          created_at: string | null
+          host_id: string
+          ics_export_token: string | null
+          ics_pull_url: string | null
+          id: string
+          kind: Database["public"]["Enums"]["channel_kind"]
+          last_sync_at: string | null
+          last_sync_status: string | null
+          name: string
+          property_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          host_id: string
+          ics_export_token?: string | null
+          ics_pull_url?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["channel_kind"]
+          last_sync_at?: string | null
+          last_sync_status?: string | null
+          name: string
+          property_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          host_id?: string
+          ics_export_token?: string | null
+          ics_pull_url?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["channel_kind"]
+          last_sync_at?: string | null
+          last_sync_status?: string | null
+          name?: string
+          property_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_accounts_property_id_fkey"
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
@@ -364,6 +452,45 @@ export type Database = {
           },
         ]
       }
+      listings: {
+        Row: {
+          account_id: string | null
+          created_at: string | null
+          external_id: string | null
+          id: string
+          property_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          created_at?: string | null
+          external_id?: string | null
+          id?: string
+          property_id: string
+        }
+        Update: {
+          account_id?: string | null
+          created_at?: string | null
+          external_id?: string | null
+          id?: string
+          property_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listings_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "channel_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listings_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       message_feedback: {
         Row: {
           category: string | null
@@ -449,15 +576,29 @@ export type Database = {
         Row: {
           address: string | null
           ai_home_prompt: string | null
+          amenities: Json | null
           auto_send_credentials: boolean | null
+          base_price: number | null
+          bathrooms: number | null
+          bedrooms: number | null
+          beds: number | null
+          check_in_from: string | null
+          check_out_until: string | null
           city: string | null
+          cleaning_fee: number | null
+          country: string | null
           created_at: string | null
+          currency: string | null
+          guests: number | null
           host_id: string
           ical_url: string | null
           ical_url_hash: string | null
           id: string
+          lat: number | null
+          lng: number | null
           max_guests: number | null
           nome: string
+          size_sqm: number | null
           status: string | null
           updated_at: string | null
           whatsapp_link: string | null
@@ -465,15 +606,29 @@ export type Database = {
         Insert: {
           address?: string | null
           ai_home_prompt?: string | null
+          amenities?: Json | null
           auto_send_credentials?: boolean | null
+          base_price?: number | null
+          bathrooms?: number | null
+          bedrooms?: number | null
+          beds?: number | null
+          check_in_from?: string | null
+          check_out_until?: string | null
           city?: string | null
+          cleaning_fee?: number | null
+          country?: string | null
           created_at?: string | null
+          currency?: string | null
+          guests?: number | null
           host_id: string
           ical_url?: string | null
           ical_url_hash?: string | null
           id?: string
+          lat?: number | null
+          lng?: number | null
           max_guests?: number | null
           nome?: string
+          size_sqm?: number | null
           status?: string | null
           updated_at?: string | null
           whatsapp_link?: string | null
@@ -481,15 +636,29 @@ export type Database = {
         Update: {
           address?: string | null
           ai_home_prompt?: string | null
+          amenities?: Json | null
           auto_send_credentials?: boolean | null
+          base_price?: number | null
+          bathrooms?: number | null
+          bedrooms?: number | null
+          beds?: number | null
+          check_in_from?: string | null
+          check_out_until?: string | null
           city?: string | null
+          cleaning_fee?: number | null
+          country?: string | null
           created_at?: string | null
+          currency?: string | null
+          guests?: number | null
           host_id?: string
           ical_url?: string | null
           ical_url_hash?: string | null
           id?: string
+          lat?: number | null
+          lng?: number | null
           max_guests?: number | null
           nome?: string
+          size_sqm?: number | null
           status?: string | null
           updated_at?: string | null
           whatsapp_link?: string | null
@@ -608,6 +777,47 @@ export type Database = {
           },
         ]
       }
+      reservations: {
+        Row: {
+          created_at: string | null
+          end_date: string
+          guest_name: string | null
+          id: string
+          property_id: string
+          source: string
+          start_date: string
+          uid: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          end_date: string
+          guest_name?: string | null
+          id?: string
+          property_id: string
+          source: string
+          start_date: string
+          uid?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          end_date?: string
+          guest_name?: string | null
+          id?: string
+          property_id?: string
+          source?: string
+          start_date?: string
+          uid?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservations_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           created_at: string | null
@@ -646,6 +856,38 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      sync_logs: {
+        Row: {
+          account_id: string | null
+          at: string | null
+          id: number
+          level: string
+          message: string
+        }
+        Insert: {
+          account_id?: string | null
+          at?: string | null
+          id?: number
+          level: string
+          message: string
+        }
+        Update: {
+          account_id?: string | null
+          at?: string | null
+          id?: number
+          level?: string
+          message?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_logs_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "channel_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       unanswered_questions: {
         Row: {
@@ -754,7 +996,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      channel_kind: "ics" | "channex" | "direct" | "mock"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -881,6 +1123,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      channel_kind: ["ics", "channex", "direct", "mock"],
+    },
   },
 } as const
