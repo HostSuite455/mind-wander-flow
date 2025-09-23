@@ -1,13 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { 
   ArrowLeft, 
@@ -26,7 +22,15 @@ import {
   Tv,
   AirVent,
   ChefHat,
-  ExternalLink
+  ExternalLink,
+  Building,
+  Hotel,
+  Tent,
+  Ship,
+  TreePine,
+  Castle,
+  Plus,
+  Minus
 } from "lucide-react";
 import { logError, logInfo } from "@/lib/log";
 
@@ -51,21 +55,54 @@ interface PropertyData {
   check_out_until?: string;
 }
 
-const STEPS = [
-  { id: 1, title: "Info Base", icon: Home },
-  { id: 2, title: "Capacità", icon: Users },
-  { id: 3, title: "Servizi", icon: Wifi },
-  { id: 4, title: "Prezzi & Regole", icon: Euro },
-  { id: 5, title: "Calendario/ICS", icon: Calendar },
-  { id: 6, title: "Review", icon: CheckCircle }
+interface PropertyType {
+  id: string;
+  label: string;
+  icon: React.ComponentType<any>;
+  description: string;
+}
+
+const PROPERTY_TYPES: PropertyType[] = [
+  { id: 'casa', label: 'Casa', icon: Home, description: 'Una casa completa' },
+  { id: 'appartamento', label: 'Appartamento', icon: Building, description: 'Un appartamento in condominio' },
+  { id: 'villa', label: 'Villa', icon: Castle, description: 'Una villa indipendente' },
+  { id: 'b&b', label: 'B&B', icon: Bed, description: 'Bed & Breakfast' },
+  { id: 'hotel', label: 'Hotel', icon: Hotel, description: 'Camera d\'hotel' },
+  { id: 'barca', label: 'Barca', icon: Ship, description: 'Una barca o yacht' },
+  { id: 'camping', label: 'Camping', icon: Tent, description: 'Tenda o camper' },
+  { id: 'baita', label: 'Baita', icon: TreePine, description: 'Casa di montagna' },
+];
+
+const PRIVACY_TYPES = [
+  {
+    id: 'entire_place',
+    title: 'Un alloggio intero',
+    description: 'Gli ospiti hanno l\'intero alloggio solo per loro.',
+    icon: Home
+  },
+  {
+    id: 'private_room',
+    title: 'Una stanza',
+    description: 'Gli ospiti hanno la loro stanza in una casa, più l\'accesso agli spazi condivisi.',
+    icon: Bed
+  },
+  {
+    id: 'shared_room',
+    title: 'Una stanza condivisa in un ostello',
+    description: 'Gli ospiti dormono in una stanza condivisa in un ostello gestito da un professionista con personale in loco 24 ore su 24.',
+    icon: Users
+  }
 ];
 
 const AMENITIES = [
   { key: 'wifi', label: 'Wi-Fi', icon: Wifi },
-  { key: 'air_conditioning', label: 'Aria Condizionata', icon: AirVent },
-  { key: 'kitchen', label: 'Cucina', icon: ChefHat },
   { key: 'tv', label: 'TV', icon: Tv },
-  { key: 'parking', label: 'Parcheggio', icon: Car },
+  { key: 'kitchen', label: 'Cucina', icon: ChefHat },
+  { key: 'washer', label: 'Lavatrice', icon: Ruler },
+  { key: 'parking_free', label: 'Parcheggio gratuito nella proprietà', icon: Car },
+  { key: 'parking_paid', label: 'Parcheggio a pagamento in loco', icon: Car },
+  { key: 'air_conditioning', label: 'Aria condizionata', icon: AirVent },
+  { key: 'workspace', label: 'Spazio di lavoro dedicato', icon: Users },
 ];
 
 const CURRENCIES = [
@@ -73,6 +110,41 @@ const CURRENCIES = [
   { value: 'USD', label: '$ US Dollar' },
   { value: 'GBP', label: '£ British Pound' },
 ];
+
+interface CounterProps {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  min?: number;
+  max?: number;
+}
+
+const Counter: React.FC<CounterProps> = ({ label, value, onChange, min = 0, max = 16 }) => (
+  <div className="flex items-center justify-between py-4 border-b border-border">
+    <span className="font-medium">{label}</span>
+    <div className="flex items-center gap-4">
+      <Button
+        variant="outline"
+        size="icon"
+        className="h-8 w-8 rounded-full"
+        onClick={() => onChange(Math.max(min, value - 1))}
+        disabled={value <= min}
+      >
+        <Minus className="h-4 w-4" />
+      </Button>
+      <span className="w-8 text-center font-medium">{value}</span>
+      <Button
+        variant="outline"
+        size="icon"
+        className="h-8 w-8 rounded-full"
+        onClick={() => onChange(Math.min(max, value + 1))}
+        disabled={value >= max}
+      >
+        <Plus className="h-4 w-4" />
+      </Button>
+    </div>
+  </div>
+);
 
 export default function PropertyWizard() {
   const [currentStep, setCurrentStep] = useState(1);
@@ -89,7 +161,7 @@ export default function PropertyWizard() {
     lat: undefined,
     lng: undefined,
     size_sqm: undefined,
-    max_guests: 2,
+    max_guests: 1,
     bedrooms: 1,
     beds: 1,
     bathrooms: 1,
@@ -100,6 +172,11 @@ export default function PropertyWizard() {
     check_in_from: '15:00',
     check_out_until: '11:00',
   });
+
+  const [selectedPropertyType, setSelectedPropertyType] = useState<string>('');
+  const [selectedPrivacyType, setSelectedPrivacyType] = useState<string>('');
+
+  const totalSteps = 8;
 
   useEffect(() => {
     loadDraft();
@@ -136,7 +213,7 @@ export default function PropertyWizard() {
           lat: property.lat || undefined,
           lng: property.lng || undefined,
           size_sqm: property.size_sqm || undefined,
-          max_guests: property.max_guests || 2,
+          max_guests: property.max_guests || 1,
           bedrooms: property.bedrooms || 1,
           beds: property.beds || 1,
           bathrooms: property.bathrooms || 1,
@@ -270,7 +347,7 @@ export default function PropertyWizard() {
   };
 
   const nextStep = () => {
-    if (currentStep < STEPS.length) {
+    if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1);
       saveDraft();
     }
@@ -301,9 +378,15 @@ export default function PropertyWizard() {
   const canProceed = () => {
     switch (currentStep) {
       case 1:
-        return data.nome.trim() && data.city.trim();
+        return selectedPropertyType !== '';
       case 2:
-        return data.max_guests && data.max_guests > 0;
+        return selectedPrivacyType !== '';
+      case 3:
+        return data.city.trim() !== '';
+      case 4:
+        return data.max_guests > 0;
+      case 5:
+        return data.nome.trim() !== '';
       default:
         return true;
     }
@@ -321,426 +404,380 @@ export default function PropertyWizard() {
   }
 
   return (
-    <div className="container mx-auto max-w-4xl px-4 py-8">
-      <div className="mb-8">
-        <Link to="/properties" className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-4">
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Torna alle proprietà
-        </Link>
-        <h1 className="text-3xl font-bold mb-2">Crea la tua proprietà</h1>
-        <p className="text-muted-foreground">Segui i passaggi per configurare la tua proprietà</p>
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <div className="sticky top-0 z-50 bg-background border-b border-border">
+        <div className="container mx-auto max-w-6xl px-6 py-4">
+          <div className="flex items-center justify-between">
+            <Link to="/properties" className="inline-flex items-center text-sm text-muted-foreground hover:text-primary">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Esci
+            </Link>
+            <div className="text-sm text-muted-foreground">
+              {currentStep} / {totalSteps}
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Progress Bar */}
-      <div className="mb-8">
-        <Progress value={(currentStep / STEPS.length) * 100} className="mb-4" />
-            {STEPS.map((step) => {
-              const Icon = step.icon;
-              const isActive = currentStep === step.id;
-              const isCompleted = currentStep > step.id;
-              
-              return (
-                <button
-                  key={step.id}
-                  onClick={() => goToStep(step.id)}
-                  className={`flex flex-col items-center p-2 rounded-lg transition-colors ${
-                    isActive 
-                      ? 'bg-primary text-primary-foreground' 
-                      : isCompleted 
-                      ? 'bg-green-100 text-green-700 hover:bg-green-200' 
-                      : 'text-muted-foreground hover:bg-muted'
-                  }`}
-                >
-                  <Icon className="h-5 w-5 mb-1" />
-                  <span className="text-xs font-medium">{step.title}</span>
-                </button>
-              );
-            })}
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            {(() => {
-              const Icon = STEPS[currentStep - 1].icon;
-              return <Icon className="h-5 w-5 mr-2" />;
-            })()}
-            Step {currentStep}: {STEPS[currentStep - 1].title}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Step 1: Basic Info */}
+      {/* Main Content */}
+      <div className="container mx-auto max-w-2xl px-6 py-12">
+        <div className="space-y-8">
+          {/* Step 1: Property Type */}
           {currentStep === 1 && (
-            <div className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="nome">Nome proprietà *</Label>
-                  <Input
-                    id="nome"
-                    value={data.nome}
-                    onChange={(e) => updateData('nome', e.target.value)}
-                    placeholder="es. Appartamento nel centro storico"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="city">Città *</Label>
-                  <Input
-                    id="city"
-                    value={data.city}
-                    onChange={(e) => updateData('city', e.target.value)}
-                    placeholder="es. Roma"
-                  />
-                </div>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="country">Paese</Label>
-                  <Input
-                    id="country"
-                    value={data.country}
-                    onChange={(e) => updateData('country', e.target.value)}
-                    placeholder="es. Italia"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="size_sqm">Metri quadri</Label>
-                  <Input
-                    id="size_sqm"
-                    type="number"
-                    value={data.size_sqm || ''}
-                    onChange={(e) => updateData('size_sqm', e.target.value ? parseInt(e.target.value) : undefined)}
-                    placeholder="es. 80"
-                  />
-                </div>
-              </div>
-
+            <div className="text-center space-y-8">
               <div>
-                <Label htmlFor="address">Indirizzo completo</Label>
-                <Input
-                  id="address"
-                  value={data.address}
-                  onChange={(e) => updateData('address', e.target.value)}
-                  placeholder="es. Via Roma, 123"
-                />
+                <h1 className="text-4xl font-bold mb-4">Quale di queste opzioni descrive meglio il tuo alloggio?</h1>
               </div>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="lat">Latitudine (opzionale)</Label>
-                  <Input
-                    id="lat"
-                    type="number"
-                    step="any"
-                    value={data.lat || ''}
-                    onChange={(e) => updateData('lat', e.target.value ? parseFloat(e.target.value) : undefined)}
-                    placeholder="es. 41.9028"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="lng">Longitudine (opzionale)</Label>
-                  <Input
-                    id="lng"
-                    type="number"
-                    step="any"
-                    value={data.lng || ''}
-                    onChange={(e) => updateData('lng', e.target.value ? parseFloat(e.target.value) : undefined)}
-                    placeholder="es. 12.4964"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 2: Capacity */}
-          {currentStep === 2 && (
-            <div className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="max_guests">Numero massimo ospiti *</Label>
-                  <Input
-                    id="max_guests"
-                    type="number"
-                    min="1"
-                    value={data.max_guests || ''}
-                    onChange={(e) => updateData('max_guests', parseInt(e.target.value) || 1)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="bedrooms">Numero di camere da letto</Label>
-                  <Input
-                    id="bedrooms"
-                    type="number"
-                    min="0"
-                    value={data.bedrooms || ''}
-                    onChange={(e) => updateData('bedrooms', parseInt(e.target.value) || 0)}
-                  />
-                </div>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="beds">Numero di letti</Label>
-                  <Input
-                    id="beds"
-                    type="number"
-                    min="0"
-                    value={data.beds || ''}
-                    onChange={(e) => updateData('beds', parseInt(e.target.value) || 0)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="bathrooms">Numero di bagni</Label>
-                  <Input
-                    id="bathrooms"
-                    type="number"
-                    step="0.5"
-                    min="0"
-                    value={data.bathrooms || ''}
-                    onChange={(e) => updateData('bathrooms', parseFloat(e.target.value) || 0)}
-                    placeholder="es. 1.5 per un bagno e mezzo"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Amenities */}
-          {currentStep === 3 && (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">Seleziona i servizi disponibili nella tua proprietà:</p>
-              <div className="grid md:grid-cols-2 gap-4">
-                {AMENITIES.map((amenity) => {
-                  const Icon = amenity.icon;
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {PROPERTY_TYPES.map((type) => {
+                  const Icon = type.icon;
                   return (
-                    <div key={amenity.key} className="flex items-center space-x-2 p-3 border rounded-lg">
-                      <Checkbox
-                        id={amenity.key}
-                        checked={data.amenities[amenity.key] || false}
-                        onCheckedChange={(checked) => updateAmenity(amenity.key, !!checked)}
-                      />
-                      <Icon className="h-4 w-4" />
-                      <Label htmlFor={amenity.key} className="flex-1">{amenity.label}</Label>
-                    </div>
+                    <button
+                      key={type.id}
+                      onClick={() => setSelectedPropertyType(type.id)}
+                      className={`p-6 rounded-lg border-2 transition-all hover:border-primary/50 text-left ${
+                        selectedPropertyType === type.id
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border'
+                      }`}
+                    >
+                      <Icon className="h-8 w-8 mb-3" />
+                      <h3 className="font-semibold mb-1">{type.label}</h3>
+                      <p className="text-sm text-muted-foreground">{type.description}</p>
+                    </button>
                   );
                 })}
               </div>
             </div>
           )}
 
-          {/* Step 4: Prices & Rules */}
+          {/* Step 2: Privacy Type */}
+          {currentStep === 2 && (
+            <div className="text-center space-y-8">
+              <div>
+                <h1 className="text-4xl font-bold mb-4">A che tipo di alloggio avranno accesso gli ospiti?</h1>
+              </div>
+              
+              <div className="space-y-4">
+                {PRIVACY_TYPES.map((type) => {
+                  const Icon = type.icon;
+                  return (
+                    <button
+                      key={type.id}
+                      onClick={() => setSelectedPrivacyType(type.id)}
+                      className={`w-full p-6 rounded-lg border-2 transition-all hover:border-primary/50 text-left ${
+                        selectedPrivacyType === type.id
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border'
+                      }`}
+                    >
+                      <div className="flex items-start gap-4">
+                        <Icon className="h-8 w-8 mt-1 flex-shrink-0" />
+                        <div>
+                          <h3 className="font-semibold mb-2">{type.title}</h3>
+                          <p className="text-sm text-muted-foreground">{type.description}</p>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Location */}
+          {currentStep === 3 && (
+            <div className="text-center space-y-8">
+              <div>
+                <h1 className="text-4xl font-bold mb-4">Dove si trova il tuo alloggio?</h1>
+                <p className="text-muted-foreground">Il tuo indirizzo viene condiviso con gli ospiti solo dopo che hanno effettuato una prenotazione.</p>
+              </div>
+              
+              <div className="space-y-6 max-w-md mx-auto">
+                <div>
+                  <Input
+                    value={data.city}
+                    onChange={(e) => updateData('city', e.target.value)}
+                    placeholder="Città"
+                    className="text-lg py-4"
+                  />
+                </div>
+                <div>
+                  <Input
+                    value={data.country}
+                    onChange={(e) => updateData('country', e.target.value)}
+                    placeholder="Paese"
+                    className="text-lg py-4"
+                  />
+                </div>
+                <div>
+                  <Input
+                    value={data.address}
+                    onChange={(e) => updateData('address', e.target.value)}
+                    placeholder="Indirizzo (opzionale)"
+                    className="text-lg py-4"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 4: Capacity */}
           {currentStep === 4 && (
-            <div className="space-y-4">
-              <div className="grid md:grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="base_price">Prezzo base per notte</Label>
-                  <Input
-                    id="base_price"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={data.base_price || ''}
-                    onChange={(e) => updateData('base_price', e.target.value ? parseFloat(e.target.value) : undefined)}
-                    placeholder="es. 80.00"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="cleaning_fee">Costo pulizie</Label>
-                  <Input
-                    id="cleaning_fee"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={data.cleaning_fee || ''}
-                    onChange={(e) => updateData('cleaning_fee', e.target.value ? parseFloat(e.target.value) : undefined)}
-                    placeholder="es. 25.00"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="currency">Valuta</Label>
-                  <Select value={data.currency} onValueChange={(value) => updateData('currency', value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CURRENCIES.map((currency) => (
-                        <SelectItem key={currency.value} value={currency.value}>
-                          {currency.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+            <div className="text-center space-y-8">
+              <div>
+                <h1 className="text-4xl font-bold mb-4">Condividi alcune informazioni di base sul tuo alloggio</h1>
+                <p className="text-muted-foreground">Potrai aggiungere ulteriori dettagli in seguito, come i tipi di letto.</p>
               </div>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="check_in_from">Check-in dalle</Label>
-                  <Input
-                    id="check_in_from"
-                    type="time"
-                    value={data.check_in_from}
-                    onChange={(e) => updateData('check_in_from', e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="check_out_until">Check-out entro le</Label>
-                  <Input
-                    id="check_out_until"
-                    type="time"
-                    value={data.check_out_until}
-                    onChange={(e) => updateData('check_out_until', e.target.value)}
-                  />
+              
+              <div className="bg-card p-8 rounded-lg border max-w-md mx-auto">
+                <Counter
+                  label="Ospiti"
+                  value={data.max_guests || 1}
+                  onChange={(value) => updateData('max_guests', value)}
+                  min={1}
+                />
+                <Counter
+                  label="Camere da letto"
+                  value={data.bedrooms || 1}
+                  onChange={(value) => updateData('bedrooms', value)}
+                  min={0}
+                />
+                <Counter
+                  label="Letti"
+                  value={data.beds || 1}
+                  onChange={(value) => updateData('beds', value)}
+                  min={1}
+                />
+                <div className="flex items-center justify-between py-4">
+                  <span className="font-medium">Bagni</span>
+                  <div className="flex items-center gap-4">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 rounded-full"
+                      onClick={() => updateData('bathrooms', Math.max(0.5, (data.bathrooms || 1) - 0.5))}
+                      disabled={(data.bathrooms || 1) <= 0.5}
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                    <span className="w-8 text-center font-medium">{data.bathrooms || 1}</span>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 rounded-full"
+                      onClick={() => updateData('bathrooms', Math.min(16, (data.bathrooms || 1) + 0.5))}
+                      disabled={(data.bathrooms || 1) >= 16}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Step 5: Calendar/ICS */}
+          {/* Step 5: Property Name */}
           {currentStep === 5 && (
-            <div className="space-y-4">
-              <div className="text-center py-8">
-                <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-medium mb-2">Configurazione Calendario</h3>
-                <p className="text-muted-foreground mb-6">
-                  Per sincronizzare i tuoi calendari con altri canali (Airbnb, Booking.com, ecc.), 
-                  puoi configurare i collegamenti iCal dopo aver creato la proprietà.
-                </p>
-                <div className="bg-muted p-4 rounded-lg">
-                  <p className="text-sm font-medium mb-2">Cosa potrai fare dopo:</p>
-                  <ul className="text-sm text-muted-foreground space-y-1">
-                    <li>• Collegare i calendari dei canali di vendita</li>
-                    <li>• Sincronizzazione automatica delle disponibilità</li>
-                    <li>• Gestione centralizzata del calendario</li>
-                  </ul>
+            <div className="text-center space-y-8">
+              <div>
+                <h1 className="text-4xl font-bold mb-4">Ora, dicci il nome del tuo alloggio</h1>
+                <p className="text-muted-foreground">I nomi brevi sono più efficaci. Non preoccuparti, puoi sempre cambiarlo in seguito.</p>
+              </div>
+              
+              <div className="max-w-md mx-auto">
+                <Input
+                  value={data.nome}
+                  onChange={(e) => updateData('nome', e.target.value)}
+                  placeholder="es. Appartamento luminoso nel centro storico"
+                  className="text-lg py-4"
+                />
+                <p className="text-sm text-muted-foreground mt-2">{data.nome.length}/50</p>
+              </div>
+            </div>
+          )}
+
+          {/* Step 6: Amenities */}
+          {currentStep === 6 && (
+            <div className="text-center space-y-8">
+              <div>
+                <h1 className="text-4xl font-bold mb-4">Fai conoscere agli utenti tutti i servizi del tuo alloggio</h1>
+                <p className="text-muted-foreground">Potrai aggiungerne degli altri dopo la pubblicazione dell'annuncio.</p>
+              </div>
+              
+              <div>
+                <h3 className="text-xl font-semibold mb-6 text-left">I servizi più richiesti dagli ospiti:</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {AMENITIES.map((amenity) => {
+                    const Icon = amenity.icon;
+                    const isSelected = data.amenities[amenity.key] || false;
+                    return (
+                      <button
+                        key={amenity.key}
+                        onClick={() => updateAmenity(amenity.key, !isSelected)}
+                        className={`p-4 rounded-lg border-2 transition-all hover:border-primary/50 text-left ${
+                          isSelected
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Icon className="h-6 w-6" />
+                          <span className="font-medium">{amenity.label}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
           )}
 
-          {/* Step 6: Review */}
-          {currentStep === 6 && (
-            <div className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="font-medium flex items-center mb-2">
-                      <MapPin className="h-4 w-4 mr-2" />
-                      Informazioni base
-                    </h4>
-                    <div className="text-sm space-y-1">
-                      <p><span className="font-medium">Nome:</span> {data.nome}</p>
-                      <p><span className="font-medium">Città:</span> {data.city}</p>
-                      {data.country && <p><span className="font-medium">Paese:</span> {data.country}</p>}
-                      {data.address && <p><span className="font-medium">Indirizzo:</span> {data.address}</p>}
-                      {data.size_sqm && <p><span className="font-medium">Superficie:</span> {data.size_sqm} m²</p>}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="font-medium flex items-center mb-2">
-                      <Users className="h-4 w-4 mr-2" />
-                      Capacità
-                    </h4>
-                    <div className="text-sm space-y-1">
-                      <p><span className="font-medium">Ospiti massimi:</span> {data.max_guests}</p>
-                      <p><span className="font-medium">Camere:</span> {data.bedrooms || 0}</p>
-                      <p><span className="font-medium">Letti:</span> {data.beds || 0}</p>
-                      <p><span className="font-medium">Bagni:</span> {data.bathrooms || 0}</p>
-                    </div>
+          {/* Step 7: Pricing */}
+          {currentStep === 7 && (
+            <div className="text-center space-y-8">
+              <div>
+                <h1 className="text-4xl font-bold mb-4">Ora, imposta il tuo prezzo</h1>
+                <p className="text-muted-foreground">Puoi cambiarlo in qualsiasi momento.</p>
+              </div>
+              
+              <div className="bg-card p-8 rounded-lg border max-w-md mx-auto space-y-6">
+                <div>
+                  <Label className="text-lg font-medium">Prezzo base per notte</Label>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-2xl">€</span>
+                    <Input
+                      type="number"
+                      value={data.base_price || ''}
+                      onChange={(e) => updateData('base_price', parseFloat(e.target.value) || undefined)}
+                      placeholder="0"
+                      className="text-2xl py-4"
+                    />
                   </div>
                 </div>
+                
+                <div>
+                  <Label className="text-lg font-medium">Costo di pulizia (opzionale)</Label>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-xl">€</span>
+                    <Input
+                      type="number"
+                      value={data.cleaning_fee || ''}
+                      onChange={(e) => updateData('cleaning_fee', parseFloat(e.target.value) || undefined)}
+                      placeholder="0"
+                      className="text-xl py-3"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="font-medium flex items-center mb-2">
-                      <Wifi className="h-4 w-4 mr-2" />
-                      Servizi
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {Object.entries(data.amenities).filter(([_, enabled]) => enabled).map(([key]) => {
+          {/* Step 8: Review */}
+          {currentStep === 8 && (
+            <div className="text-center space-y-8">
+              <div>
+                <h1 className="text-4xl font-bold mb-4">Controlla il tuo annuncio</h1>
+                <p className="text-muted-foreground">Ecco come apparirà agli ospiti. Assicurati che tutto sia come lo desideri.</p>
+              </div>
+
+              <div className="bg-card p-8 rounded-lg border text-left space-y-6">
+                <div>
+                  <h3 className="text-xl font-bold mb-2">{data.nome || 'Nome proprietà'}</h3>
+                  <p className="text-muted-foreground">{selectedPropertyType} • {data.city}, {data.country}</p>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>{data.max_guests} ospiti</div>
+                  <div>{data.bedrooms} camere</div>
+                  <div>{data.beds} letti</div>
+                  <div>{data.bathrooms} bagni</div>
+                </div>
+
+                <div>
+                  <h4 className="font-semibold mb-2">Servizi:</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(data.amenities)
+                      .filter(([_, selected]) => selected)
+                      .map(([key, _]) => {
                         const amenity = AMENITIES.find(a => a.key === key);
                         return amenity ? (
-                          <span key={key} className="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs rounded">
-                            <amenity.icon className="h-3 w-3 mr-1" />
+                          <span key={key} className="px-3 py-1 bg-muted rounded-full text-sm">
                             {amenity.label}
                           </span>
                         ) : null;
                       })}
-                      {Object.values(data.amenities).every(v => !v) && (
-                        <span className="text-sm text-muted-foreground">Nessun servizio selezionato</span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="font-medium flex items-center mb-2">
-                      <Euro className="h-4 w-4 mr-2" />
-                      Prezzi & Regole
-                    </h4>
-                    <div className="text-sm space-y-1">
-                      {data.base_price && <p><span className="font-medium">Prezzo base:</span> {data.base_price} {data.currency}/notte</p>}
-                      {data.cleaning_fee && <p><span className="font-medium">Pulizie:</span> {data.cleaning_fee} {data.currency}</p>}
-                      <p><span className="font-medium">Check-in:</span> dalle {data.check_in_from}</p>
-                      <p><span className="font-medium">Check-out:</span> entro le {data.check_out_until}</p>
-                    </div>
                   </div>
                 </div>
+
+                {data.base_price && (
+                  <div>
+                    <h4 className="font-semibold mb-2">Prezzo:</h4>
+                    <div className="text-xl font-bold">€{data.base_price} a notte</div>
+                    {data.cleaning_fee && (
+                      <div className="text-sm text-muted-foreground">+ €{data.cleaning_fee} costo di pulizia</div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}
+        </div>
 
-          {/* Navigation Buttons */}
-          <div className="flex justify-between pt-6 border-t">
-            <Button 
-              variant="outline" 
-              onClick={prevStep} 
-              disabled={currentStep === 1}
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Indietro
-            </Button>
+        {/* Navigation */}
+        <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border">
+          <div className="container mx-auto max-w-2xl px-6 py-4">
+            <div className="flex justify-between items-center">
+              <Button
+                variant="ghost"
+                onClick={prevStep}
+                disabled={currentStep === 1}
+                className="text-muted-foreground"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Indietro
+              </Button>
 
-            <div className="flex gap-2">
-              {isSaving && (
-                <Button variant="ghost" disabled>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
-                  Salvataggio...
-                </Button>
-              )}
-              
-              {currentStep === STEPS.length ? (
-                <Button onClick={createProperty} disabled={isLoading || !canProceed()}>
-                  {isLoading ? "Creazione..." : "Crea Proprietà"}
-                  <CheckCircle className="h-4 w-4 ml-2" />
+              {currentStep === totalSteps ? (
+                <Button
+                  onClick={createProperty}
+                  disabled={isLoading || !canProceed()}
+                  size="lg"
+                  className="min-w-[140px]"
+                >
+                  {isLoading ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  ) : (
+                    'Pubblica annuncio'
+                  )}
                 </Button>
               ) : (
-                <Button onClick={nextStep} disabled={!canProceed()}>
+                <Button
+                  onClick={nextStep}
+                  disabled={!canProceed()}
+                  size="lg"
+                  className="min-w-[100px]"
+                >
                   Avanti
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </Button>
               )}
             </div>
           </div>
+        </div>
 
-          {/* Calendar link in step 5 */}
-          {currentStep === 5 && data.id && (
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-              <p className="text-sm text-blue-800 mb-2">
-                💡 <strong>Suggerimento:</strong> Dopo aver creato la proprietà, potrai configurare 
-                immediatamente i canali iCal per la sincronizzazione automatica.
-              </p>
-              <Link 
-                to={`/channels?property_id=${data.id}`}
-                className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800"
-              >
-                <ExternalLink className="h-4 w-4 mr-1" />
-                Vai alla configurazione canali
-              </Link>
+        {/* Auto-save indicator */}
+        {isSaving && (
+          <div className="fixed top-20 right-4 bg-muted text-muted-foreground px-4 py-2 rounded-lg shadow-lg border">
+            <div className="flex items-center gap-2 text-sm">
+              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current"></div>
+              Salvataggio automatico...
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
