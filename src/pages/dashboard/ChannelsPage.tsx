@@ -89,10 +89,7 @@ export default function ChannelsPage() {
     }
   }
 
-  useEffect(() => { 
-    document.title = "Channels • HostSuite AI"; 
-    load(); 
-  }, []);
+  useEffect(() => { document.title = "Channels • HostSuite AI"; load(); }, []);
 
   async function addChannelAccount() {
     setErr(null);
@@ -108,24 +105,23 @@ export default function ChannelsPage() {
         property_id: propertyId,
         kind: 'ics',
         name: channelName,
-        ics_export_token: crypto.randomUUID().replace(/-/g, ''),
       });
 
-      if (error) { 
+      if (error) {
         logError("Failed to create channel account", error, { component: "ChannelsPage" });
-        setErr(error.message); 
-        return; 
+        setErr(error.message);
+        return;
       }
 
-      setChannelName("");
       setPropertyId("");
-      
+      setChannelName("");
+      load();
+
       toast({
         title: "Account canale creato",
-        description: "L'account del canale è stato creato con successo",
+        description: "L'account canale è stato creato con successo",
       });
 
-      load();
     } catch (error) {
       logError("Unexpected error creating channel account", error, { component: "ChannelsPage" });
       setErr("Errore imprevisto durante la creazione");
@@ -134,13 +130,10 @@ export default function ChannelsPage() {
 
   async function generateToken(accountId: string) {
     try {
-      const { error } = await supabase
-        .from("channel_accounts")
-        .update({ 
-          ics_export_token: crypto.randomUUID().replace(/-/g, ''),
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", accountId);
+      const token = crypto.randomUUID();
+      const { error } = await supabase.from("channel_accounts").update({
+        ics_export_token: token
+      }).eq("id", accountId);
 
       if (error) {
         logError("Failed to generate token", error, { component: "ChannelsPage" });
@@ -152,12 +145,12 @@ export default function ChannelsPage() {
         return;
       }
 
+      load();
       toast({
         title: "Token generato",
-        description: "Token di esportazione generato con successo",
+        description: "Token di export generato con successo",
       });
 
-      load();
     } catch (error) {
       logError("Unexpected error generating token", error, { component: "ChannelsPage" });
       toast({
@@ -170,13 +163,9 @@ export default function ChannelsPage() {
 
   async function updatePropertyId(accountId: string, newPropertyId: string) {
     try {
-      const { error } = await supabase
-        .from("channel_accounts")
-        .update({ 
-          property_id: newPropertyId,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", accountId);
+      const { error } = await supabase.from("channel_accounts").update({
+        property_id: newPropertyId || null
+      }).eq("id", accountId);
 
       if (error) {
         logError("Failed to update property", error, { component: "ChannelsPage" });
@@ -188,12 +177,12 @@ export default function ChannelsPage() {
         return;
       }
 
+      load();
       toast({
         title: "Proprietà aggiornata",
-        description: "Proprietà associata con successo",
+        description: "Proprietà associata aggiornata con successo",
       });
 
-      load();
     } catch (error) {
       logError("Unexpected error updating property", error, { component: "ChannelsPage" });
       toast({
@@ -205,166 +194,139 @@ export default function ChannelsPage() {
   }
 
   function startEdit(account: ChannelAccount) {
-    setErr(null);
     setEditAccountId(account.id);
     setEditData({
       name: account.name,
-      property_id: account.property_id,
-      ics_pull_url: account.ics_pull_url,
+      ics_pull_url: account.ics_pull_url || "",
+      property_id: account.property_id || "",
     });
   }
 
   function cancelEdit() { 
-    setEditAccountId(null); 
+    setEditAccountId(null);
     setEditData({});
   }
 
   async function saveEdit() {
-    setErr(null);
     if (!editAccountId) return;
-    if (!editData.name?.trim()) { setErr("Inserisci un nome"); return; }
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setErr("Devi effettuare l'accesso"); return; }
-
       const { error } = await supabase.from("channel_accounts").update({
-        name: editData.name?.trim(),
-        property_id: editData.property_id,
-        ics_pull_url: editData.ics_pull_url,
-        updated_at: new Date().toISOString(),
+        name: editData.name,
+        ics_pull_url: editData.ics_pull_url || null,
+        property_id: editData.property_id || null,
       }).eq("id", editAccountId);
 
-      if (error) { 
-        logError("Failed to update channel account", error, { component: "ChannelsPage" });
-        setErr(error.message); 
-        return; 
-      }
-
-      setEditAccountId(null); 
-      setEditData({});
-      
-      toast({
-        title: "Account aggiornato",
-        description: "Le modifiche sono state salvate con successo",
-      });
-
-      load();
-    } catch (error) {
-      logError("Unexpected error updating account", error, { component: "ChannelsPage" });
-      setErr("Errore imprevisto durante l'aggiornamento");
-    }
-  }
-
-  async function deleteAccount(id: string) {
-    setErr(null);
-    if (!confirm("Eliminare questo account canale?")) return;
-
-    try {
-      const { error } = await supabase.from("channel_accounts").delete().eq("id", id);
-      if (error) { 
-        logError("Failed to delete channel account", error, { component: "ChannelsPage" });
-        setErr(error.message); 
-        return; 
-      }
-
-      toast({
-        title: "Account eliminato",
-        description: "L'account del canale è stato rimosso con successo",
-      });
-
-      load();
-    } catch (error) {
-      logError("Unexpected error deleting account", error, { component: "ChannelsPage" });
-      setErr("Errore imprevisto durante l'eliminazione");
-    }
-  }
-
-  async function handleSync(account: ChannelAccount) {
-    if (!account.ics_pull_url) return;
-    
-    setSyncingId(account.id);
-    
-    // Toast di avvio
-    toast({
-      title: "Sync avviato"
-    });
-    
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      if (error) {
+        logError("Failed to update account", error, { component: "ChannelsPage" });
         toast({
           title: "Errore",
-          description: "Devi effettuare l'accesso",
+          description: "Errore nell'aggiornamento dell'account",
           variant: "destructive",
         });
         return;
       }
 
-      // Call the ics-sync edge function
-      const response = await fetch(`${getFnsBase()}/ics-sync`, {
-        method: 'POST',
+      setEditAccountId(null);
+      setEditData({});
+      load();
+
+      toast({
+        title: "Account aggiornato",
+        description: "Account canale aggiornato con successo",
+      });
+
+    } catch (error) {
+      logError("Unexpected error updating account", error, { component: "ChannelsPage" });
+      toast({
+        title: "Errore",
+        description: "Errore imprevisto nell'aggiornamento",
+        variant: "destructive",
+      });
+    }
+  }
+
+  async function deleteAccount(id: string) {
+    if (!confirm("Sei sicuro di voler eliminare questo account canale?")) return;
+
+    try {
+      const { error } = await supabase.from("channel_accounts").delete().eq("id", id);
+
+      if (error) {
+        logError("Failed to delete account", error, { component: "ChannelsPage" });
+        toast({
+          title: "Errore",
+          description: "Errore nell'eliminazione dell'account",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      load();
+      toast({
+        title: "Account eliminato",
+        description: "Account canale eliminato con successo",
+      });
+
+    } catch (error) {
+      logError("Unexpected error deleting account", error, { component: "ChannelsPage" });
+      toast({
+        title: "Errore",
+        description: "Errore imprevisto nell'eliminazione",
+        variant: "destructive",
+      });
+    }
+  }
+
+  async function handleSync(account: ChannelAccount) {
+    if (!account.ics_pull_url) {
+      toast({
+        title: "URL mancante",
+        description: "Configura prima un URL ICS per questo canale",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSyncingId(account.id);
+
+    try {
+      const base = getFnsBase();
+      const url = `${base}/ics-sync`;
+      
+      const response = await fetch(url, {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
           account_id: account.id,
-          ics_pull_url: account.ics_pull_url,
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
       const result = await response.json();
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Sync failed');
-      }
-      
-      // Update the account with sync status
-      const { error: updateError } = await supabase
-        .from('channel_accounts')
-        .update({
-          last_sync_at: new Date().toISOString(),
-          last_sync_status: 'success',
-        })
-        .eq('id', account.id);
 
-      if (updateError) {
-        logError("Failed to update sync status", updateError, { component: "ChannelsPage" });
-      }
-
-      // Toast di successo
       toast({
-        title: "Sync completato",
-        description: account.name || "Canale ICS"
+        title: "Sincronizzazione completata",
+        description: result.message || "Sincronizzazione avvenuta con successo",
       });
 
-      // Reload accounts to show updated sync status
+      // Reload to get updated sync status
       load();
+
     } catch (error) {
-      logError("Sync failed", error, { component: "ChannelsPage" });
-      
-      // Update with error status
-      await supabase
-        .from('channel_accounts')
-        .update({
-          last_sync_at: new Date().toISOString(),
-          last_sync_status: 'error',
-        })
-        .eq('id', account.id);
-
-      // Toast di errore
+      logError("Sync failed", error, { component: "ChannelsPage", accountId: account.id });
       toast({
-        title: "Sync fallito",
-        description: String(error),
-        variant: "destructive"
+        title: "Errore di sincronizzazione",
+        description: error instanceof Error ? error.message : "Errore sconosciuto durante la sincronizzazione",
+        variant: "destructive",
       });
-      
-      load();
     } finally {
       setSyncingId(null);
     }
@@ -372,14 +334,14 @@ export default function ChannelsPage() {
 
   async function copyExportUrl(account: ChannelAccount) {
     if (!account.property_id || !account.ics_export_token) return;
-    
+
     const url = `${getFnsBase()}/ics-export?property_id=${account.property_id}&token=${account.ics_export_token}`;
-    
+
     try {
       await navigator.clipboard.writeText(url);
       toast({
         title: "URL copiato",
-        description: "Incollalo nel tuo channel manager."
+        description: "URL di export copiato negli appunti",
       });
     } catch (error) {
       logError("Failed to copy URL", error, { component: "ChannelsPage" });
@@ -438,7 +400,7 @@ export default function ChannelsPage() {
         <CardContent>
           <div className="space-y-4">
             {loading ? (
-              // Loading placeholders
+              // Loading skeleton
               Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="rounded-xl border p-4">
                   <div className="animate-pulse">
@@ -452,144 +414,117 @@ export default function ChannelsPage() {
               accounts.map(account => {
                 const isEditing = editAccountId === account.id;
                 const property = properties.find(p => p.id === account.property_id);
-                
-                return (
-                  <div key={account.id} className="rounded-xl border p-4">
-                    {isEditing ? (
-                      <div className="space-y-3">
-                        <div className="grid md:grid-cols-3 gap-2">
-                          <select 
-                            className="rounded-md border p-2 text-sm" 
-                            value={editData.property_id || ""} 
-                            onChange={(e) => setEditData({ ...editData, property_id: e.target.value })}
-                          >
-                            <option value="">Seleziona appartamento…</option>
-                            {properties.map(p => (
-                              <option key={p.id} value={p.id}>{p.nome}</option>
-                            ))}
-                          </select>
-                          <Input 
-                            placeholder="Nome canale" 
-                            value={editData.name || ""} 
-                            onChange={(e) => setEditData({ ...editData, name: e.target.value })} 
-                          />
-                          <Input 
-                            placeholder="URL import iCal (opzionale)" 
-                            value={editData.ics_pull_url || ""} 
-                            onChange={(e) => setEditData({ ...editData, ics_pull_url: e.target.value })} 
-                          />
-                        </div>
-                        <div className="flex gap-2">
-                          <Button className="bg-orange-600 hover:bg-orange-700 text-white" onClick={saveEdit}>
-                            <Save className="h-4 w-4 mr-1" /> Salva
-                          </Button>
-                          <Button variant="outline" onClick={cancelEdit}>
-                            <X className="h-4 w-4 mr-1" /> Annulla
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <h3 className="font-semibold">{account.name}</h3>
-                            <Badge variant="outline">
-                              {account.kind.toUpperCase()}
-                            </Badge>
-                            <Badge variant="default" className="bg-green-100 text-green-800">Attivo</Badge>
-                          </div>
-                          
-                          <div className="text-sm text-gray-600 mb-2">
-                            Appartamento: {property?.nome || "—"}
-                          </div>
-                          
-                          {account.ics_pull_url && (
-                            <div className="text-sm text-gray-500 mb-2">
-                              Import URL: <code className="text-xs bg-gray-100 px-1 rounded">{account.ics_pull_url.substring(0, 50)}...</code>
-                            </div>
-                          )}
-                          
-                          {/* Status badge sotto ogni riga */}
-                          <div className="text-xs text-gray-600 mt-1 flex items-center gap-2">
-                            <span>Ultimo sync: {account.last_sync_at ? new Date(account.last_sync_at).toLocaleString() : "mai"}</span>
-                            {account.last_sync_status && (
-                              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] ${
-                                account.last_sync_status.startsWith("ok") || account.last_sync_status === "success" 
-                                  ? "bg-green-100 text-green-700" 
-                                  : "bg-red-100 text-red-700"
-                              }`}>
-                                {account.last_sync_status.startsWith("ok") || account.last_sync_status === "success" ? (
-                                  <Check className="h-3 w-3 mr-1" />
-                                ) : (
-                                  <AlertCircle className="h-3 w-3 mr-1" />
-                                )}
-                                {account.last_sync_status}
-                              </span>
-                            )}
-                          </div>
-                        </div>
+                const isSyncing = syncingId === account.id;
 
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Button variant="outline" onClick={() => startEdit(account)}>
-                            <Edit2 className="h-4 w-4 mr-1" /> Edit
-                          </Button>
-                          
-                          <Button 
-                            variant="outline" 
-                            className="text-red-600 border-red-200 hover:bg-red-50" 
-                            onClick={() => deleteAccount(account.id)}
-                          >
-                            <Trash2 className="h-4 w-4 mr-1" /> Delete
-                          </Button>
-                          
-                          {/* Sync button migliorato - shown only if ics_pull_url is present */}
-                          {account.ics_pull_url && (
-                            <Button variant="outline" onClick={()=>handleSync(account)} disabled={syncingId===account.id || !account.ics_pull_url}>
-                              {syncingId===account.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                              {syncingId===account.id ? "Sync..." : "Sync"}
-                            </Button>
-                          )}
-                          
-                          {/* Copy Export URL - shown only if both property_id and token exist */}
-                          {account.property_id && account.ics_export_token ? (
-                            <Button 
-                              variant="outline" 
-                              className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                              onClick={() => copyExportUrl(account)}
+                return (
+                  <div key={account.id} className="rounded-xl border p-4 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        {isEditing ? (
+                          <div className="space-y-3">
+                            <Input
+                              value={editData.name || ""}
+                              onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                              placeholder="Nome canale"
+                            />
+                            <Input
+                              value={editData.ics_pull_url || ""}
+                              onChange={(e) => setEditData({ ...editData, ics_pull_url: e.target.value })}
+                              placeholder="URL ICS pull (opzionale)"
+                            />
+                            <select
+                              className="w-full rounded-md border p-2 text-sm"
+                              value={editData.property_id || ""}
+                              onChange={(e) => setEditData({ ...editData, property_id: e.target.value })}
                             >
-                              <Copy className="h-4 w-4 mr-1" /> Copia Export URL
-                            </Button>
-                          ) : (
-                            <>
-                              {!account.ics_export_token && (
-                                <Button 
-                                  variant="outline"
-                                  className="text-green-600 border-green-200 hover:bg-green-50"
-                                  onClick={() => generateToken(account.id)}
-                                >
-                                  <Key className="h-4 w-4 mr-1" /> Genera Token
-                                </Button>
-                              )}
-                              
-                              {!account.property_id && (
-                                <div className="flex gap-1 items-center">
-                                  <select 
-                                    className="text-xs border rounded px-2 py-1" 
-                                    onChange={(e) => e.target.value && updatePropertyId(account.id, e.target.value)}
-                                    defaultValue=""
-                                  >
-                                    <option value="">Associa proprietà...</option>
-                                    {properties.map(p => (
-                                      <option key={p.id} value={p.id}>{p.nome}</option>
-                                    ))}
-                                  </select>
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </div>
+                              <option value="">Seleziona appartamento…</option>
+                              {properties.map(p => (
+                                <option key={p.id} value={p.id}>{p.nome}</option>
+                              ))}
+                            </select>
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="flex items-center gap-2 mb-2">
+                              <h3 className="font-semibold text-lg">{account.name}</h3>
+                              <Badge variant="outline">ICS</Badge>
+                            </div>
+                            <div className="text-sm text-gray-600 space-y-1">
+                              <div>Appartamento: {property?.nome || "Non assegnato"}</div>
+                              <div>Pull URL: {account.ics_pull_url || "Non configurato"}</div>
+                              <div>Export Token: {account.ics_export_token ? "Configurato" : "Non generato"}</div>
+                              <div className="flex items-center gap-2">
+                                Ultimo sync: {account.last_sync_at ? new Date(account.last_sync_at).toLocaleString() : "Mai"}
+                                {account.last_sync_status === 'success' && <Check className="h-4 w-4 text-green-600" />}
+                                {account.last_sync_status === 'error' && <AlertCircle className="h-4 w-4 text-red-600" />}
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    )}
+
+                      <div className="flex items-center gap-2 ml-4">
+                        {isEditing ? (
+                          <>
+                            <Button size="sm" onClick={saveEdit}>
+                              <Save className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={cancelEdit}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleSync(account)}
+                              disabled={isSyncing || !account.ics_pull_url}
+                            >
+                              {isSyncing ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <RefreshCw className="h-4 w-4" />
+                              )}
+                            </Button>
+                            
+                            {!account.ics_export_token ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => generateToken(account.id)}
+                              >
+                                <Key className="h-4 w-4" />
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => copyExportUrl(account)}
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            )}
+                            
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => startEdit(account)}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => deleteAccount(account.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 );
               })
@@ -614,6 +549,10 @@ export default function ChannelsPage() {
             <li>Ogni canale può essere associato a una singola proprietà</li>
           </ul>
         </div>
+      </div>
+      
+      <div className="mt-4 p-3 rounded-lg border bg-yellow-50 text-sm text-gray-600">
+        <p>ICS è soggetto a ritardi di aggiornamento. Per multi-canale usa blocchi manuali finché non abiliti un connettore certificato.</p>
       </div>
     </div>
   );

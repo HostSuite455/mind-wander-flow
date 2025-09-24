@@ -81,7 +81,6 @@ const App = () => (
                 <Route index element={<HostDashboard />} />
               </Route>
               <Route path="/properties" element={<ProtectedRoute><Properties /></ProtectedRoute>} />
-              <Route path="/properties/new" element={<ProtectedRoute><PropertyWizard /></ProtectedRoute>} />
               <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
               <Route path="/calendar-pro" element={<ProtectedRoute><CalendarPro /></ProtectedRoute>} />
               <Route path="/export" element={<ProtectedRoute><Export /></ProtectedRoute>} />
