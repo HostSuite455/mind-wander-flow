@@ -19,7 +19,7 @@ serve(async (req) => {
     if (!supabaseUrl || !supabaseKey) {
       console.error('Missing required environment variables: SB_URL or SB_SERVICE_ROLE_KEY');
       return new Response(JSON.stringify({ 
-        ok: false, 
+        success: false, 
         error: 'Server configuration error - missing required secrets' 
       }), {
         status: 500,
@@ -29,12 +29,22 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    const url = new URL(req.url);
-    const accountId = url.searchParams.get('account_id');
+    // Parse request body for POST requests
+    let accountId, icsUrl;
+    
+    if (req.method === 'POST') {
+      const body = await req.json();
+      accountId = body.account_id;
+      icsUrl = body.ics_pull_url;
+    } else {
+      // Fallback to query parameters for GET requests
+      const url = new URL(req.url);
+      accountId = url.searchParams.get('account_id');
+    }
 
     if (!accountId) {
       return new Response(JSON.stringify({ 
-        ok: false, 
+        success: false, 
         error: 'Missing account_id parameter' 
       }), {
         status: 400,
@@ -54,7 +64,7 @@ serve(async (req) => {
     if (accountError || !account) {
       console.error('Account not found:', accountError);
       return new Response(JSON.stringify({ 
-        ok: false, 
+        success: false, 
         error: 'Account not found' 
       }), {
         status: 404,
@@ -65,7 +75,7 @@ serve(async (req) => {
     if (!account.ics_pull_url) {
       console.error('No ICS pull URL configured for account:', accountId);
       return new Response(JSON.stringify({ 
-        ok: false, 
+        success: false, 
         error: 'No ICS pull URL configured' 
       }), {
         status: 400,
@@ -108,7 +118,7 @@ serve(async (req) => {
       console.log(`Sync completed successfully for account: ${accountId}`);
       
       return new Response(JSON.stringify({ 
-        ok: true, 
+        success: true, 
         processed: 1,
         message: 'Sync completed successfully' 
       }), {
@@ -127,7 +137,7 @@ serve(async (req) => {
         .eq('id', accountId);
 
       return new Response(JSON.stringify({ 
-        ok: false, 
+        success: false, 
         error: syncError.message 
       }), {
         status: 500,
@@ -138,7 +148,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Function error:', error);
     return new Response(JSON.stringify({ 
-      ok: false, 
+      success: false, 
       error: error.message 
     }), {
       status: 500,

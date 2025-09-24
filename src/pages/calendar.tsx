@@ -25,34 +25,18 @@ interface Property {
 interface IcalConfig {
   id: string;
   property_id: string;
-  channel_manager_name: string;
-  config_type: string;
+  channel_name: string;
   is_active: boolean;
   created_at: string;
-  updated_at: string;
-  host_id?: string;
-  api_endpoint?: string;
-  api_key_name?: string;
-  max_ical_urls?: number;
-  provider_config?: any;
-  status?: string;
-  subscription_tier?: string;
 }
 
 interface IcalUrl {
   id: string;
-  ical_config_id: string;
+  property_id: string;
   url: string;
-  ota_name: string;
   source?: string;
   is_active: boolean;
-  is_primary?: boolean;
-  last_sync?: string;
   last_sync_at?: string;
-  last_sync_status?: string;
-  sync_frequency_minutes?: number;
-  created_at: string;
-  updated_at: string;
 }
 
 const Calendar = () => {
@@ -61,7 +45,7 @@ const Calendar = () => {
   const [urls, setUrls] = useState<IcalUrl[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-  const { id: activeProperty } = useActiveProperty();
+  const { activeProperty } = useActiveProperty();
 
   const loadCalendarData = async () => {
     try {
@@ -115,9 +99,7 @@ const Calendar = () => {
   };
 
   const getPropertyUrls = (propertyId: string) => {
-    return urls.filter(url => 
-      configs.some(config => config.id === url.ical_config_id && config.property_id === propertyId)
-    );
+    return urls.filter(url => url.property_id === propertyId);
   };
 
   const formatDate = (dateString?: string) => {
@@ -139,8 +121,8 @@ const Calendar = () => {
   };
 
   // Filter properties based on active property
-  const filteredProperties = activeProperty && activeProperty !== 'all'
-    ? properties.filter(p => p.id === activeProperty)
+  const filteredProperties = activeProperty 
+    ? properties.filter(p => p.id === activeProperty.id)
     : properties;
 
   if (isLoading) {
@@ -241,7 +223,7 @@ const Calendar = () => {
                             {propertyConfigs.map((config) => (
                               <TableRow key={config.id}>
                                 <TableCell className="font-medium">
-                                  {config.channel_manager_name}
+                                  {config.channel_name}
                                 </TableCell>
                                 <TableCell>
                                   <Badge variant={config.is_active ? "default" : "secondary"}>
