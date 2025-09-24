@@ -87,16 +87,7 @@ const Navigation = () => {
             </Link>
           </div>
 
-          {/* Property Switch - visible for authenticated routes */}
-          {(location.pathname.startsWith('/dashboard/') || location.pathname.startsWith('/host-')) && properties.length > 0 && (
-            <div className="hidden sm:block">
-              <PropertySwitch 
-                items={properties}
-                label=""
-                className="w-auto"
-              />
-            </div>
-          )}
+
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-2">

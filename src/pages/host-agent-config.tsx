@@ -4,18 +4,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Settings, Bot, Save, TestTube } from "lucide-react";
-import HostNavbar from "@/components/HostNavbar";
 
 const HostAgentConfig = () => {
   return (
-    <div className="min-h-screen bg-background">
-      <HostNavbar />
-      <div className="pt-20 container max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-hostsuite-primary mb-2">Configurazione iAgent</h1>
-          <p className="text-hostsuite-text">Personalizza il comportamento dell'assistente AI per le tue proprietà</p>
-        </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-hostsuite-primary mb-2">Configurazione iAgent</h1>
+        <p className="text-hostsuite-text">Personalizza il comportamento dell'assistente AI per le tue proprietà</p>
+      </div>
 
         <div className="space-y-8">
           {/* Agent Settings */}
@@ -134,7 +131,6 @@ const HostAgentConfig = () => {
             </Button>
           </div>
         </div>
-      </div>
     </div>
   );
 };

@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Filter, Search, Users, MapPin } from "lucide-react";
-import HostNavbar from "@/components/HostNavbar";
 
 // Dummy booking data
 const bookings = [
@@ -51,14 +50,12 @@ const getStatusBadge = (status: string) => {
 
 const HostBookings = () => {
   return (
-    <div className="min-h-screen bg-background">
-      <HostNavbar />
-      <div className="pt-20 container max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-hostsuite-primary mb-2">Prenotazioni</h1>
-          <p className="text-hostsuite-text">Gestisci tutte le prenotazioni delle tue proprietà</p>
-        </div>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-hostsuite-primary mb-2">Prenotazioni</h1>
+        <p className="text-hostsuite-text">Gestisci tutte le prenotazioni delle tue proprietà</p>
+      </div>
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -198,7 +195,6 @@ const HostBookings = () => {
             )}
           </CardContent>
         </Card>
-      </div>
     </div>
   );
 };

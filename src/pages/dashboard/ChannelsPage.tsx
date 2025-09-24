@@ -4,12 +4,21 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Link as LinkIcon, Shield, Calendar, Plus, Edit2, Trash2, Save, X } from "lucide-react";
+import { RefreshCw, Link as LinkIcon, Shield, Calendar, Plus, Edit2, Trash2, Save, X, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { buildFunctionUrl, createFunctionHeaders } from "@/lib/supaFns";
+import { buildFunctionUrl, createFunctionHeaders, getFnsBase } from "@/lib/supaFns";
 import { logError, logInfo, logWarn } from "@/lib/log";
 
 type Property = { id: string; nome: string };
+
+type ChannelAccount = {
+  id: string;
+  host_id: string;
+  property_id?: string;
+  ics_export_token?: string;
+  name: string;
+  kind: string;
+};
 
 type IcalConfig = {
   id: string;
@@ -38,6 +47,7 @@ export default function ChannelsPage() {
   const [configs, setConfigs] = useState<IcalConfig[]>([]);
   const [urls, setUrls] = useState<IcalUrl[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
+  const [accounts, setAccounts] = useState<ChannelAccount[]>([]);
   const [propertyId, setPropertyId] = useState<string>("");
   const [configType, setConfigType] = useState<string>("ota_direct");
   const [channelName, setChannelName] = useState("");
@@ -70,6 +80,19 @@ export default function ChannelsPage() {
       }
 
       setProperties((props as Property[]) || []);
+
+      // Load channel accounts
+      const { data: accountsData, error: accountsError } = await supabase
+        .from("channel_accounts")
+        .select("*")
+        .eq("host_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (accountsError) {
+        logError("Failed to load channel accounts", accountsError, { component: "ChannelsPage" });
+      } else {
+        setAccounts((accountsData as ChannelAccount[]) || []);
+      }
 
       // Load iCal configurations
       const { data: configsData, error: configsError } = await supabase
@@ -471,6 +494,26 @@ export default function ChannelsPage() {
                           <RefreshCw className={`h-4 w-4 mr-1 ${syncingIds.has(config.id) ? 'animate-spin' : ''}`} />
                           Sync
                         </Button>
+                        
+                        {/* Copy Export URL button for channel accounts */}
+                        {accounts.find(a => a.property_id === config.property_id && a.ics_export_token) && (
+                          <Button 
+                            variant="outline" 
+                            onClick={async () => {
+                              const account = accounts.find(a => a.property_id === config.property_id && a.ics_export_token);
+                              if (account?.property_id && account?.ics_export_token) {
+                                const url = `${getFnsBase()}/ics-export?property_id=${account.property_id}&token=${account.ics_export_token}`;
+                                await navigator.clipboard.writeText(url);
+                                toast({
+                                  title: "URL copiato",
+                                  description: "Export URL copiato negli appunti",
+                                });
+                              }
+                            }}
+                          >
+                            <Copy className="h-4 w-4 mr-1" /> Copia Export URL
+                          </Button>
+                        )}
                       </div>
                     </div>
                   )}

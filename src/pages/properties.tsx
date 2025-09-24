@@ -27,7 +27,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { createProperty, type NewProperty } from "@/lib/properties";
-import HostNavbar from "@/components/HostNavbar";
+
 import { useActiveProperty } from "@/hooks/useActiveProperty";
 
 interface Property {
@@ -38,38 +38,33 @@ interface Property {
   city?: string;
   status?: string;
   max_guests?: number;
-  address?: string;
   created_at: string;
 }
 
 const Properties = () => {
-  const navigate = useNavigate();
   const [properties, setProperties] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { id: activePropertyId } = useActiveProperty();
+  const { activeProperty } = useActiveProperty();
   
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCity, setSelectedCity] = useState("all");
-  const [selectedStatus, setSelectedStatus] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   
-  // Modal
+  // Modal states
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
-  
-  // Create property modal
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [createForm, setCreateForm] = useState({
+  const [createForm, setCreateForm] = useState<NewProperty>({
     nome: "",
     city: "",
-    max_guests: undefined as number | undefined,
-    status: "active" as "active" | "inactive",
-    address: ""
+    max_guests: 2
   });
   
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadProperties();
@@ -80,27 +75,14 @@ const Properties = () => {
       setIsLoading(true);
       setError(null);
 
-      const { data: userRes, error: userErr } = await supabase.auth.getUser();
-      if (userErr || !userRes?.user) throw new Error("Utente non autenticato");
-      const hostId = userRes.user.id;
-
-      const { data, error: propertiesError } = await supabase
+      const { data, error } = await supabase
         .from('properties')
-        .select('id, host_id, city, status, max_guests, address, created_at, nome')
-        .eq('host_id', hostId)
+        .select('*')
         .order('created_at', { ascending: false });
 
-      if (propertiesError) {
-        setError("Errore nel caricamento delle proprietà");
-        toast({
-          variant: "destructive",
-          title: "Errore",
-          description: "Errore nel caricamento delle proprietà",
-        });
-      } else {
-        setProperties(data || []);
-      }
+      if (error) throw error;
 
+      setProperties(data || []);
     } catch (err) {
       console.error('Error loading properties:', err);
       setError("Errore nel caricamento delle proprietà");
@@ -114,107 +96,35 @@ const Properties = () => {
     }
   };
 
-  // Extract unique cities for filter
-  const uniqueCities = useMemo(() => {
-    const cities = properties
-      .map(prop => prop.city)
-      .filter(city => city && city.trim())
-      .map(city => city!.trim());
-    return [...new Set(cities)].sort();
-  }, [properties]);
-
-  // Extract unique statuses for filter  
-  const uniqueStatuses = useMemo(() => {
-    const statuses = properties
-      .map(prop => prop.status)
-      .filter(status => status && status.trim())
-      .map(status => status!.trim());
-    return [...new Set(statuses)].sort();
-  }, [properties]);
-
-  // Filtered properties
+  // Filtered data
   const filteredProperties = useMemo(() => {
     const term = (searchTerm ?? '').toLowerCase();
-    const city = selectedCity === 'all' ? null : selectedCity;
-    const status = selectedStatus === 'all' ? null : selectedStatus;
     
-    return properties.filter(prop => {
+    let filtered = properties.filter(prop => {
       const name = (prop.nome || prop.name || '').toLowerCase();
-      const matchesSearch = name.includes(term);
-      const matchesCity = !city || prop.city === city;
-      const matchesStatus = !status || prop.status === status;
+      const city = (prop.city || '').toLowerCase();
+      const matchesSearch = name.includes(term) || city.includes(term);
+      const matchesCity = selectedCity === 'all' || prop.city === selectedCity;
+      const matchesStatus = statusFilter === 'all' || prop.status === statusFilter;
       
       return matchesSearch && matchesCity && matchesStatus;
     });
-  }, [properties, searchTerm, selectedCity, selectedStatus]);
 
-  // Property creation functions
-  const handleCreateProperty = async () => {
-    if (!createForm.nome.trim()) {
-      toast({
-        variant: "destructive",
-        title: "Errore",
-        description: "Il nome della proprietà è obbligatorio",
-      });
-      return;
+    // Apply active property filter
+    if (activeProperty && activeProperty.id !== 'all') {
+      filtered = filtered.filter(prop => prop.id === activeProperty.id);
     }
 
-    setIsCreating(true);
-    try {
-      const { data: { user }, error: authErr } = await supabase.auth.getUser();
-      
-      if (authErr || !user) {
-        throw new Error("Utente non autenticato");
-      }
+    return filtered;
+  }, [properties, searchTerm, selectedCity, statusFilter, activeProperty]);
 
-      const { data, error } = await createProperty(createForm);
-      
-      if (error) {
-        console.error('Property creation error:', error);
-        
-        // Debug mode error display
-        const debugMode = localStorage.getItem('debug') === '1';
-        const errorMessage = debugMode 
-          ? `RLS error: ${error.message}` 
-          : error.message || "Errore nella creazione della proprietà";
-          
-        throw new Error(errorMessage);
-      }
-
-      if (data) {
-        // Optimistic update
-        setProperties(prev => [data, ...prev]);
-        
-        toast({
-          title: "Successo",
-          description: "Proprietà creata con successo",
-        });
-        
-        // Reset form and close modal
-        setCreateForm({
-          nome: "",
-          city: "",
-          max_guests: undefined,
-          status: "active",
-          address: ""
-        });
-        setIsCreateModalOpen(false);
-        
-        // Reload data
-        loadProperties();
-      }
-    } catch (error: any) {
-      console.error('Error creating property:', error);
-      
-      toast({
-        variant: "destructive",
-        title: "Errore",
-        description: error.message || "Errore nella creazione della proprietà",
-      });
-    } finally {
-      setIsCreating(false);
-    }
-  };
+  const uniqueCities = useMemo(() => {
+    const cities = properties
+      .map(prop => prop.city)
+      .filter(Boolean)
+      .filter((city, index, arr) => arr.indexOf(city) === index);
+    return cities.sort();
+  }, [properties]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('it-IT', {
@@ -234,21 +144,39 @@ const Properties = () => {
     setSelectedPropertyId(null);
   };
 
+  const handleCreateProperty = async (propertyData: NewProperty) => {
+    try {
+      setIsCreating(true);
+      await createProperty(propertyData);
+      
+      toast({
+        title: "Successo",
+        description: "Proprietà creata con successo",
+      });
+      
+      setIsCreateModalOpen(false);
+      setCreateForm({ nome: "", city: "", max_guests: 2 });
+      loadProperties();
+    } catch (error) {
+      console.error('Error creating property:', error);
+      toast({
+        variant: "destructive",
+        title: "Errore",
+        description: "Errore nella creazione della proprietà",
+      });
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <HostNavbar />
-        <div className="pt-16">
-          <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="space-y-6">
-              <Skeleton className="h-16 w-full" />
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                <Skeleton className="h-64 w-full" />
-                <div className="lg:col-span-3">
-                  <Skeleton className="h-96 w-full" />
-                </div>
-              </div>
-            </div>
+      <div className="space-y-6">
+        <Skeleton className="h-16 w-full" />
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <Skeleton className="h-96 w-full" />
+          <div className="lg:col-span-3">
+            <Skeleton className="h-96 w-full" />
           </div>
         </div>
       </div>
@@ -256,258 +184,222 @@ const Properties = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <HostNavbar />
-      <div className="pt-16">
-        <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          
-          {/* Header */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-hostsuite-primary flex items-center gap-3">
+              <Building className="w-8 h-8" />
+              Proprietà
+            </h1>
+            <p className="text-hostsuite-text/60 mt-2">
+              Gestisci tutte le tue proprietà in un unico posto
+            </p>
+            {activeProperty && activeProperty.id !== 'all' && (
+              <Badge variant="outline" className="flex items-center gap-2 w-fit mt-2">
+                <Info className="h-3 w-3" />
+                Attiva: {activeProperty.nome || activeProperty.name || activeProperty.id}
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <Button onClick={loadProperties} disabled={isLoading}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Aggiorna
+            </Button>
+            <PrimaryButton onClick={() => navigate("/dashboard/properties/new")}>
+              <Plus className="w-4 h-4 mr-2" />
+              Nuova Proprietà
+            </PrimaryButton>
+          </div>
+        </div>
+      </div>
+
+      {error && (
+        <div className="mb-6">
+          <Card className="border-red-200 bg-red-50">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-2 text-red-700">
+                <Info className="w-5 h-5" />
+                <p>{error}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Sidebar Filters */}
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Filter className="w-5 h-5" />
+                Filtri
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Search */}
               <div>
-                <h1 className="text-3xl font-bold text-hostsuite-primary flex items-center gap-3">
-                  <Building className="w-8 h-8" />
-                  Proprietà
-                </h1>
-                <p className="text-hostsuite-text/60 mt-2">
-                  Gestisci tutte le tue proprietà in un unico posto
-                </p>
-                {/* Active property badge */}
-                {activePropertyId !== 'all' && (
-                  <Badge variant="outline" className="flex items-center gap-2 w-fit mt-2">
-                    <Info className="h-3 w-3" />
-                    Attiva: {properties.find(p => p.id === activePropertyId)?.nome || activePropertyId}
-                  </Badge>
-                )}
+                <label className="text-sm font-medium text-hostsuite-text mb-2 block">
+                  Cerca proprietà
+                </label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-hostsuite-text/50" />
+                  <Input
+                    placeholder="Nome o città..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
               </div>
-              
-              <div className="flex items-center gap-3">
-                <PrimaryButton 
-                  onClick={loadProperties} 
-                  disabled={isLoading}
-                  size="sm"
-                  aria-label="Aggiorna lista proprietà"
-                >
-                  <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-                  Aggiorna
-                </PrimaryButton>
-                
-                <PrimaryButton
-                  onClick={() => navigate('/dashboard/properties/new')}
-                  aria-label="Crea nuova proprietà"
-                >
+
+              {/* City Filter */}
+              <div>
+                <label className="text-sm font-medium text-hostsuite-text mb-2 block">
+                  Città
+                </label>
+                <Select value={selectedCity} onValueChange={setSelectedCity}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Tutte le città" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tutte le città</SelectItem>
+                    {uniqueCities.map((city) => (
+                      <SelectItem key={city} value={city}>
+                        {city}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Status Filter */}
+              <div>
+                <label className="text-sm font-medium text-hostsuite-text mb-2 block">
+                  Stato
+                </label>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tutti</SelectItem>
+                    <SelectItem value="active">Attive</SelectItem>
+                    <SelectItem value="inactive">Inattive</SelectItem>
+                    <SelectItem value="draft">Bozze</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Stats */}
+              <div className="pt-4 border-t">
+                <div className="text-sm text-hostsuite-text/60 space-y-1">
+                  <div>Totale: {properties.length}</div>
+                  <div>Filtrate: {filteredProperties.length}</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Main Content */}
+        <div className="lg:col-span-3">
+          {filteredProperties.length === 0 ? (
+            <EmptyState
+              icon={<Building className="w-16 h-16 text-hostsuite-primary/30" />}
+              title={searchTerm || selectedCity !== 'all' || statusFilter !== 'all' ? "Nessuna proprietà trovata" : "Nessuna proprietà disponibile"}
+              description={searchTerm || selectedCity !== 'all' || statusFilter !== 'all' ? "Prova a modificare i filtri di ricerca" : "Inizia creando la tua prima proprietà"}
+            >
+              {!searchTerm && selectedCity === 'all' && statusFilter === 'all' && (
+                <PrimaryButton onClick={() => navigate("/dashboard/properties/new")}>
                   <Plus className="w-4 h-4 mr-2" />
-                  Nuova Proprietà
+                  Crea Prima Proprietà
                 </PrimaryButton>
-              </div>
-            </div>
-          </div>
-
-          {error && (
-            <div className="mb-6">
-              <Card className="border-red-200 bg-red-50">
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-2 text-red-700">
-                    <Building className="w-5 h-5" />
-                    <p>{error}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            
-            {/* Filters Sidebar */}
-            <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Filter className="w-5 h-5" />
-                    Filtri
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  
-                  {/* Search */}
-                  <div>
-                    <label className="text-sm font-medium text-hostsuite-text mb-2 block">
-                      Cerca per nome
-                    </label>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-hostsuite-text/50" />
-                      <Input
-                        placeholder="Nome proprietà..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-                  </div>
-
-                  {/* City Filter */}
-                  {uniqueCities.length > 0 && (
-                    <div>
-                      <label className="text-sm font-medium text-hostsuite-text mb-2 block">
-                        Città
-                      </label>
-                      <Select value={selectedCity} onValueChange={setSelectedCity}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Tutte le città" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Tutte le città</SelectItem>
-                          {uniqueCities.map((city) => (
-                            <SelectItem key={city} value={city}>
-                              {city}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-
-                  {/* Status Filter */}
-                  {uniqueStatuses.length > 0 && (
-                    <div>
-                      <label className="text-sm font-medium text-hostsuite-text mb-2 block">
-                        Stato
-                      </label>
-                      <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Tutti gli stati" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Tutti gli stati</SelectItem>
-                          {uniqueStatuses.map((status) => (
-                            <SelectItem key={status} value={status}>
-                              {status}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-
-                  {/* Stats */}
-                  <div className="pt-4 border-t">
-                    <div className="text-sm text-hostsuite-text/60 space-y-1">
-                      <div>Totale: {properties.length}</div>
-                      <div>Filtrate: {filteredProperties.length}</div>
-                      {uniqueCities.length > 0 && (
-                        <div>Città: {uniqueCities.length}</div>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Main Content */}
-            <div className="lg:col-span-3">
-              {filteredProperties.length === 0 ? (
-                <EmptyState
-                  icon={<Building className="w-16 h-16 text-hostsuite-primary/30" />}
-                  title={searchTerm || selectedCity !== 'all' || selectedStatus !== 'all' ? "Nessuna proprietà trovata" : "Nessuna proprietà disponibile"}
-                  description={searchTerm || selectedCity !== 'all' || selectedStatus !== 'all' ? "Prova a modificare i filtri di ricerca" : "Aggiungi la tua prima proprietà per iniziare"}
-                />
-              ) : (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
-                      <span>Elenco Proprietà</span>
-                      <Badge variant="secondary" className="bg-hostsuite-primary/10 text-hostsuite-primary">
-                        {filteredProperties.length} {filteredProperties.length === 1 ? 'proprietà' : 'proprietà'}
-                      </Badge>
-                    </CardTitle>
-                    <CardDescription>
-                      Clicca su "Dettagli" per visualizzare informazioni complete di ogni proprietà
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="min-w-[200px]">Nome</TableHead>
-                            <TableHead>Città</TableHead>
-                            <TableHead>Indirizzo</TableHead>
-                            <TableHead>Ospiti</TableHead>
-                            {filteredProperties.length > 0 && 'status' in filteredProperties[0] && <TableHead>Stato</TableHead>}
-                            <TableHead>Creato il</TableHead>
-                            <TableHead className="text-right">Azioni</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody aria-busy={isLoading}>
-                          {filteredProperties.map((property) => (
-                            <TableRow key={property.id}>
-                              <TableCell>
-                                <div className="font-medium text-hostsuite-primary">
-                                  {property.nome || property.name}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                {property.city ? (
-                                  <div className="flex items-center gap-1">
-                                    <MapPin className="w-3 h-3 text-hostsuite-text/50" />
-                                    {property.city}
-                                  </div>
-                                ) : (
-                                  <span className="text-hostsuite-text/50">—</span>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                {property.address ? (
-                                  <span className="text-hostsuite-text">{property.address}</span>
-                                ) : (
-                                  <span className="text-hostsuite-text/50">—</span>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                {property.max_guests ? (
-                                  <div className="flex items-center gap-1">
-                                    <Users className="w-3 h-3 text-hostsuite-text/50" />
-                                    {property.max_guests}
-                                  </div>
-                                ) : (
-                                  <span className="text-hostsuite-text/50">—</span>
-                                )}
-                              </TableCell>
-                               {'status' in property && (
-                                 <TableCell>
-                                   {property.status ? (
-                                     <StatusBadge status={property.status as any} />
-                                   ) : (
-                                     <span className="text-hostsuite-text/50">—</span>
-                                   )}
-                                 </TableCell>
-                               )}
-                              <TableCell>
-                                <div className="flex items-center gap-1 text-hostsuite-text/60">
-                                  <Calendar className="w-3 h-3" />
-                                  {formatDate(property.created_at)}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <PrimaryButton
-                                  size="sm"
-                                  onClick={() => openModal(property.id)}
-                                  aria-label={`Visualizza dettagli di ${property.nome || property.name || 'Proprietà'}`}
-                                >
-                                  <Eye className="w-4 h-4 mr-1" />
-                                  Dettagli
-                                </PrimaryButton>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </CardContent>
-                </Card>
               )}
-            </div>
-          </div>
+            </EmptyState>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Proprietà ({filteredProperties.length})</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Città</TableHead>
+                        <TableHead>Stato</TableHead>
+                        <TableHead>Ospiti Max</TableHead>
+                        <TableHead>Data Creazione</TableHead>
+                        <TableHead className="text-right">Azioni</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredProperties.map((property) => (
+                        <TableRow key={property.id}>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              <Building className="w-4 h-4 text-hostsuite-primary" />
+                              {property.nome || property.name || 'Senza nome'}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {property.city ? (
+                              <div className="flex items-center gap-1">
+                                <MapPin className="w-3 h-3 text-hostsuite-text/50" />
+                                {property.city}
+                              </div>
+                            ) : (
+                              <span className="text-hostsuite-text/50">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {property.status ? (
+                              <StatusBadge status={property.status as any} />
+                            ) : (
+                              <Badge variant="secondary">Non definito</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {property.max_guests ? (
+                              <div className="flex items-center gap-1">
+                                <Users className="w-3 h-3 text-hostsuite-text/50" />
+                                {property.max_guests}
+                              </div>
+                            ) : (
+                              <span className="text-hostsuite-text/50">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1 text-hostsuite-text/60">
+                              <Calendar className="w-3 h-3" />
+                              {formatDate(property.created_at)}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <PrimaryButton
+                              size="sm"
+                              onClick={() => openModal(property.id)}
+                              aria-label={`Visualizza dettagli di ${property.nome || property.name || 'Proprietà'}`}
+                            >
+                              <Eye className="w-4 h-4 mr-1" />
+                              Dettagli
+                            </PrimaryButton>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 

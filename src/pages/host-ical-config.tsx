@@ -9,7 +9,6 @@ import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Calendar, Link as LinkIcon, Plus, Settings, Trash2, Copy, RefreshCw, Info } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import HostNavbar from "@/components/HostNavbar";
 import PropertySwitch from "@/components/PropertySwitch";
 import IcalUrlModal from "@/components/IcalUrlModal";
 import ChannelManagerWizard from "@/components/ChannelManagerWizard";
@@ -231,14 +230,11 @@ const HostIcalConfig = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <HostNavbar />
-        <div className="pt-20 container max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-muted rounded w-1/3"></div>
-            <div className="h-32 bg-muted rounded"></div>
-            <div className="h-64 bg-muted rounded"></div>
-          </div>
+      <div className="space-y-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-muted rounded w-1/3"></div>
+          <div className="h-32 bg-muted rounded"></div>
+          <div className="h-64 bg-muted rounded"></div>
         </div>
       </div>
     );
@@ -246,14 +242,12 @@ const HostIcalConfig = () => {
 
   return (
     <>
-      <div className="min-h-screen bg-background">
-        <HostNavbar />
-        <div className="pt-20 container max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-hostsuite-primary mb-2">Configurazione iCal</h1>
-            <p className="text-hostsuite-text">Sincronizza i calendari delle tue proprietà con le piattaforme di booking</p>
-          </div>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-hostsuite-primary mb-2">Configurazione iCal</h1>
+          <p className="text-hostsuite-text">Sincronizza i calendari delle tue proprietà con le piattaforme di booking</p>
+        </div>
 
           {/* Local Property Selector */}
           <div className="mb-6">
@@ -634,7 +628,6 @@ const HostIcalConfig = () => {
               propertyName={selectedPropertyName || 'Proprietà'}
             />
           )}
-        </div>
       </div>
 
       {/* Configuration Wizard */}

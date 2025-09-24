@@ -125,7 +125,7 @@ const HostLogin = () => {
 
               <Button
                 type="submit"
-                className="w-full bg-gradient-hostsuite hover:scale-105 transition-transform disabled:opacity-100 disabled:bg-gradient-hostsuite"
+                className="w-full bg-gradient-hostsuite text-white font-semibold hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                 disabled={!isFormValid || isLoading}
                 aria-busy={isLoading}
               >

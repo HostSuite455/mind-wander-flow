@@ -8,7 +8,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge, SourceBadge } from "@/components/ui/Badges";
 import { EmptyState } from "@/components/ui/EmptyState";
-import HostNavbar from "@/components/HostNavbar";
 import PropertyDetailModal from "@/components/PropertyDetailModal";
 import CreatePropertyModal from "@/components/CreatePropertyModal";
 import PropertySwitch from "@/components/PropertySwitch";
@@ -369,45 +368,10 @@ const HostDashboard = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background">
-      <HostNavbar />
-      
-      <div className="pt-16"> {/* Account for fixed navbar */}
-        <div className="flex">
-          {/* Sidebar - Hidden on mobile, shown on desktop */}
-          <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-16 lg:border-r lg:border-hostsuite-primary/20 lg:bg-white/50">
-            <div className="flex-1 flex flex-col min-h-0 pt-6 pb-4">
-              <div className="flex-1 flex flex-col overflow-y-auto px-4">
-                <nav className="space-y-2">
-                  <div className="px-3 py-2 text-xs font-semibold text-hostsuite-text uppercase tracking-wider">
-                    Menu Principale
-                  </div>
-                  <Button variant="ghost" className="w-full justify-start text-hostsuite-primary bg-hostsuite-primary/10">
-                    <LayoutDashboard className="mr-3 h-4 w-4" />
-                    Dashboard Overview
-                  </Button>
-                  <Button variant="ghost" className="w-full justify-start text-hostsuite-text">
-                    <Home className="mr-3 h-4 w-4" />
-                    Proprietà
-                  </Button>
-                  <Button variant="ghost" className="w-full justify-start text-hostsuite-text">
-                    <Calendar className="mr-3 h-4 w-4" />
-                    Calendario
-                  </Button>
-                  <Link to="/channels">
-                    <Button variant="ghost" className="w-full justify-start text-hostsuite-text hover:text-hostsuite-primary hover:bg-hostsuite-primary/10">
-                      <RefreshCw className="mr-3 h-4 w-4" />
-                      Channels
-                    </Button>
-                  </Link>
-                </nav>
-              </div>
-            </div>
-          </aside>
-
-          {/* Main Content */}
-          <main className="flex-1 lg:pl-64">
-            <div className="container max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <>
+      <div className="min-h-screen bg-background">
+        {/* Main Content */}
+        <div className="container max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
               
               {/* Topbar with Breadcrumb */}
               <div className="mb-8">
@@ -752,14 +716,12 @@ const HostDashboard = () => {
                   )}
                 </CardContent>
               </Card>
-            </div>
-          </main>
         </div>
       </div>
 
       {/* Property Detail Modal */}
       {selectedPropertyId && (
-        <PropertyDetailModal 
+        <PropertyDetailModal
           open={isModalOpen}
           onClose={handleCloseModal}
           propertyId={selectedPropertyId}
@@ -775,7 +737,7 @@ const HostDashboard = () => {
         form={createForm}
         setForm={setCreateForm}
       />
-    </div>
+    </>
   );
 };
 

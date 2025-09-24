@@ -2,6 +2,9 @@
  * Utilities for Supabase functions URL construction
  */
 
+export const getFnsBase = () =>
+  import.meta.env.VITE_SUPABASE_URL!.replace(".co", ".co/functions/v1");
+
 /**
  * Constructs a Supabase edge function URL from the base Supabase URL
  * @param functionName - Name of the edge function

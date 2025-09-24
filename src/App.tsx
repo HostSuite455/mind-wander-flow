@@ -69,10 +69,17 @@ const App = () => (
                 <Route path="calendar" element={<CalendarPage />} />
                 <Route path="channels" element={<ChannelsPage />} />
                 <Route path="export" element={<ExportPage />} />
+                <Route path="host-agent-home" element={<HostAgentHome />} />
+                <Route path="host-agent-config" element={<HostAgentConfig />} />
+                <Route path="host-bookings" element={<HostBookings />} />
+                <Route path="host-unanswered-questions" element={<HostUnansweredQuestions />} />
+                <Route path="admin-users" element={<AdminUsers />} />
               </Route>
 
-              {/* Legacy Host Routes - keeping for backward compatibility */}
-              <Route path="/host-dashboard" element={<ProtectedRoute><HostDashboard /></ProtectedRoute>} />
+              {/* Legacy Host Routes - keeping for backward compatibility but using DashboardLayout */}
+              <Route path="/host-dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+                <Route index element={<HostDashboard />} />
+              </Route>
               <Route path="/properties" element={<ProtectedRoute><Properties /></ProtectedRoute>} />
               <Route path="/properties/new" element={<ProtectedRoute><PropertyWizard /></ProtectedRoute>} />
               <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />

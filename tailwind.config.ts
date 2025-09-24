@@ -82,6 +82,9 @@ export default {
         'gradient-ocean': 'var(--gradient-ocean)',
         'gradient-sunset': 'var(--gradient-sunset)',
         'gradient-hero': 'var(--gradient-hero)',
+        'gradient-hostsuite': 'var(--gradient-hostsuite)',
+        'gradient-hostsuite-sunset': 'var(--gradient-hostsuite-sunset)',
+        'gradient-hostsuite-hero': 'var(--gradient-hostsuite-hero)',
       },
       boxShadow: {
         'soft': 'var(--shadow-soft)',

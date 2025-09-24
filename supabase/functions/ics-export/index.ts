@@ -1,84 +1,79 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const supabase = createClient(
+  Deno.env.get("SB_URL")!,
+  Deno.env.get("SB_SERVICE_ROLE_KEY")!
+);
+
+const d = (iso: string) => iso.replaceAll("-", ""); // YYYY-MM-DD -> YYYYMMDD
+const ts = () =>
+  new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z").replace("T","T");
 
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
   try {
-    const supabaseUrl = Deno.env.get('SB_URL');
-    const supabaseKey = Deno.env.get('SB_SERVICE_ROLE_KEY');
+    const { searchParams } = new URL(req.url);
+    const property_id = searchParams.get("property_id");
+    const token = searchParams.get("token");
+    if (!property_id || !token) return new Response("Missing params", { status: 400 });
 
-    if (!supabaseUrl || !supabaseKey) {
-      console.error('Missing required environment variables');
-      return new Response('Server configuration error', { status: 500 });
+    // property (host_id)
+    const { data: prop, error: e1 } = await supabase
+      .from("properties").select("id,host_id").eq("id", property_id).single();
+    if (e1 || !prop) return new Response("Property not found", { status: 404 });
+
+    // token valido per quell'host
+    const { data: acc, error: e2 } = await supabase
+      .from("channel_accounts").select("id").eq("host_id", prop.host_id).eq("ics_export_token", token).maybeSingle();
+    if (e2 || !acc) return new Response("Forbidden", { status: 403 });
+
+    const { data: resvs } = await supabase
+      .from("reservations").select("id,start_date,end_date,guest_name").eq("property_id", property_id);
+    const { data: blocks } = await supabase
+      .from("availability_blocks").select("id,start_date,end_date,reason").eq("property_id", property_id);
+
+    const lines: string[] = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//HostSuite AI//ICS Export//EN",
+      "CALSCALE:GREGORIAN",
+      "METHOD:PUBLISH",
+    ];
+    const now = ts();
+
+    for (const r of resvs || []) {
+      lines.push(
+        "BEGIN:VEVENT",
+        `UID:res-${r.id}@hostsuite.ai`,
+        `DTSTAMP:${now}`,
+        `DTSTART;VALUE=DATE:${d(r.start_date)}`,
+        `DTEND;VALUE=DATE:${d(r.end_date)}`,
+        `SUMMARY:Booking${r.guest_name ? " - " + r.guest_name : ""}`,
+        "END:VEVENT",
+      );
+    }
+    for (const b of blocks || []) {
+      lines.push(
+        "BEGIN:VEVENT",
+        `UID:blk-${b.id}@hostsuite.ai`,
+        `DTSTAMP:${now}`,
+        `DTSTART;VALUE=DATE:${d(b.start_date)}`,
+        `DTEND;VALUE=DATE:${d(b.end_date)}`,
+        `SUMMARY:Blocked${b.reason ? " - " + b.reason : ""}`,
+        "END:VEVENT",
+      );
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
-    
-    const url = new URL(req.url);
-    const propertyId = url.searchParams.get('property_id');
-    const token = url.searchParams.get('token');
-
-    if (!propertyId || !token) {
-      return new Response('Missing required parameters: property_id and token', { 
-        status: 400 
-      });
-    }
-
-    console.log(`Export request for property: ${propertyId}`);
-
-    // Verify token exists and is valid for the property
-    const { data: account, error: accountError } = await supabase
-      .from('channel_accounts')
-      .select('*')
-      .eq('property_id', propertyId)
-      .eq('ics_export_token', token)
-      .single();
-
-    if (accountError || !account) {
-      console.error('Invalid token or property:', accountError);
-      return new Response('Unauthorized', { status: 401 });
-    }
-
-    // TODO: Generate actual ICS calendar data
-    // For now, return a basic ICS stub
-    const icsContent = `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//HostSuite AI//Channel Manager//EN
-CALSCALE:GREGORIAN
-METHOD:PUBLISH
-X-WR-CALNAME:${account.name} - Property Calendar
-X-WR-CALDESC:Exported calendar for property ${propertyId}
-BEGIN:VEVENT
-UID:stub-event-001@hostsuite.ai
-DTSTART:20250101T000000Z
-DTEND:20250102T000000Z
-SUMMARY:TODO: Implement actual calendar export
-DESCRIPTION:This is a stub response. Actual calendar data will be implemented.
-STATUS:CONFIRMED
-END:VEVENT
-END:VCALENDAR`;
-
-    console.log(`Returning ICS export for property: ${propertyId}`);
-
-    return new Response(icsContent, {
+    lines.push("END:VCALENDAR");
+    const body = lines.join("\r\n");
+    return new Response(body, {
       headers: {
-        ...corsHeaders,
-        'Content-Type': 'text/calendar; charset=utf-8',
-        'Content-Disposition': `attachment; filename="${account.name}-calendar.ics"`,
+        "content-type": "text/calendar; charset=utf-8",
+        "content-disposition": 'attachment; filename="hostsuite.ics"',
+        "cache-control": "no-store",
       },
     });
-
-  } catch (error) {
-    console.error('Export function error:', error);
-    return new Response('Internal server error', { status: 500 });
+  } catch (e) {
+    return new Response("Server error: " + String(e), { status: 500 });
   }
 });
