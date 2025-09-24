@@ -59,7 +59,7 @@ interface Booking {
 }
 
 const CalendarPro = () => {
-  const { activePropertyId } = useActiveProperty();
+  const { id: activePropertyId } = useActiveProperty();
   const { toast: toastHook } = useToast();
   
   const [properties, setProperties] = useState<Property[]>([]);
@@ -74,30 +74,38 @@ const CalendarPro = () => {
     setIsLoading(true);
     try {
       // Load properties
-      const propertiesData = await supaSelect('properties', {
-        select: 'id, nome, name, city, status',
-        filter: activePropertyId !== 'all' ? { id: activePropertyId } : undefined
-      });
+      let propertiesQuery = supabase
+        .from('properties')
+        .select('id, nome, city, status');
+      
+      if (activePropertyId !== 'all') {
+        propertiesQuery = propertiesQuery.eq('id', activePropertyId);
+      }
+      
+      const { data: propertiesData, error: propertiesError } = await propertiesQuery;
+      if (propertiesError) throw propertiesError;
       setProperties(propertiesData || []);
 
-      // Load iCal URLs and parse them
-      const icalsQuery = await supaSelect('ical_urls', {
-        select: `
+      // Load iCal URLs with joins - simplified approach since the original join was complex
+      const { data: icalsData, error: icalsError } = await supabase
+        .from('ical_urls')
+        .select(`
           id, ical_config_id, url, source, is_active,
           ical_configs!inner(
             property_id, is_active,
-            properties!inner(id, nome, name, city, status)
+            properties!inner(id, nome, city, status)
           )
-        `,
-        filter: { is_active: true }
-      });
+        `)
+        .eq('is_active', true);
 
-      if (icalsQuery) {
+      if (icalsError) {
+        console.error('Error loading iCal URLs:', icalsError);
+      } else if (icalsData) {
         const allEvents: IcsEventEnriched[] = [];
-        for (const icalUrl of icalsQuery) {
+        for (const icalUrl of icalsData) {
           if (icalUrl.ical_configs?.is_active && icalUrl.ical_configs.properties) {
             try {
-              const events = await parseAndEnrichICS(icalUrl.url, icalUrl.ical_configs.properties);
+              const events = parseAndEnrichICS(icalUrl.url);
               allEvents.push(...events);
             } catch (error) {
               console.error(`Error parsing iCal ${icalUrl.url}:`, error);
@@ -107,12 +115,18 @@ const CalendarPro = () => {
         setIcalsData(allEvents);
       }
 
-      // Load Smoobu bookings
-      const bookingsData = await supaSelect('bookings', {
-        select: '*',
-        filter: activePropertyId !== 'all' ? { property_id: activePropertyId } : undefined
-      });
-      setBookings(bookingsData || []);
+      // Load bookings
+      let bookingsQuery = supabase.from('bookings').select('*');
+      if (activePropertyId !== 'all') {
+        bookingsQuery = bookingsQuery.eq('property_id', activePropertyId);
+      }
+      
+      const { data: bookingsData, error: bookingsError } = await bookingsQuery;
+      if (bookingsError) {
+        console.error('Error loading bookings:', bookingsError);
+      } else {
+        setBookings(bookingsData || []);
+      }
 
     } catch (error) {
       console.error('Error loading calendar data:', error);
@@ -147,7 +161,7 @@ const CalendarPro = () => {
   // Filter events and bookings based on selected property
   const filteredEvents = useMemo(() => {
     if (selectedProperty === 'all') return icalsData;
-    return icalsData.filter(event => event.property?.id === selectedProperty);
+    return icalsData.filter(event => event.unitName?.includes(selectedProperty));
   }, [icalsData, selectedProperty]);
 
   const filteredBookings = useMemo(() => {
@@ -175,14 +189,14 @@ const CalendarPro = () => {
         title: event.summary || 'Occupato',
         start: event.start,
         end: event.end,
-        resourceId: view === 'multi' ? event.property?.id : undefined,
+        resourceId: view === 'multi' ? event.unitName : undefined,
         backgroundColor: '#ef4444',
         borderColor: '#dc2626',
         textColor: 'white',
         extendedProps: {
           type: 'ical',
           source: 'iCal',
-          property: event.property
+          unitName: event.unitName
         }
       });
     });

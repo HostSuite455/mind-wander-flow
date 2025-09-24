@@ -45,7 +45,7 @@ const Properties = () => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { activeProperty } = useActiveProperty();
+  const { id: activeProperty } = useActiveProperty();
   
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -60,7 +60,7 @@ const Properties = () => {
   const [createForm, setCreateForm] = useState<NewProperty>({
     nome: "",
     city: "",
-    max_guests: 2
+    guests: 2
   });
   
   const { toast } = useToast();
@@ -111,8 +111,8 @@ const Properties = () => {
     });
 
     // Apply active property filter
-    if (activeProperty && activeProperty.id !== 'all') {
-      filtered = filtered.filter(prop => prop.id === activeProperty.id);
+    if (activeProperty && activeProperty !== 'all') {
+      filtered = filtered.filter(prop => prop.id === activeProperty);
     }
 
     return filtered;
@@ -144,9 +144,18 @@ const Properties = () => {
     setSelectedPropertyId(null);
   };
 
-  const handleCreateProperty = async (propertyData: NewProperty) => {
+  const handleCreateProperty = async () => {
     try {
       setIsCreating(true);
+      
+      // Convert form to NewProperty format
+      const propertyData: NewProperty = {
+        nome: createForm.nome,
+        city: createForm.city,
+        guests: createForm.guests,
+        status: "active" // Always create as active since modal doesn't allow draft
+      };
+      
       await createProperty(propertyData);
       
       toast({
@@ -155,7 +164,7 @@ const Properties = () => {
       });
       
       setIsCreateModalOpen(false);
-      setCreateForm({ nome: "", city: "", max_guests: 2 });
+      setCreateForm({ nome: "", city: "", guests: 2 });
       loadProperties();
     } catch (error) {
       console.error('Error creating property:', error);
@@ -196,10 +205,10 @@ const Properties = () => {
             <p className="text-hostsuite-text/60 mt-2">
               Gestisci tutte le tue proprietà in un unico posto
             </p>
-            {activeProperty && activeProperty.id !== 'all' && (
+            {activeProperty && activeProperty !== 'all' && (
               <Badge variant="outline" className="flex items-center gap-2 w-fit mt-2">
                 <Info className="h-3 w-3" />
-                Attiva: {activeProperty.nome || activeProperty.name || activeProperty.id}
+                Filtro attivo per proprietà: {properties.find(p => p.id === activeProperty)?.nome || activeProperty}
               </Badge>
             )}
           </div>
@@ -418,7 +427,7 @@ const Properties = () => {
         onClose={() => setIsCreateModalOpen(false)}
         onConfirm={handleCreateProperty}
         creating={isCreating}
-        form={createForm}
+        form={createForm as any}
         setForm={setCreateForm}
       />
     </div>
