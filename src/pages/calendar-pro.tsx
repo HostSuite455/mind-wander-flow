@@ -16,6 +16,7 @@ import { useActiveProperty } from "@/hooks/useActiveProperty";
 import { syncSmoobuBookings } from "@/lib/smoobuSync";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { createCalendarBlock, CalendarBlock } from "@/lib/supaBlocks";
 import "@/styles/fullcalendar.css";
 
 interface Property {
@@ -65,6 +66,7 @@ const CalendarPro = () => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [icalsData, setIcalsData] = useState<IcsEventEnriched[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [calendarBlocks, setCalendarBlocks] = useState<CalendarBlock[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [view, setView] = useState<'multi' | 'single'>('multi');
@@ -114,6 +116,13 @@ const CalendarPro = () => {
       });
       setBookings(bookingsData || []);
 
+      // Load calendar blocks
+      const calendarBlocksData = await supaSelect('calendar_blocks', {
+        select: '*',
+        filter: activePropertyId !== 'all' ? { property_id: activePropertyId } : undefined
+      });
+      setCalendarBlocks(calendarBlocksData || []);
+
     } catch (error) {
       console.error('Error loading calendar data:', error);
       toastHook({
@@ -154,6 +163,11 @@ const CalendarPro = () => {
     if (selectedProperty === 'all') return bookings;
     return bookings.filter(booking => booking.property_id === selectedProperty);
   }, [bookings, selectedProperty]);
+
+  const filteredCalendarBlocks = useMemo(() => {
+    if (selectedProperty === 'all') return calendarBlocks;
+    return calendarBlocks.filter(block => block.property_id === selectedProperty);
+  }, [calendarBlocks, selectedProperty]);
 
   // Prepare resources for multi-property view
   const resources = useMemo(() => {
@@ -206,8 +220,28 @@ const CalendarPro = () => {
       });
     });
 
+    // Add calendar blocks
+    filteredCalendarBlocks.forEach(block => {
+      events.push({
+        id: `block-${block.id}`,
+        title: block.title || 'Blocco Manuale',
+        start: block.start_date,
+        end: block.end_date,
+        resourceId: view === 'multi' ? block.property_id : undefined,
+        backgroundColor: '#8b5cf6',
+        borderColor: '#7c3aed',
+        textColor: 'white',
+        editable: false,
+        extendedProps: {
+          type: 'calendar_block',
+          source: 'Manual',
+          block: block
+        }
+      });
+    });
+
     return events;
-  }, [filteredEvents, filteredBookings, view]);
+  }, [filteredEvents, filteredBookings, filteredCalendarBlocks, view]);
 
   // Check if we have limited details (availability-only iCal)
   const hasLimitedDetails = useMemo(() => {
@@ -341,6 +375,36 @@ const CalendarPro = () => {
             resourceAreaHeaderContent="Proprietà"
             resourceAreaWidth="200px"
             slotMinWidth={50}
+            selectable={true}
+            selectMirror={true}
+            editable={false}
+            select={async (selectInfo) => {
+              try {
+                const propertyId = selectInfo.resource?.id || activePropertyId;
+                
+                if (propertyId === 'all') {
+                  toast.error('Seleziona una proprietà specifica per creare un blocco');
+                  return;
+                }
+
+                const newBlock = await createCalendarBlock({
+                  property_id: propertyId,
+                  start_date: selectInfo.startStr,
+                  end_date: selectInfo.endStr,
+                  title: 'Blocco Manuale'
+                });
+
+                if (newBlock) {
+                  toast.success('Blocco calendario creato con successo');
+                  loadCalendarData();
+                } else {
+                  toast.error('Errore nella creazione del blocco');
+                }
+              } catch (error) {
+                console.error('Error creating calendar block:', error);
+                toast.error('Errore nella creazione del blocco');
+              }
+            }}
             eventClick={(info) => {
               const { extendedProps } = info.event;
               if (extendedProps.type === 'booking') {
@@ -367,6 +431,10 @@ const CalendarPro = () => {
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-red-500 rounded"></div>
               <span className="text-sm">Eventi iCal</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-purple-500 rounded"></div>
+              <span className="text-sm">Blocchi Manuali</span>
             </div>
           </div>
         </CardContent>
