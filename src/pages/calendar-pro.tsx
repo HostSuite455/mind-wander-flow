@@ -520,70 +520,63 @@ const CalendarPro = () => {
                 resizeInfo.revert();
               }
             }}
-            eventClick={async (info) => {
-              const { event } = info;
-              const { extendedProps } = event;
+            eventClick={async (clickInfo) => {
+              const { event } = clickInfo;
               
-              if (extendedProps.type === 'block' && extendedProps.isManual) {
-                // Show delete confirmation for manual blocks
-                if (confirm('Vuoi eliminare questo blocco?')) {
+              if (event.extendedProps.type === 'block' && event.extendedProps.isManual) {
+                // Show context menu or delete confirmation for manual blocks
+                const shouldDelete = confirm(`Vuoi eliminare il blocco "${event.title}"?`);
+                if (shouldDelete) {
                   try {
                     const blockId = event.id.replace('block-', '');
-                    const result = await deleteCalendarBlock(blockId);
-                    if (!result.error) {
-                      toast.success('Blocco eliminato con successo');
-                      loadCalendarData();
-                    }
+                    await deleteCalendarBlock(blockId);
+                    toast.success('Blocco eliminato con successo');
+                    loadCalendarData();
                   } catch (error) {
                     console.error('Error deleting calendar block:', error);
                     toast.error('Errore nell\'eliminazione del blocco');
                   }
                 }
-              } else if (extendedProps.type === 'reservation') {
-                // Show booking details for reservations
-                console.log('Reservation clicked:', extendedProps);
+              } else if (event.extendedProps.type === 'reservation') {
+                // Show booking details
+                if (event.extendedProps.booking) {
+                  console.log('Booking details:', event.extendedProps.booking);
+                  // Here you could open a modal with booking details
+                }
               }
             }}
           />
         </CardContent>
       </Card>
 
-      {/* Legend & Instructions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Legenda</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-4">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-blue-500 rounded"></div>
-                <span className="text-sm">Prenotazioni Smoobu</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-red-500 rounded"></div>
-                <span className="text-sm">Eventi iCal</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-purple-500 rounded"></div>
-                <span className="text-sm">Blocchi Manuali</span>
-              </div>
+      {/* Legend */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Legenda</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-blue-500 rounded"></div>
+              <span className="text-sm">Prenotazioni Smoobu</span>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Istruzioni</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-hostsuite-text/80 space-y-2">
-            <p>• <strong>Crea blocco:</strong> Trascina il mouse per selezionare date</p>
-            <p>• <strong>Modifica blocco:</strong> Trascina o ridimensiona i blocchi viola</p>
-            <p>• <strong>Elimina blocco:</strong> Clicca su un blocco viola per eliminarlo</p>
-            <p>• <strong>Prenotazioni:</strong> Sola lettura, non modificabili</p>
-          </CardContent>
-        </Card>
-      </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-red-500 rounded"></div>
+              <span className="text-sm">Eventi iCal</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-purple-500 rounded"></div>
+              <span className="text-sm">Blocchi Manuali</span>
+            </div>
+          </div>
+          <div className="mt-4 text-sm text-hostsuite-text/60">
+            <p>• Trascina per creare nuovi blocchi</p>
+            <p>• Trascina i blocchi viola per spostarli</p>
+            <p>• Ridimensiona i blocchi trascinando i bordi</p>
+            <p>• Clicca sui blocchi viola per eliminarli</p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
