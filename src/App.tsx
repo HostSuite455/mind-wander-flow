@@ -17,7 +17,7 @@ import WelcomeBooklet from "./pages/welcome-booklet";
 import AdminUsers from "./pages/admin-users";
 import DashboardOverview from "@/pages/dashboard/DashboardOverview";
 import PropertiesList from "@/pages/dashboard/PropertiesList";
-import PropertiesNewPage from "@/pages/dashboard/PropertiesNewPage";
+
 import CalendarPage from "@/pages/dashboard/CalendarPage";
 import ChannelsPage from "@/pages/dashboard/ChannelsPage";
 import ExportPage from "@/pages/dashboard/ExportPage";
@@ -65,8 +65,8 @@ const App = () => (
                 <Route index element={<DashboardOverview />} />
                 <Route path="overview" element={<DashboardOverview />} />
                 <Route path="properties" element={<PropertiesList />} />
-                <Route path="properties/new" element={<PropertiesNewPage />} />
                 <Route path="calendar" element={<CalendarPage />} />
+                <Route path="calendar-pro" element={<CalendarPro />} />
                 <Route path="channels" element={<ChannelsPage />} />
                 <Route path="export" element={<ExportPage />} />
                 <Route path="host-agent-home" element={<HostAgentHome />} />
@@ -82,7 +82,9 @@ const App = () => (
               </Route>
               <Route path="/properties" element={<ProtectedRoute><Properties /></ProtectedRoute>} />
               <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
-              <Route path="/calendar-pro" element={<ProtectedRoute><CalendarPro /></ProtectedRoute>} />
+              <Route path="/calendar-pro" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+                <Route index element={<CalendarPro />} />
+              </Route>
               <Route path="/export" element={<ProtectedRoute><Export /></ProtectedRoute>} />
               <Route path="/host-agent-home" element={<ProtectedRoute><HostAgentHome /></ProtectedRoute>} />
               <Route path="/host-agent-config" element={<ProtectedRoute><HostAgentConfig /></ProtectedRoute>} />
