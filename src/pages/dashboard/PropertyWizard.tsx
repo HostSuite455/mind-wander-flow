@@ -33,6 +33,7 @@ import {
   Minus
 } from "lucide-react";
 import { logError, logInfo } from "@/lib/log";
+import PropertyLocationMap from '@/components/PropertyLocationMap';
 
 interface PropertyData {
   id?: string;
@@ -368,6 +369,14 @@ export default function PropertyWizard() {
     setData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleLocationFound = (location: { lat: number; lng: number; display_name?: string }) => {
+    setData(prev => ({ 
+      ...prev, 
+      lat: location.lat, 
+      lng: location.lng 
+    }));
+  };
+
   const updateAmenity = (key: string, checked: boolean) => {
     setData(prev => ({
       ...prev,
@@ -382,7 +391,7 @@ export default function PropertyWizard() {
       case 2:
         return selectedPrivacyType !== '';
       case 3:
-        return data.city.trim() !== '';
+        return data.city.trim() !== '' && data.address.trim() !== '';
       case 4:
         return data.max_guests > 0;
       case 5:
@@ -495,32 +504,44 @@ export default function PropertyWizard() {
                 <p className="text-muted-foreground">Il tuo indirizzo viene condiviso con gli ospiti solo dopo che hanno effettuato una prenotazione.</p>
               </div>
               
-              <div className="space-y-6 max-w-md mx-auto">
-                <div>
-                  <Input
-                    value={data.city}
-                    onChange={(e) => updateData('city', e.target.value)}
-                    placeholder="Città"
-                    className="text-lg py-4"
-                  />
-                </div>
-                <div>
-                  <Input
-                    value={data.country}
-                    onChange={(e) => updateData('country', e.target.value)}
-                    placeholder="Paese"
-                    className="text-lg py-4"
-                  />
-                </div>
-                <div>
-                  <Input
-                    value={data.address}
-                    onChange={(e) => updateData('address', e.target.value)}
-                    placeholder="Indirizzo (opzionale)"
-                    className="text-lg py-4"
-                  />
-                </div>
-              </div>
+               <div className="space-y-6 max-w-md mx-auto">
+                 <div>
+                   <Input
+                     value={data.city}
+                     onChange={(e) => updateData('city', e.target.value)}
+                     placeholder="Città"
+                     className="text-lg py-4"
+                     required
+                   />
+                 </div>
+                 <div>
+                   <Input
+                     value={data.country}
+                     onChange={(e) => updateData('country', e.target.value)}
+                     placeholder="Paese"
+                     className="text-lg py-4"
+                   />
+                 </div>
+                 <div>
+                   <Input
+                     value={data.address}
+                     onChange={(e) => updateData('address', e.target.value)}
+                     placeholder="Indirizzo"
+                     className="text-lg py-4"
+                     required
+                   />
+                 </div>
+               </div>
+
+               {/* Mappa */}
+               <div className="max-w-2xl mx-auto mt-8">
+                 <PropertyLocationMap
+                   city={data.city}
+                   country={data.country}
+                   address={data.address || ''}
+                   onLocationFound={handleLocationFound}
+                 />
+               </div>
             </div>
           )}
 
