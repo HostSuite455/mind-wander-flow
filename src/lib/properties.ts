@@ -11,6 +11,7 @@ export type Property = {
   lng?: number;
   size_sqm?: number;
   guests?: number;
+  max_guests?: number;
   bedrooms?: number;
   beds?: number;
   bathrooms?: number;
@@ -34,6 +35,7 @@ export type NewProperty = {
   lng?: number;
   size_sqm?: number;
   guests?: number;
+  max_guests?: number;
   bedrooms?: number;
   beds?: number;
   bathrooms?: number;
@@ -62,7 +64,7 @@ export async function createProperty(input: NewProperty) {
     nome: input.nome.trim(),
     city: input.city?.trim() || null,
     address: input.address?.trim() || null,
-    max_guests: Number.isFinite(input.max_guests) ? input.max_guests : null,
+    guests: Number.isFinite(input.guests) ? input.guests : (Number.isFinite(input.max_guests) ? input.max_guests : null),
     status: (input.status || "active") as "active" | "inactive",
     host_id: user.id,  // Required for RLS
   };
@@ -72,7 +74,7 @@ export async function createProperty(input: NewProperty) {
   const { data, error } = await supabase
     .from("properties")
     .insert(payload)
-    .select("id, nome, city, address, max_guests, status, created_at, host_id")
+    .select("id, nome, city, address, guests, status, created_at, host_id")
     .single();
 
   if (error) {

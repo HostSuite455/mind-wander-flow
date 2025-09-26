@@ -17,7 +17,6 @@ import WelcomeBooklet from "./pages/welcome-booklet";
 import AdminUsers from "./pages/admin-users";
 import DashboardOverview from "@/pages/dashboard/DashboardOverview";
 import PropertiesList from "@/pages/dashboard/PropertiesList";
-import PropertiesNewPage from "@/pages/dashboard/PropertiesNewPage";
 import CalendarPage from "@/pages/dashboard/CalendarPage";
 import ChannelsPage from "@/pages/dashboard/ChannelsPage";
 import ExportPage from "@/pages/dashboard/ExportPage";
@@ -65,7 +64,7 @@ const App = () => (
                 <Route index element={<DashboardOverview />} />
                 <Route path="overview" element={<DashboardOverview />} />
                 <Route path="properties" element={<PropertiesList />} />
-                <Route path="properties/new" element={<PropertiesNewPage />} />
+                <Route path="properties/new" element={<PropertyWizard />} />
                 <Route path="calendar" element={<CalendarPage />} />
                 <Route path="channels" element={<ChannelsPage />} />
                 <Route path="export" element={<ExportPage />} />

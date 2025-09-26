@@ -73,7 +73,8 @@ type EventFilter = 'all' | 'blocks' | 'bookings';
 const CalendarPro = () => {
   const { id: activePropertyId } = useActiveProperty();
   const { toast: toastHook } = useToast();
-  const calendarRef = useRef<FullCalendar>(null);
+  const calendarRef = useRef<FullCalendar | null>(null);
+  const debounceRef = useRef<number | null>(null);
   
   const [properties, setProperties] = useState<Property[]>([]);
   const [icalsData, setIcalsData] = useState<EnrichedIcsEvent[]>([]);
@@ -84,6 +85,111 @@ const CalendarPro = () => {
   const [view, setView] = useState<'multi' | 'single'>('multi');
   const [selectedProperty, setSelectedProperty] = useState<string>('all');
   const [eventFilter, setEventFilter] = useState<EventFilter>('all');
+  const [isLoadingEvents, setIsLoadingEvents] = useState(false);
+
+  const refetchEventsForVisibleRange = async () => {
+    const api = calendarRef.current?.getApi();
+    if (!api) return;
+    
+    const selectedPropertyId = selectedProperty !== 'all' ? selectedProperty : activePropertyId;
+    if (!selectedPropertyId || selectedPropertyId === 'all') {
+      setIcalsData([]);
+      setBookings([]);
+      setCalendarBlocks([]);
+      return;
+    }
+    
+    setIsLoadingEvents(true);
+    
+    try {
+      const start = api.view.activeStart.toISOString();
+      const end = api.view.activeEnd.toISOString();
+      
+      // Esegui le query in parallelo
+      const [blocksResult, bookingsResult] = await Promise.all([
+        // Query calendar_blocks
+        supabase
+          .from("calendar_blocks")
+          .select("id, property_id, start_date, end_date, reason, source")
+          .eq("property_id", selectedPropertyId)
+          .lt("start_date", end)   // inizia prima che finisca il range
+          .gt("end_date", start),  // finisce dopo che inizia il range
+          
+        // Query bookings
+        supabase
+          .from("bookings")
+          .select("*")
+          .eq("property_id", selectedPropertyId)
+          .lt("check_in", end)
+          .gt("check_out", start)
+      ]);
+      
+      // Carica anche i dati iCal per il range
+      const { data: icalsQuery } = await supabase
+        .from('ical_urls')
+        .select(`
+          id, ical_config_id, url, source, is_active,
+          ical_configs!inner(
+            property_id, is_active,
+            properties!inner(id, nome, city, status)
+          )
+        `)
+        .eq('is_active', true)
+        .eq('ical_configs.property_id', selectedPropertyId);
+      
+      // Processa i dati iCal
+      const allEvents: EnrichedIcsEvent[] = [];
+      if (icalsQuery) {
+        for (const icalUrl of icalsQuery) {
+          if (icalUrl.ical_configs?.is_active && icalUrl.ical_configs.properties) {
+            try {
+              const events = await parseAndEnrichICS(icalUrl.url);
+              // Filtra gli eventi per il range visibile
+              const filteredEvents = events.filter(event => {
+                const eventStart = new Date(event.start);
+                const eventEnd = new Date(event.end);
+                const viewStart = new Date(start);
+                const viewEnd = new Date(end);
+                return eventStart < viewEnd && eventEnd > viewStart;
+              });
+              
+              // Add property_id to each event
+              const eventsWithProperty = filteredEvents.map(event => ({
+                ...event,
+                property_id: icalUrl.ical_configs!.property_id
+              }));
+              
+              allEvents.push(...eventsWithProperty);
+            } catch (error) {
+              console.error(`Error parsing iCal ${icalUrl.url}:`, error);
+            }
+          }
+        }
+      }
+      
+      // Aggiorna gli stati
+      setCalendarBlocks(blocksResult.data || []);
+      setBookings(bookingsResult.data || []);
+      setIcalsData(allEvents);
+      
+    } catch (error) {
+      console.error('Error loading calendar data for visible range:', error);
+      toastHook({
+        title: "Errore",
+        description: "Errore nel caricamento dei dati del calendario",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingEvents(false);
+    }
+  };
+  
+  const handleDatesSet = useCallback(() => {
+    if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    debounceRef.current = window.setTimeout(() => {
+      refetchEventsForVisibleRange();
+    }, 350);
+  }, [selectedProperty, activePropertyId]);
 
   const loadCalendarData = async () => {
     setIsLoading(true);
@@ -169,7 +275,7 @@ const CalendarPro = () => {
     try {
       await syncSmoobuBookings();
       toast.success("Sincronizzazione Smoobu completata");
-      await loadCalendarData();
+      refetchEventsForVisibleRange();
     } catch (error) {
       console.error('Sync error:', error);
       toast.error("Errore durante la sincronizzazione Smoobu");
@@ -180,6 +286,12 @@ const CalendarPro = () => {
 
   useEffect(() => {
     loadCalendarData();
+  }, []);
+  
+  useEffect(() => {
+    if (calendarRef.current?.getApi()) {
+      refetchEventsForVisibleRange();
+    }
   }, [selectedProperty]);
 
   // Filter events and bookings based on selected property
@@ -209,7 +321,25 @@ const CalendarPro = () => {
 
   // Prepare events for FullCalendar with filtering
   const fcEvents = useMemo(() => {
-    let events: any[] = [];
+    const events: Array<{
+      id: string;
+      title: string;
+      start: string;
+      end: string;
+      resourceId?: string;
+      backgroundColor: string;
+      borderColor: string;
+      textColor: string;
+      editable: boolean;
+      extendedProps: {
+        type: string;
+        source: string;
+        propertyId?: string;
+        booking?: Booking;
+        block?: CalendarBlock;
+        isManual?: boolean;
+      };
+    }> = [];
 
     // Apply event filter
     const shouldIncludeBlocks = eventFilter === 'all' || eventFilter === 'blocks';
@@ -231,7 +361,8 @@ const CalendarPro = () => {
           extendedProps: {
             type: 'reservation',
             source: 'ical',
-            propertyId: event.property_id
+            propertyId: event.property_id,
+            event: event
           }
         });
       });
@@ -330,8 +461,8 @@ const CalendarPro = () => {
               <RotateCcw className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
               {isSyncing ? 'Sincronizzando...' : 'Sync Smoobu'}
             </Button>
-            <Button onClick={loadCalendarData} disabled={isLoading}>
-              <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            <Button onClick={refetchEventsForVisibleRange} disabled={isLoadingEvents}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${isLoadingEvents ? 'animate-spin' : ''}`} />
               Aggiorna
             </Button>
           </div>
@@ -441,6 +572,7 @@ const CalendarPro = () => {
             longPressDelay={0}
             editable={true}
             eventResizableFromStart={true}
+            datesSet={handleDatesSet}
             selectAllow={(selectInfo) => {
               // Allow selection on any area
               return true;
@@ -469,7 +601,7 @@ const CalendarPro = () => {
 
                 if (result.data) {
                   toast.success('Blocco calendario creato con successo');
-                  loadCalendarData();
+                  refetchEventsForVisibleRange();
                 } else {
                   toast.error('Errore nella creazione del blocco');
                 }
@@ -492,7 +624,7 @@ const CalendarPro = () => {
                   end_date: event.endStr || event.startStr
                 });
                 toast.success('Blocco aggiornato con successo');
-                loadCalendarData();
+                refetchEventsForVisibleRange();
               } catch (error) {
                 console.error('Error updating calendar block:', error);
                 toast.error('Errore nell\'aggiornamento del blocco');
@@ -513,7 +645,7 @@ const CalendarPro = () => {
                   end_date: event.endStr || event.startStr
                 });
                 toast.success('Blocco ridimensionato con successo');
-                loadCalendarData();
+                refetchEventsForVisibleRange();
               } catch (error) {
                 console.error('Error resizing calendar block:', error);
                 toast.error('Errore nel ridimensionamento del blocco');
@@ -531,7 +663,7 @@ const CalendarPro = () => {
                     const blockId = event.id.replace('block-', '');
                     await deleteCalendarBlock(blockId);
                     toast.success('Blocco eliminato con successo');
-                    loadCalendarData();
+                    refetchEventsForVisibleRange();
                   } catch (error) {
                     console.error('Error deleting calendar block:', error);
                     toast.error('Errore nell\'eliminazione del blocco');

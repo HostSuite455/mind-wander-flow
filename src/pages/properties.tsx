@@ -37,7 +37,7 @@ interface Property {
   name?: string;
   city?: string;
   status?: string;
-  max_guests?: number;
+  guests?: number;
   created_at: string;
 }
 
@@ -57,10 +57,10 @@ const Properties = () => {
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [createForm, setCreateForm] = useState<NewProperty>({
+  const [createForm, setCreateForm] = useState<Partial<NewProperty>>({
     nome: "",
     city: "",
-    max_guests: 2
+    guests: 2
   });
   
   const { toast } = useToast();
@@ -155,7 +155,7 @@ const Properties = () => {
       });
       
       setIsCreateModalOpen(false);
-      setCreateForm({ nome: "", city: "", max_guests: 2 });
+      setCreateForm({ nome: "", city: "", guests: 2 });
       loadProperties();
     } catch (error) {
       console.error('Error creating property:', error);
@@ -367,10 +367,10 @@ const Properties = () => {
                             )}
                           </TableCell>
                           <TableCell>
-                            {property.max_guests ? (
+                            {property.guests ? (
                               <div className="flex items-center gap-1">
                                 <Users className="w-3 h-3 text-hostsuite-text/50" />
-                                {property.max_guests}
+                                {property.guests}
                               </div>
                             ) : (
                               <span className="text-hostsuite-text/50">—</span>
