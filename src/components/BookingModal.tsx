@@ -215,7 +215,7 @@ export function BookingModal({
                 <MapPin className="w-4 h-4" />
                 Proprietà
               </Label>
-              <p className="font-medium">{booking.property?.name || 'Proprietà sconosciuta'}</p>
+              <p className="font-medium">{booking.property?.nome || 'Proprietà sconosciuta'}</p>
             </div>
             <div className="space-y-2">
               <Label className="flex items-center gap-2">

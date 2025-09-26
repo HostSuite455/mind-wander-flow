@@ -105,7 +105,7 @@ const Calendar = () => {
   };
 
   const getPropertyUrls = (propertyId: string) => {
-    return urls.filter(url => url.ical_configs?.property_id === propertyId);
+    return urls.filter(url => url.ical_config_id);
   };
 
   const formatDate = (dateString?: string) => {

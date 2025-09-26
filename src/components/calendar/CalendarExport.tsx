@@ -100,7 +100,7 @@ export function CalendarExport({ bookings, selectedPropertyIds, dateRange }: Cal
       enabledFields.forEach(field => {
         switch (field.key) {
           case 'property_name':
-            row[field.label] = booking.property?.name || 'N/A';
+            row[field.label] = booking.property?.nome || 'N/A';
             break;
           case 'nights':
             const checkIn = new Date(booking.check_in);

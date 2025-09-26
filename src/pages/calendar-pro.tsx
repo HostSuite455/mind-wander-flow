@@ -110,7 +110,7 @@ const CalendarPro = () => {
         // Query calendar_blocks
         supabase
           .from("calendar_blocks")
-          .select("id, property_id, start_date, end_date, reason, source")
+          .select("id, property_id, start_date, end_date, reason, source, host_id, is_active, created_at")
           .eq("property_id", selectedPropertyId)
           .lt("start_date", end)   // inizia prima che finisca il range
           .gt("end_date", start),  // finisce dopo che inizia il range
@@ -361,8 +361,7 @@ const CalendarPro = () => {
           extendedProps: {
             type: 'reservation',
             source: 'ical',
-            propertyId: event.property_id,
-            event: event
+            propertyId: event.property_id
           }
         });
       });

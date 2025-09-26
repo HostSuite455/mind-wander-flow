@@ -45,7 +45,7 @@ const Properties = () => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { activeProperty } = useActiveProperty();
+  const { id: activePropertyId } = useActiveProperty();
   
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -57,10 +57,11 @@ const Properties = () => {
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [createForm, setCreateForm] = useState<Partial<NewProperty>>({
+  const [createForm, setCreateForm] = useState({
     nome: "",
     city: "",
-    guests: 2
+    guests: 2,
+    status: "active" as const
   });
   
   const { toast } = useToast();
@@ -111,12 +112,12 @@ const Properties = () => {
     });
 
     // Apply active property filter
-    if (activeProperty && activeProperty.id !== 'all') {
-      filtered = filtered.filter(prop => prop.id === activeProperty.id);
+    if (activePropertyId && activePropertyId !== 'all') {
+      filtered = filtered.filter(prop => prop.id === activePropertyId);
     }
 
     return filtered;
-  }, [properties, searchTerm, selectedCity, statusFilter, activeProperty]);
+  }, [properties, searchTerm, selectedCity, statusFilter, activePropertyId]);
 
   const uniqueCities = useMemo(() => {
     const cities = properties
@@ -155,7 +156,7 @@ const Properties = () => {
       });
       
       setIsCreateModalOpen(false);
-      setCreateForm({ nome: "", city: "", guests: 2 });
+      setCreateForm({ nome: "", city: "", guests: 2, status: "active" as const });
       loadProperties();
     } catch (error) {
       console.error('Error creating property:', error);
@@ -196,10 +197,10 @@ const Properties = () => {
             <p className="text-hostsuite-text/60 mt-2">
               Gestisci tutte le tue proprietà in un unico posto
             </p>
-            {activeProperty && activeProperty.id !== 'all' && (
+            {activePropertyId && activePropertyId !== 'all' && (
               <Badge variant="outline" className="flex items-center gap-2 w-fit mt-2">
                 <Info className="h-3 w-3" />
-                Attiva: {activeProperty.nome || activeProperty.name || activeProperty.id}
+                Filtro attivo: {activePropertyId}
               </Badge>
             )}
           </div>
@@ -416,7 +417,7 @@ const Properties = () => {
       <CreatePropertyModal
         open={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        onConfirm={handleCreateProperty}
+        onConfirm={() => handleCreateProperty(createForm)}
         creating={isCreating}
         form={createForm}
         setForm={setCreateForm}

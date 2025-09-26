@@ -188,7 +188,7 @@ export function useCalendarData({
     bookings.forEach(booking => {
       const checkInDate = parseISO(booking.check_in);
       const checkOutDate = parseISO(booking.check_out);
-      const propertyName = booking.property?.name || 'Proprietà sconosciuta';
+      const propertyName = booking.property?.nome || 'Proprietà sconosciuta';
 
       // Check-in events
       if (isWithinInterval(checkInDate, { start: today, end: nextWeek })) {
