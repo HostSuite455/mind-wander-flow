@@ -1,7 +1,12 @@
 // Calendar utility components
-export { CalendarFilters } from './CalendarFilters';
-export { CalendarExport } from './CalendarExport';
-export { CalendarStatistics } from './CalendarStatistics';
+export { default as CalendarExport } from './CalendarExport';
+export { default as CalendarFilters } from './CalendarFilters';
+export { default as CalendarStatistics } from './CalendarStatistics';
+export { default as CustomCalendar } from './CustomCalendar';
+export { CalendarStats } from './CalendarStats';
+export { CalendarLegend } from './CalendarLegend';
+export { ExportCalendar } from './ExportCalendar';
+export { KeyboardShortcuts, defaultCalendarShortcuts } from './KeyboardShortcuts';
 
 // Re-export types for convenience
 export type { CalendarFiltersState } from './CalendarFilters';

@@ -1,12 +1,10 @@
 import { useEffect } from "react";
-import Calendar from "../calendar";
+import CalendarPro from "../calendar-pro";
 
-const CalendarPage = () => {
+export default function CalendarPage() {
   useEffect(() => {
     document.title = "Calendario - HostSuite";
   }, []);
 
-  return <Calendar />;
-};
-
-export default CalendarPage;
+  return <CalendarPro />;
+}

@@ -18,23 +18,49 @@ const HostLogin = () => {
   const { toast } = useToast();
 
   const isValidEmail = (email: string) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
   };
 
   const isFormValid = isValidEmail(email) && password.length > 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isFormValid) return;
-
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // First try to sign in
+      let { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
+
+      // If user doesn't exist, try to create account
+      if (error && error.message.includes('Invalid login credentials')) {
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+
+        if (signUpError) {
+          setError(signUpError.message);
+          toast({
+            variant: "destructive",
+            title: "Errore di registrazione",
+            description: signUpError.message,
+          });
+          return;
+        }
+
+        if (signUpData.user) {
+          toast({
+            title: "Account creato",
+            description: "Account creato con successo! Accesso effettuato.",
+          });
+          navigate("/dashboard");
+          return;
+        }
+      }
 
       if (error) {
         setError(error.message);

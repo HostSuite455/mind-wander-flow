@@ -19,6 +19,7 @@ import DashboardOverview from "@/pages/dashboard/DashboardOverview";
 import PropertiesList from "@/pages/dashboard/PropertiesList";
 
 import CalendarPage from "@/pages/dashboard/CalendarPage";
+import CalendarioPage from "@/pages/CalendarioPage";
 import ChannelsPage from "@/pages/dashboard/ChannelsPage";
 import ExportPage from "@/pages/dashboard/ExportPage";
 import PropertyWizard from "@/pages/dashboard/PropertyWizard";
@@ -67,7 +68,7 @@ const App = () => (
                 <Route path="properties" element={<PropertiesList />} />
                 <Route path="properties/new" element={<PropertyWizard />} />
                 <Route path="calendar" element={<CalendarPage />} />
-                <Route path="calendar-pro" element={<CalendarPro />} />
+                <Route path="calendar-pro" element={<Navigate to="/dashboard/calendar" replace />} />
                 <Route path="channels" element={<ChannelsPage />} />
                 <Route path="export" element={<ExportPage />} />
                 <Route path="host-agent-home" element={<HostAgentHome />} />
@@ -76,23 +77,44 @@ const App = () => (
                 <Route path="host-unanswered-questions" element={<HostUnansweredQuestions />} />
                 <Route path="admin-users" element={<AdminUsers />} />
               </Route>
+              
+              {/* Nuova rotta calendario semplificato */}
+              <Route path="/calendario" element={<ProtectedRoute><CalendarioPage /></ProtectedRoute>} />
 
               {/* Legacy Host Routes - keeping for backward compatibility but using DashboardLayout */}
               <Route path="/host-dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
                 <Route index element={<HostDashboard />} />
               </Route>
-              <Route path="/properties" element={<ProtectedRoute><Properties /></ProtectedRoute>} />
-              <Route path="/calendar" element={<ProtectedRoute><Calendar /></ProtectedRoute>} />
+              <Route path="/properties" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+                <Route index element={<Properties />} />
+              </Route>
+              <Route path="/calendar" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+                <Route index element={<Calendar />} />
+              </Route>
               <Route path="/calendar-pro" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
                 <Route index element={<CalendarPro />} />
               </Route>
-              <Route path="/export" element={<ProtectedRoute><Export /></ProtectedRoute>} />
-              <Route path="/host-agent-home" element={<ProtectedRoute><HostAgentHome /></ProtectedRoute>} />
-              <Route path="/host-agent-config" element={<ProtectedRoute><HostAgentConfig /></ProtectedRoute>} />
-              <Route path="/host-bookings" element={<ProtectedRoute><HostBookings /></ProtectedRoute>} />
-              <Route path="/host-ical-config" element={<ProtectedRoute><HostIcalConfig /></ProtectedRoute>} />
-              <Route path="/host-unanswered-questions" element={<ProtectedRoute><HostUnansweredQuestions /></ProtectedRoute>} />
-              <Route path="/channels" element={<ProtectedRoute><ChannelsPage /></ProtectedRoute>} />
+              <Route path="/export" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+                <Route index element={<Export />} />
+              </Route>
+              <Route path="/host-agent-home" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+                <Route index element={<HostAgentHome />} />
+              </Route>
+              <Route path="/host-agent-config" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+                <Route index element={<HostAgentConfig />} />
+              </Route>
+              <Route path="/host-bookings" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+                <Route index element={<HostBookings />} />
+              </Route>
+              <Route path="/host-ical-config" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+                <Route index element={<HostIcalConfig />} />
+              </Route>
+              <Route path="/host-unanswered-questions" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+                <Route index element={<HostUnansweredQuestions />} />
+              </Route>
+              <Route path="/channels" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+                <Route index element={<ChannelsPage />} />
+              </Route>
               <Route path="/dashboard/properties/new" element={<ProtectedRoute><PropertyWizard /></ProtectedRoute>} />
               
               {/* Protected Guest Routes */}

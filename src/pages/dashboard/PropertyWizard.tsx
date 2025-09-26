@@ -39,7 +39,7 @@ interface PropertyData {
   id?: string;
   nome: string;
   city: string;
-  country: string;
+  provincia: string;
   address?: string;
   lat?: number;
   lng?: number;
@@ -157,7 +157,7 @@ export default function PropertyWizard() {
   const [data, setData] = useState<PropertyData>({
     nome: '',
     city: '',
-    country: '',
+    provincia: '',
     address: '',
     lat: undefined,
     lng: undefined,
@@ -209,7 +209,7 @@ export default function PropertyWizard() {
           id: property.id,
           nome: property.nome || '',
           city: property.city || '',
-          country: property.country || '',
+          provincia: property.country || '', // Usiamo il campo country come provincia
           address: property.address || '',
           lat: property.lat || undefined,
           lng: property.lng || undefined,
@@ -243,11 +243,12 @@ export default function PropertyWizard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Utilizziamo country al posto di provincia per compatibilità con il database
       const propertyData = {
         host_id: user.id,
         nome: data.nome || 'Proprietà senza nome',
         city: data.city,
-        country: data.country,
+        country: data.provincia, // Salviamo provincia nel campo country per compatibilità
         address: data.address,
         lat: data.lat,
         lng: data.lng,
@@ -516,9 +517,9 @@ export default function PropertyWizard() {
                  </div>
                  <div>
                    <Input
-                     value={data.country}
-                     onChange={(e) => updateData('country', e.target.value)}
-                     placeholder="Paese"
+                     value={data.provincia}
+                     onChange={(e) => updateData('provincia', e.target.value)}
+                     placeholder="Provincia"
                      className="text-lg py-4"
                    />
                  </div>
@@ -537,7 +538,7 @@ export default function PropertyWizard() {
                <div className="max-w-2xl mx-auto mt-8">
                  <PropertyLocationMap
                    city={data.city}
-                   country={data.country}
+                   provincia={data.provincia}
                    address={data.address || ''}
                    onLocationFound={handleLocationFound}
                  />
@@ -707,7 +708,7 @@ export default function PropertyWizard() {
               <div className="bg-card p-8 rounded-lg border text-left space-y-6">
                 <div>
                   <h3 className="text-xl font-bold mb-2">{data.nome || 'Nome proprietà'}</h3>
-                  <p className="text-muted-foreground">{selectedPropertyType} • {data.city}, {data.country}</p>
+                  <p className="text-muted-foreground">{selectedPropertyType} • {data.city}, {data.provincia}</p>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">

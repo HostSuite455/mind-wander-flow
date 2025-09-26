@@ -19,15 +19,15 @@ interface LocationData {
 
 interface PropertyLocationMapProps {
   city: string;
-  country: string;
+  provincia: string;
   address: string;
   onLocationFound?: (location: LocationData) => void;
 }
 
 // Free geocoding using Nominatim API (OpenStreetMap)
-const geocodeAddress = async (city: string, country: string, address: string): Promise<LocationData | null> => {
+const geocodeAddress = async (city: string, provincia: string, address: string): Promise<LocationData | null> => {
   try {
-    const query = `${address}, ${city}, ${country}`.trim();
+    const query = `${address}, ${city}, ${provincia}`.trim();
     if (!query || query === ', , ') return null;
     
     const response = await fetch(
@@ -52,59 +52,61 @@ const geocodeAddress = async (city: string, country: string, address: string): P
   }
 };
 
-const PropertyLocationMap: React.FC<PropertyLocationMapProps> = ({ 
-  city, 
-  country, 
-  address, 
-  onLocationFound 
-}) => {
+export default function PropertyLocationMap({ city, provincia, address, onLocationFound }: PropertyLocationMapProps) {
   const [location, setLocation] = useState<LocationData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const debounceRef = useRef<NodeJS.Timeout>();
+  const [lastSearchQuery, setLastSearchQuery] = useState<string>('');
 
   useEffect(() => {
-    // Clear previous timeout
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
+    const searchLocation = async () => {
+      if (!city.trim() || !address.trim()) {
+        setLocation(null);
+        setError(null);
+        setLastSearchQuery('');
+        return;
+      }
 
-    // Only geocode if we have at least city and address
-    if (!city.trim() || !address.trim()) {
-      setLocation(null);
+      // Create a unique query string to avoid duplicate searches
+      const currentQuery = `${city.trim()}-${provincia.trim()}-${address.trim()}`;
+      
+      // Only search if the query has actually changed
+      if (currentQuery === lastSearchQuery) {
+        return;
+      }
+
+      setIsLoading(true);
       setError(null);
-      return;
-    }
+      setLastSearchQuery(currentQuery);
 
-    setIsLoading(true);
-    setError(null);
-
-    // Debounce the geocoding request by 1 second
-    debounceRef.current = setTimeout(async () => {
       try {
-        const result = await geocodeAddress(city, country, address);
+        const result = await geocodeAddress(city, provincia, address);
         if (result) {
           setLocation(result);
           onLocationFound?.(result);
-          setError(null);
         } else {
-          setError('Indirizzo non trovato. Verifica che sia corretto.');
+          setError('Indirizzo non trovato');
           setLocation(null);
         }
       } catch (err) {
-        setError('Errore durante la ricerca dell\'indirizzo.');
+        setError('Errore durante la ricerca dell\'indirizzo');
+        console.error('Geocoding error:', err);
         setLocation(null);
       } finally {
         setIsLoading(false);
       }
-    }, 1000);
-
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
     };
-  }, [city, country, address, onLocationFound]);
+
+    const timeoutId = setTimeout(searchLocation, 500);
+    return () => clearTimeout(timeoutId);
+  }, [city, provincia, address]); // Removed onLocationFound from dependencies
+
+  // Call onLocationFound when location changes, but only if we have a valid location
+  useEffect(() => {
+    if (location && onLocationFound) {
+      onLocationFound(location);
+    }
+  }, [location, onLocationFound]);
 
   // Default to Rome if no location found
   const defaultCenter: [number, number] = [41.9028, 12.4964];
@@ -136,7 +138,7 @@ const PropertyLocationMap: React.FC<PropertyLocationMapProps> = ({
               <Popup>
                 <div className="text-sm">
                   <p className="font-medium">{address}</p>
-                  <p className="text-gray-600">{city}, {country}</p>
+                  <p className="text-gray-600">{city}, {provincia}</p>
                 </div>
               </Popup>
             </Marker>
@@ -165,5 +167,3 @@ const PropertyLocationMap: React.FC<PropertyLocationMapProps> = ({
     </div>
   );
 };
-
-export default PropertyLocationMap;

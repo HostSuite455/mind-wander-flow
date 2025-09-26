@@ -22,7 +22,7 @@ const DashboardLayout = () => {
     { path: "/dashboard", label: "Overview", icon: LayoutDashboard, exact: true },
     { path: "/dashboard/properties", label: "Proprietà", icon: Building },
     { path: "/dashboard/calendar-pro", label: "Calendario", icon: Calendar },
-    { path: "/dashboard/channels", label: "Channels", icon: RefreshCw },
+    { path: "/dashboard/channels", label: "Portali di prenotazione", icon: RefreshCw },
     { path: "/dashboard/export", label: "Export", icon: Download },
     { path: "/dashboard/host-agent-home", label: "iAgent Home", icon: Bot },
     { path: "/dashboard/host-agent-config", label: "Config Agent", icon: Settings },
