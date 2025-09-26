@@ -21,7 +21,7 @@ const DashboardLayout = () => {
   const navLinks = [
     { path: "/dashboard", label: "Overview", icon: LayoutDashboard, exact: true },
     { path: "/dashboard/properties", label: "Proprietà", icon: Building },
-    { path: "/dashboard/calendar", label: "Calendario", icon: Calendar },
+    { path: "/dashboard/calendar-pro", label: "Calendario", icon: Calendar },
     { path: "/dashboard/channels", label: "Channels", icon: RefreshCw },
     { path: "/dashboard/export", label: "Export", icon: Download },
     { path: "/dashboard/host-agent-home", label: "iAgent Home", icon: Bot },
