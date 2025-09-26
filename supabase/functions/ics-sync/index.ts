@@ -132,13 +132,13 @@ serve(async (req) => {
       await supabase
         .from('channel_accounts')
         .update({ 
-          last_sync_status: `error: ${syncError.message}` 
+          last_sync_status: `error: ${syncError instanceof Error ? syncError.message : String(syncError)}` 
         })
         .eq('id', accountId);
 
       return new Response(JSON.stringify({ 
         success: false, 
-        error: syncError.message 
+        error: syncError instanceof Error ? syncError.message : String(syncError) 
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -149,7 +149,7 @@ serve(async (req) => {
     console.error('Function error:', error);
     return new Response(JSON.stringify({ 
       success: false, 
-      error: error.message 
+      error: error instanceof Error ? error.message : String(error) 
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
