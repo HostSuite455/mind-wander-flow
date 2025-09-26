@@ -1,18 +1,97 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supaSelect } from '@/lib/supaSafe';
-import { supabase } from '@/lib/supabase';
-import { useToast } from '@/hooks/use-toast';
+import { useEffect, useMemo, useState } from 'react'
+import { supabase } from '@/integrations/supabase/client'
 
-interface Property {
-  id: string;
-  name: string;
-  address?: string;
-  user_id: string;
-  created_at: string;
-  updated_at: string;
+type Range = { start: Date; end: Date }
+type EventItem = any // tipizza se hai i tipi
+type PropertyItem = { id: string; name?: string }
+
+export function useCalendarData(params: {
+  userId?: string | null
+  selectedPropertyId?: string | null
+  range: Range
+}) {
+  const { userId, selectedPropertyId, range } = params
+  const [loading, setLoading] = useState(true)
+  const [properties, setProperties] = useState<PropertyItem[]>([])
+  const [effectivePropertyId, setEffectivePropertyId] = useState<string | null>(selectedPropertyId ?? null)
+  const [events, setEvents] = useState<EventItem[]>([])
+
+  // Forza l'aggiornamento quando cambia lo user o la prop selezionata
+  useEffect(() => {
+    if (selectedPropertyId !== undefined) {
+      setEffectivePropertyId(selectedPropertyId)
+    }
+  }, [selectedPropertyId])
+
+  useEffect(() => {
+    let cancelled = false
+    async function run() {
+      // Aspetta che arrivi userId
+      if (!userId) {
+        // non fetchiamo ancora, ma NON settiamo loading=false per evitare flicker
+        return
+      }
+      setLoading(true)
+
+      // 1) Properties dell'host
+      const { data: props, error: propsErr } = await supabase
+        .from('properties')
+        .select('id,name')
+        .eq('owner_id', userId)
+        .order('created_at', { ascending: true })
+
+      if (propsErr) {
+        console.error('fetch properties error', propsErr)
+        if (!cancelled) setLoading(false)
+        return
+      }
+
+      let nextSelected = effectivePropertyId
+      if (!nextSelected && props && props.length > 0) {
+        nextSelected = props[0].id // auto-select prima proprietà
+      }
+
+      // 2) Eventi (solo se c'è una property)
+      let evs: EventItem[] = []
+      if (nextSelected) {
+        const { data, error } = await supabase
+          .from('reservations')
+          .select('*')
+          .eq('property_id', nextSelected)
+          .gte('start', range.start.toISOString())
+          .lt('end', range.end.toISOString())
+        if (error) {
+          console.error('fetch reservations error', error)
+        } else {
+          evs = data ?? []
+        }
+      }
+
+      if (!cancelled) {
+        setProperties(props ?? [])
+        setEffectivePropertyId(nextSelected ?? null)
+        setEvents(evs)
+        setLoading(false)
+      }
+    }
+    run()
+    return () => {
+      cancelled = true
+    }
+    // NOTE: deps includono userId e range; quando userId arriva, rifà il fetch
+  }, [userId, range.start.getTime(), range.end.getTime()])
+
+  return {
+    loading,
+    properties,
+    selectedPropertyId: effectivePropertyId,
+    events,
+    hasProperties: properties.length > 0,
+  }
 }
 
-interface Booking {
+// Legacy exports for backward compatibility
+export interface CalendarBooking {
   id: string;
   property_id: string;
   guest_name: string;
@@ -25,7 +104,7 @@ interface Booking {
   updated_at: string;
 }
 
-interface CalendarBlock {
+export interface CalendarBlock {
   id: string;
   property_id: string;
   start_date: string;
@@ -36,175 +115,52 @@ interface CalendarBlock {
   updated_at: string;
 }
 
-export const useCalendarData = (userId: string | undefined) => {
-  const [properties, setProperties] = useState<Property[]>([]);
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [blocks, setBlocks] = useState<CalendarBlock[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const { toast } = useToast();
-
-  const fetchData = useCallback(async () => {
-    // Guardia: non eseguire fetch finché non ho userId
-    if (!userId) {
-      console.log('useCalendarData: skipping fetch, no userId');
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      // Fetch properties con filtro server-side usando direttamente supabase
-      const { data: propertiesData, error: propertiesError } = await supabase
-        .from('properties')
-        .select('*')
-        .eq('host_id', userId)
-        .order('nome', { ascending: true });
-      
-      if (propertiesError) {
-        throw propertiesError;
-      }
-      
-      if (propertiesData && Array.isArray(propertiesData)) {
-        setProperties(propertiesData);
-      }
-
-      // Fetch bookings for the next 12 months
-      const startDate = new Date();
-      const endDate = new Date();
-      endDate.setFullYear(startDate.getFullYear() + 1);
-
-      // Get property IDs for filtering
-      const propertyIds = (propertiesData && Array.isArray(propertiesData)) ? 
-        propertiesData.map(p => p.id) : [];
-      
-      if (propertyIds.length > 0) {
-        // Fetch bookings con filtro server-side
-        const { data: bookingsData, error: bookingsError } = await supabase
-          .from('bookings')
-          .select('*')
-          .in('property_id', propertyIds)
-          .gte('check_in', startDate.toISOString().split('T')[0])
-          .lte('check_out', endDate.toISOString().split('T')[0]);
-        
-        if (bookingsError) {
-          console.warn('Error fetching bookings:', bookingsError);
-        } else if (bookingsData) {
-          setBookings(bookingsData);
-        }
-
-        // Fetch calendar blocks con filtro server-side
-        const { data: blocksData, error: blocksError } = await supabase
-          .from('calendar_blocks')
-          .select('*')
-          .in('property_id', propertyIds)
-          .gte('start_date', startDate.toISOString().split('T')[0])
-          .lte('end_date', endDate.toISOString().split('T')[0]);
-        
-        if (blocksError) {
-          console.warn('Error fetching blocks:', blocksError);
-        } else if (blocksData) {
-          setBlocks(blocksData);
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching calendar data:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Errore sconosciuto';
-      setError(errorMessage);
-      toast({
-        title: "Errore",
-        description: "Impossibile caricare i dati del calendario",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [userId, toast]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  const refetch = useCallback(() => {
-    fetchData();
-  }, [fetchData]);
-
-  // Calculate date range for calendar display
-  const rangeStart = new Date();
-  const rangeEnd = new Date();
-  rangeEnd.setFullYear(rangeStart.getFullYear() + 1);
-
-  return {
-    properties,
-    bookings,
-    blocks,
-    isLoading,
-    error,
-    refetch,
-    rangeStart,
-    rangeEnd
-  };
-};
-
-// Helper function to get bookings for a specific date
 export function getBookingsForDate(
   bookings: CalendarBooking[], 
   date: Date
 ): CalendarBooking[] {
-  const dateStr = format(date, 'yyyy-MM-dd');
-  
+  const dateStr = date.toISOString().split('T')[0];
   return bookings.filter(booking => {
-    const checkIn = booking.check_in;
-    const checkOut = booking.check_out;
-    
+    const checkIn = new Date(booking.check_in).toISOString().split('T')[0];
+    const checkOut = new Date(booking.check_out).toISOString().split('T')[0];
     return dateStr >= checkIn && dateStr < checkOut;
   });
 }
 
-// Helper function to get blocks for a specific date
 export function getBlocksForDate(
   blocks: CalendarBlock[], 
   date: Date
 ): CalendarBlock[] {
-  const dateStr = format(date, 'yyyy-MM-dd');
-  
+  const dateStr = date.toISOString().split('T')[0];
   return blocks.filter(block => {
-    const startDate = block.start_date;
-    const endDate = block.end_date;
-    
+    const startDate = new Date(block.start_date).toISOString().split('T')[0];
+    const endDate = new Date(block.end_date).toISOString().split('T')[0];
     return dateStr >= startDate && dateStr <= endDate;
   });
 }
 
-// Helper function to get booking status color
 export function getBookingStatusColor(status?: string | null): string {
-  switch (status?.toLowerCase()) {
+  switch (status) {
     case 'confirmed':
-      return '#3b82f6'; // Blue
+      return 'bg-green-100 text-green-800 border-green-200';
     case 'pending':
-      return '#f59e0b'; // Orange
+      return 'bg-yellow-100 text-yellow-800 border-yellow-200';
     case 'cancelled':
-      return '#ef4444'; // Red
-    case 'completed':
-      return '#10b981'; // Green
+      return 'bg-red-100 text-red-800 border-red-200';
     default:
-      return '#6b7280'; // Gray
+      return 'bg-gray-100 text-gray-800 border-gray-200';
   }
 }
 
-// Helper function to get block type color
 export function getBlockTypeColor(reason?: string | null): string {
-  switch (reason?.toLowerCase()) {
+  switch (reason) {
     case 'maintenance':
-      return '#6b7280'; // Gray
+      return 'bg-orange-100 text-orange-800 border-orange-200';
     case 'personal':
-      return '#8b5cf6'; // Purple
+      return 'bg-blue-100 text-blue-800 border-blue-200';
     case 'unavailable':
-      return '#ef4444'; // Red
-    case 'blocked':
-      return '#f59e0b'; // Orange
+      return 'bg-gray-100 text-gray-800 border-gray-200';
     default:
-      return '#94a3b8'; // Light gray
+      return 'bg-purple-100 text-purple-800 border-purple-200';
   }
 }
