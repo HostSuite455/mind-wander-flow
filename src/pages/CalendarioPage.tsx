@@ -7,6 +7,7 @@ import DashboardLayout from '@/layouts/DashboardLayout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
+import CustomCalendar from '@/components/calendar/CustomCalendar';
 import '../styles/calendario.css';
 
 // Tipi
@@ -21,9 +22,13 @@ interface Booking {
   id: string;
   property_id: string;
   guest_name: string;
+  guest_email?: string;
   check_in: string;
   check_out: string;
   status: 'confirmed' | 'pending' | 'cancelled';
+  total_price?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface CalendarBlock {
@@ -33,6 +38,8 @@ interface CalendarBlock {
   end_date: string;
   block_type: 'maintenance' | 'personal' | 'unavailable';
   reason?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 // Funzioni di utilità
@@ -250,18 +257,10 @@ export default function CalendarioPage() {
     ? blocks.filter(b => b.property_id === selectedPropertyId)
     : blocks;
 
-  // Contenitore del calendario con altezza fissa
+  // Contenitore del calendario con CustomCalendar
   const calendarContainer = (
     <div className="h-[calc(100vh-220px)] min-h-[600px] w-full overflow-auto rounded-xl border bg-white">
-      {!selectedPropertyId && properties.length > 0 ? (
-        <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-          <h3 className="text-xl font-medium text-gray-800 mb-2">Seleziona una proprietà</h3>
-          <p className="text-gray-600 mb-4">Scegli una proprietà dal menu a tendina per visualizzare il calendario</p>
-          <Button asChild>
-            <Link to="/dashboard/properties">Gestisci proprietà</Link>
-          </Button>
-        </div>
-      ) : properties.length === 0 ? (
+      {properties.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-full p-6 text-center">
           <h3 className="text-xl font-medium text-gray-800 mb-2">Nessuna proprietà disponibile</h3>
           <p className="text-gray-600 mb-4">Aggiungi una proprietà per iniziare a utilizzare il calendario</p>
@@ -270,70 +269,27 @@ export default function CalendarioPage() {
           </Button>
         </div>
       ) : (
-        <div className="calendar-simple">
-          {/* Intestazione giorni della settimana */}
-          <div className="calendar-header-row">
-            <div className="calendar-header-cell">Dom</div>
-            <div className="calendar-header-cell">Lun</div>
-            <div className="calendar-header-cell">Mar</div>
-            <div className="calendar-header-cell">Mer</div>
-            <div className="calendar-header-cell">Gio</div>
-            <div className="calendar-header-cell">Ven</div>
-            <div className="calendar-header-cell">Sab</div>
-          </div>
-          
-          {/* Griglia del calendario */}
-          <div className="calendar-grid">
-            {days.map(day => {
-              // Filtra eventi per questo giorno
-              const dayBookings = filteredBookings.filter(booking => {
-                const checkIn = new Date(booking.check_in);
-                const checkOut = new Date(booking.check_out);
-                return day >= checkIn && day <= checkOut;
-              });
-              
-              const dayBlocks = filteredBlocks.filter(block => {
-                const startDate = new Date(block.start_date);
-                const endDate = new Date(block.end_date);
-                return day >= startDate && day <= endDate;
-              });
-              
-              const isCurrentMonth = isSameMonth(day, currentDate);
-              const isCurrentDay = isToday(day);
-              
-              return (
-                <div 
-                  key={day.toString()} 
-                  className={`calendar-cell ${isCurrentMonth ? '' : 'other-month'} ${isCurrentDay ? 'today' : ''}`}
-                >
-                  <div className="calendar-date">{format(day, 'd')}</div>
-                  <div className="calendar-events">
-                    {dayBookings.map(booking => (
-                      <div 
-                        key={booking.id} 
-                        className="calendar-event booking"
-                        style={{ backgroundColor: getStatusColor(booking.status) }}
-                      >
-                        <span className="event-initials">{getInitials(booking.guest_name)}</span>
-                        <span className="event-name">{booking.guest_name}</span>
-                      </div>
-                    ))}
-                    
-                    {dayBlocks.map(block => (
-                      <div 
-                        key={block.id} 
-                        className="calendar-event block"
-                        style={{ backgroundColor: getBlockColor(block.block_type) }}
-                      >
-                        <span className="event-name">{block.block_type}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <CustomCalendar
+          properties={properties.map(p => ({
+            ...p,
+            name: p.nome || 'Proprietà senza nome',
+            user_id: userId || '',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }))}
+          bookings={filteredBookings.map(booking => ({
+            ...booking,
+            guest_email: booking.guest_email || '',
+            created_at: booking.created_at || new Date().toISOString(),
+            updated_at: booking.updated_at || new Date().toISOString()
+          }))}
+          blocks={filteredBlocks.map(block => ({
+            ...block,
+            created_at: block.created_at || new Date().toISOString(),
+            updated_at: block.updated_at || new Date().toISOString()
+          }))}
+          onRefresh={() => window.location.reload()}
+        />
       )}
     </div>
   );
@@ -401,67 +357,64 @@ export default function CalendarioPage() {
 
   return (
     <div className="space-y-6">
-      <div style={{fontSize: '24px', color: 'red', fontWeight: 'bold', padding: '20px', backgroundColor: 'yellow'}}>
-        CIAO - TEST RENDERING
-      </div>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="flex items-center gap-3 text-2xl font-bold text-gray-900">
-              <CalendarIcon className="h-8 w-8" />
-              Calendario
-            </h1>
-            <p className="text-gray-500">
-              {format(currentDate, 'MMMM yyyy', { locale: it })}
-            </p>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handlePrevMonth}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleToday}>
-              Oggi
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleNextMonth}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="flex items-center gap-3 text-2xl font-bold text-gray-900">
+            <CalendarIcon className="h-8 w-8" />
+            Calendario
+          </h1>
+          <p className="text-gray-500">
+            {format(currentDate, 'MMMM yyyy', { locale: it })}
+          </p>
         </div>
         
-        <div className="flex items-center justify-between">
-          <div className="property-selector">
-            <select
-              value={selectedPropertyId || ''}
-              onChange={(e) => setSelectedPropertyId(e.target.value || null)}
-              className="border rounded-md px-3 py-2 bg-white"
-            >
-              <option value="">Tutte le proprietà</option>
-              {properties.map(property => (
-                <option key={property.id} value={property.id}>
-                  {property.nome}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Home className="h-4 w-4" />
-              {properties.length} proprietà
-            </div>
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              {filteredBookings.length + filteredBlocks.length} eventi
-            </div>
-          </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handlePrevMonth}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleToday}>
+            Oggi
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleNextMonth}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+      
+      <div className="flex items-center justify-between">
+        <div className="property-selector">
+          <select
+            value={selectedPropertyId || ''}
+            onChange={(e) => setSelectedPropertyId(e.target.value || null)}
+            className="border rounded-md px-3 py-2 bg-white"
+          >
+            <option value="">Tutte le proprietà</option>
+            {properties.map(property => (
+              <option key={property.id} value={property.id}>
+                {property.nome}
+              </option>
+            ))}
+          </select>
         </div>
         
-        {filteredBookings.length + filteredBlocks.length === 0 && selectedPropertyId && (
-          <div className="mb-2 text-sm text-gray-600">
-            Nessun evento nel periodo. Trascina col mouse per creare un blocco.
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <Home className="h-4 w-4" />
+            {properties.length} proprietà
           </div>
-        )}
-        
-        {calendarContainer}
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            {filteredBookings.length + filteredBlocks.length} eventi
+          </div>
+        </div>
       </div>
-    );
+      
+      {filteredBookings.length + filteredBlocks.length === 0 && selectedPropertyId && (
+        <div className="mb-2 text-sm text-gray-600">
+          Nessun evento nel periodo. Trascina col mouse per creare un blocco.
+        </div>
+      )}
+      
+      {calendarContainer}
+    </div>
+  );
   }
