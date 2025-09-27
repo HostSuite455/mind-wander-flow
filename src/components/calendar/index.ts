@@ -1,7 +1,7 @@
 // Calendar utility components
-export { default as CalendarExport } from './CalendarExport';
-export { default as CalendarFilters } from './CalendarFilters';
-export { default as CalendarStatistics } from './CalendarStatistics';
+export { CalendarExport } from './CalendarExport';
+export { CalendarFilters } from './CalendarFilters';
+export { CalendarStatistics } from './CalendarStatistics';
 export { default as CustomCalendar } from './CustomCalendar';
 export { CalendarStats } from './CalendarStats';
 export { CalendarLegend } from './CalendarLegend';

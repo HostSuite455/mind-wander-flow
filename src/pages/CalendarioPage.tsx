@@ -341,78 +341,69 @@ export default function CalendarioPage() {
   // Render-safety: mostra skeleton se auth non risolto
   if (!authResolved) {
     return (
-      <DashboardLayout>
-        <Card className="p-6">
-          <div className="flex items-center justify-center min-h-[400px]">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-            <span className="ml-2 text-gray-600">Caricamento autenticazione...</span>
-          </div>
-        </Card>
-      </DashboardLayout>
+      <Card className="p-6">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <span className="ml-2 text-gray-600">Caricamento autenticazione...</span>
+        </div>
+      </Card>
     );
   }
 
   // Se auth risolto ma nessun userId, mostra messaggio
   if (!userId) {
     return (
-      <DashboardLayout>
-        <Card className="p-6">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-            <h3 className="text-yellow-800 font-medium mb-2">Accesso richiesto</h3>
-            <p className="text-yellow-600">Effettua il login per accedere al calendario.</p>
-          </div>
-          {calendarContainer}
-        </Card>
-      </DashboardLayout>
+      <Card className="p-6">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+          <h3 className="text-yellow-800 font-medium mb-2">Accesso richiesto</h3>
+          <p className="text-yellow-600">Effettua il login per accedere al calendario.</p>
+        </div>
+        {calendarContainer}
+      </Card>
     );
   }
 
   if (isLoading) {
     return (
-      <DashboardLayout>
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">Calendario</h1>
-          </div>
-          <Card className="p-6">
-            <div className="flex items-center justify-center min-h-[400px]">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-              <span className="ml-2 text-gray-600">Caricamento calendario...</span>
-            </div>
-          </Card>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">Calendario</h1>
         </div>
-      </DashboardLayout>
+        <Card className="p-6">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            <span className="ml-2 text-gray-600">Caricamento calendario...</span>
+          </div>
+        </Card>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <DashboardLayout>
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">Calendario</h1>
-          </div>
-          <Card className="p-6">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-              <h3 className="text-red-800 font-medium mb-2">Errore nel caricamento</h3>
-              <p className="text-red-600 mb-4">{error}</p>
-              <Button variant="destructive" onClick={() => window.location.reload()}>
-                Riprova
-              </Button>
-            </div>
-            {calendarContainer}
-          </Card>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">Calendario</h1>
         </div>
-      </DashboardLayout>
+        <Card className="p-6">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <h3 className="text-red-800 font-medium mb-2">Errore nel caricamento</h3>
+            <p className="text-red-600 mb-4">{error}</p>
+            <Button variant="destructive" onClick={() => window.location.reload()}>
+              Riprova
+            </Button>
+          </div>
+          {calendarContainer}
+        </Card>
+      </div>
     );
   }
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        <div style={{fontSize: '24px', color: 'red', fontWeight: 'bold', padding: '20px', backgroundColor: 'yellow'}}>
-          CIAO - TEST RENDERING
-        </div>
+    <div className="space-y-6">
+      <div style={{fontSize: '24px', color: 'red', fontWeight: 'bold', padding: '20px', backgroundColor: 'yellow'}}>
+        CIAO - TEST RENDERING
+      </div>
         <div className="flex items-center justify-between">
           <div>
             <h1 className="flex items-center gap-3 text-2xl font-bold text-gray-900">
@@ -472,6 +463,5 @@ export default function CalendarioPage() {
         
         {calendarContainer}
       </div>
-    </DashboardLayout>
-  );
-}
+    );
+  }

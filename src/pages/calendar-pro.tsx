@@ -98,7 +98,13 @@ const CalendarProPage: React.FC = () => {
         </div>
       ) : (
         <CustomCalendar
-          properties={properties}
+          properties={properties.map(p => ({ 
+            ...p, 
+            name: p.nome || p.name || 'Proprietà senza nome',
+            user_id: userId || '',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }))}
           bookings={bookings}
           blocks={blocks}
           onRefresh={refetch}
@@ -110,91 +116,81 @@ const CalendarProPage: React.FC = () => {
   // Render-safety: mostra skeleton se auth non risolto
   if (!authResolved) {
     return (
-      <DashboardLayout>
-        <Card className="p-6">
-          <div className="flex items-center justify-center min-h-[400px]">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-            <span className="ml-2 text-gray-600">Caricamento autenticazione...</span>
-          </div>
-        </Card>
-      </DashboardLayout>
+      <Card className="p-6">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <span className="ml-2 text-gray-600">Caricamento autenticazione...</span>
+        </div>
+      </Card>
     );
   }
 
   // Se auth risolto ma nessun userId, mostra messaggio
   if (!userId) {
     return (
-      <DashboardLayout>
-        <Card className="p-6">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-            <h3 className="text-yellow-800 font-medium mb-2">Accesso richiesto</h3>
-            <p className="text-yellow-600">Effettua il login per accedere al calendario.</p>
-          </div>
-          {calendarContainer}
-        </Card>
-      </DashboardLayout>
+      <Card className="p-6">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+          <h3 className="text-yellow-800 font-medium mb-2">Accesso richiesto</h3>
+          <p className="text-yellow-600">Effettua il login per accedere al calendario.</p>
+        </div>
+        {calendarContainer}
+      </Card>
     );
   }
 
   if (isLoading) {
     return (
-      <DashboardLayout>
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">Calendario</h1>
-          </div>
-          <Card className="p-6">
-            <div className="flex items-center justify-center min-h-[400px]">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-              <span className="ml-2 text-gray-600">Caricamento calendario...</span>
-            </div>
-          </Card>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">Calendario</h1>
         </div>
-      </DashboardLayout>
+        <Card className="p-6">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            <span className="ml-2 text-gray-600">Caricamento calendario...</span>
+          </div>
+        </Card>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <DashboardLayout>
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">Calendario</h1>
-          </div>
-          <Card className="p-6">
-            <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-              <h3 className="text-red-800 font-medium mb-2">Errore nel caricamento</h3>
-              <p className="text-red-600 mb-4">{error}</p>
-              <Button onClick={refetch} variant="destructive">
-                Riprova
-              </Button>
-            </div>
-            {calendarContainer}
-          </Card>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900">Calendario</h1>
         </div>
-      </DashboardLayout>
+        <Card className="p-6">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <h3 className="text-red-800 font-medium mb-2">Errore nel caricamento</h3>
+            <p className="text-red-600 mb-4">{error}</p>
+            <Button onClick={refetch} variant="destructive">
+              Riprova
+            </Button>
+          </div>
+          {calendarContainer}
+        </Card>
+      </div>
     );
   }
 
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">Calendario</h1>
-          <div className="text-sm text-gray-500">
-            {properties.length} proprietà • {bookings.length + blocks.length} eventi
-          </div>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">Calendario</h1>
+        <div className="text-sm text-gray-500">
+          {properties.length} proprietà • {bookings.length + blocks.length} eventi
         </div>
-        
-        {[...bookings, ...blocks].length === 0 && selectedPropertyId && (
-          <div className="mb-2 text-sm text-gray-600">
-            Nessun evento nel periodo. Trascina col mouse per creare un blocco.
-          </div>
-        )}
-        
-        {calendarContainer}
       </div>
-    </DashboardLayout>
+      
+      {[...bookings, ...blocks].length === 0 && selectedPropertyId && (
+        <div className="mb-2 text-sm text-gray-600">
+          Nessun evento nel periodo. Trascina col mouse per creare un blocco.
+        </div>
+      )}
+      
+      {calendarContainer}
+    </div>
   );
 };
 

@@ -3,7 +3,30 @@ import { supabase } from '@/integrations/supabase/client'
 
 type Range = { start: Date; end: Date }
 type EventItem = any // tipizza se hai i tipi
-type PropertyItem = { id: string; name?: string }
+type PropertyItem = { id: string; nome?: string; name?: string }
+
+export interface CalendarBooking {
+  id: string;
+  property_id: string;
+  guest_name?: string;
+  guest_email?: string;
+  guest_phone?: string;
+  check_in: string;
+  check_out: string;
+  guests_count?: number;
+  adults_count?: number;
+  children_count?: number;
+  total_price?: number;
+  special_requests?: string;
+  booking_status?: string;
+  channel?: string;
+  booking_reference?: string;
+  external_booking_id: string;
+  created_at?: string;
+  updated_at?: string;
+  last_sync_at?: string;
+  property?: { nome: string };
+}
 
 // Supporta sia la vecchia firma (userId) che la nuova (oggetto con parametri)
 export function useCalendarData(
@@ -19,9 +42,14 @@ export function useCalendarData(
   // Estrai i parametri in base alla firma
   const userId = isOldSignature ? userIdOrParams as string | null : (userIdOrParams as any)?.userId
   const selectedPropertyId = isOldSignature ? null : (userIdOrParams as any)?.selectedPropertyId
-  const range = isOldSignature ? 
-    { start: new Date(), end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) } : // 30 giorni di default
-    (userIdOrParams as any)?.range || { start: new Date(), end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) }
+  
+  // Stabilizza l'oggetto range per evitare loop infinito
+  const stableRange = useMemo(() => {
+    if (isOldSignature) {
+      return { start: new Date(), end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) }
+    }
+    return (userIdOrParams as any)?.range || { start: new Date(), end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) }
+  }, [isOldSignature, (userIdOrParams as any)?.range?.start?.getTime(), (userIdOrParams as any)?.range?.end?.getTime()])
 
   const [loading, setLoading] = useState(true)
   const [properties, setProperties] = useState<PropertyItem[]>([])
@@ -79,8 +107,8 @@ export function useCalendarData(
             .from('bookings')
             .select('*')
             .eq('property_id', targetPropertyId)
-            .gte('check_in', range.start.toISOString())
-            .lte('check_out', range.end.toISOString())
+            .gte('check_in', stableRange.start.toISOString())
+            .lte('check_out', stableRange.end.toISOString())
 
           if (bookingsError) {
             console.error('❌ Error fetching bookings:', bookingsError)
@@ -101,13 +129,13 @@ export function useCalendarData(
 
     run()
     return () => { cancelled = true }
-  }, [userId, effectivePropertyId, range.start.getTime(), range.end.getTime()])
+  }, [userId, effectivePropertyId, stableRange])
 
   const bookings = useMemo(() => events.filter(e => e.type !== 'block'), [events])
   const blocks = useMemo(() => events.filter(e => e.type === 'block'), [events])
 
-  const rangeStart = range.start
-  const rangeEnd = range.end
+  const rangeStart = stableRange.start
+  const rangeEnd = stableRange.end
 
   const isLoading = loading
   const error = null // Simplified for now

@@ -686,10 +686,10 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
             />
           ) : viewMode === 'single' && selectedPropertyId ? (
             <SinglePropertyView
-              property={properties.find(p => p.id === selectedPropertyId)!}
+              currentDate={currentDate}
               bookings={filteredBookings}
               blocks={blocks}
-              currentDate={currentDate}
+              properties={properties}
             />
           ) : (
             <MultiPropertyView
