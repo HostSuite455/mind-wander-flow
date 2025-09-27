@@ -5,12 +5,24 @@ type Range = { start: Date; end: Date }
 type EventItem = any // tipizza se hai i tipi
 type PropertyItem = { id: string; name?: string }
 
-export function useCalendarData(params: {
-  userId?: string | null
-  selectedPropertyId?: string | null
-  range: Range
-}) {
-  const { userId, selectedPropertyId, range } = params
+// Supporta sia la vecchia firma (userId) che la nuova (oggetto con parametri)
+export function useCalendarData(
+  userIdOrParams?: string | null | {
+    userId?: string | null
+    selectedPropertyId?: string | null
+    range?: Range
+  }
+) {
+  // Determina se è la vecchia o nuova firma
+  const isOldSignature = typeof userIdOrParams === 'string' || userIdOrParams === null || userIdOrParams === undefined
+  
+  // Estrai i parametri in base alla firma
+  const userId = isOldSignature ? userIdOrParams as string | null : (userIdOrParams as any)?.userId
+  const selectedPropertyId = isOldSignature ? null : (userIdOrParams as any)?.selectedPropertyId
+  const range = isOldSignature ? 
+    { start: new Date(), end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) } : // 30 giorni di default
+    (userIdOrParams as any)?.range || { start: new Date(), end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) }
+
   const [loading, setLoading] = useState(true)
   const [properties, setProperties] = useState<PropertyItem[]>([])
   const [effectivePropertyId, setEffectivePropertyId] = useState<string | null>(selectedPropertyId ?? null)
@@ -28,139 +40,135 @@ export function useCalendarData(params: {
     async function run() {
       // Aspetta che arrivi userId
       if (!userId) {
-        // non fetchiamo ancora, ma NON settiamo loading=false per evitare flicker
+        console.log('⏳ useCalendarData: skipping fetch, no userId')
+        setLoading(false)
         return
       }
+
       setLoading(true)
+      console.log('🔄 useCalendarData: fetching data for userId:', userId)
 
-      // 1) Properties dell'host
-      const { data: props, error: propsErr } = await supabase
-        .from('properties')
-        .select('id,name')
-        .eq('owner_id', userId)
-        .order('created_at', { ascending: true })
+      try {
+        // 1. Fetch properties
+        const { data: propertiesData, error: propertiesError } = await supabase
+          .from('properties')
+          .select('id, nome')
+          .eq('host_id', userId)
 
-      if (propsErr) {
-        console.error('fetch properties error', propsErr)
-        if (!cancelled) setLoading(false)
-        return
-      }
+        if (propertiesError) {
+          console.error('❌ Error fetching properties:', propertiesError)
+          setLoading(false)
+          return
+        }
 
-      let nextSelected = effectivePropertyId
-      if (!nextSelected && props && props.length > 0) {
-        nextSelected = props[0].id // auto-select prima proprietà
-      }
+        if (cancelled) return
 
-      // 2) Eventi (solo se c'è una property)
-      let evs: EventItem[] = []
-      if (nextSelected) {
-        const { data, error } = await supabase
-          .from('reservations')
-          .select('*')
-          .eq('property_id', nextSelected)
-          .gte('start', range.start.toISOString())
-          .lt('end', range.end.toISOString())
-        if (error) {
-          console.error('fetch reservations error', error)
-        } else {
-          evs = data ?? []
+        const fetchedProperties = propertiesData || []
+        setProperties(fetchedProperties)
+
+        // 2. Auto-select first property if none selected
+        let targetPropertyId = effectivePropertyId
+        if (!targetPropertyId && fetchedProperties.length > 0) {
+          targetPropertyId = fetchedProperties[0].id
+          setEffectivePropertyId(targetPropertyId)
+        }
+
+        // 3. Fetch bookings if we have a property
+        if (targetPropertyId) {
+          const { data: bookingsData, error: bookingsError } = await supabase
+            .from('bookings')
+            .select('*')
+            .eq('property_id', targetPropertyId)
+            .gte('check_in', range.start.toISOString())
+            .lte('check_out', range.end.toISOString())
+
+          if (bookingsError) {
+            console.error('❌ Error fetching bookings:', bookingsError)
+            setLoading(false)
+          } else if (!cancelled) {
+            setEvents(bookingsData || [])
+          }
+        }
+
+      } catch (error) {
+        console.error('❌ useCalendarData error:', error)
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
         }
       }
+    }
 
-      if (!cancelled) {
-        setProperties(props ?? [])
-        setEffectivePropertyId(nextSelected ?? null)
-        setEvents(evs)
-        setLoading(false)
-      }
-    }
     run()
-    return () => {
-      cancelled = true
+    return () => { cancelled = true }
+  }, [userId, effectivePropertyId, range.start.getTime(), range.end.getTime()])
+
+  const bookings = useMemo(() => events.filter(e => e.type !== 'block'), [events])
+  const blocks = useMemo(() => events.filter(e => e.type === 'block'), [events])
+
+  const rangeStart = range.start
+  const rangeEnd = range.end
+
+  const isLoading = loading
+  const error = null // Simplified for now
+
+  const refetch = () => {
+    // Trigger re-fetch by updating a dependency
+    setLoading(true)
+  }
+
+  // Utility functions for backward compatibility
+  const getBookingsForDate = (date: Date) => {
+    return bookings.filter(booking => {
+      const checkIn = new Date(booking.check_in)
+      const checkOut = new Date(booking.check_out)
+      return date >= checkIn && date <= checkOut
+    })
+  }
+
+  const getBlocksForDate = (date: Date) => {
+    return blocks.filter(block => {
+      const startDate = new Date(block.start_date)
+      const endDate = new Date(block.end_date)
+      return date >= startDate && date <= endDate
+    })
+  }
+
+  const getStatusForDate = (date: Date) => {
+    const dateBookings = getBookingsForDate(date)
+    const dateBlocks = getBlocksForDate(date)
+    
+    if (dateBookings.length > 0) return 'booked'
+    if (dateBlocks.length > 0) return 'blocked'
+    return 'available'
+  }
+
+  const getStyleForDate = (date: Date) => {
+    const status = getStatusForDate(date)
+    switch (status) {
+      case 'booked':
+        return { backgroundColor: '#ef4444', color: 'white' }
+      case 'blocked':
+        return { backgroundColor: '#f59e0b', color: 'white' }
+      default:
+        return {}
     }
-    // NOTE: deps includono userId e range; quando userId arriva, rifà il fetch
-  }, [userId, range.start.getTime(), range.end.getTime()])
+  }
 
   return {
-    loading,
     properties,
+    bookings,
+    blocks,
+    isLoading,
+    error,
+    refetch,
+    rangeStart,
+    rangeEnd,
+    getBookingsForDate,
+    getBlocksForDate,
+    getStatusForDate,
+    getStyleForDate,
     selectedPropertyId: effectivePropertyId,
-    events,
-    hasProperties: properties.length > 0,
-  }
-}
-
-// Legacy exports for backward compatibility
-export interface CalendarBooking {
-  id: string;
-  property_id: string;
-  guest_name: string;
-  guest_email: string;
-  check_in: string;
-  check_out: string;
-  status: 'confirmed' | 'pending' | 'cancelled';
-  total_price?: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CalendarBlock {
-  id: string;
-  property_id: string;
-  start_date: string;
-  end_date: string;
-  block_type: 'maintenance' | 'personal' | 'unavailable';
-  reason?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export function getBookingsForDate(
-  bookings: CalendarBooking[], 
-  date: Date
-): CalendarBooking[] {
-  const dateStr = date.toISOString().split('T')[0];
-  return bookings.filter(booking => {
-    const checkIn = new Date(booking.check_in).toISOString().split('T')[0];
-    const checkOut = new Date(booking.check_out).toISOString().split('T')[0];
-    return dateStr >= checkIn && dateStr < checkOut;
-  });
-}
-
-export function getBlocksForDate(
-  blocks: CalendarBlock[], 
-  date: Date
-): CalendarBlock[] {
-  const dateStr = date.toISOString().split('T')[0];
-  return blocks.filter(block => {
-    const startDate = new Date(block.start_date).toISOString().split('T')[0];
-    const endDate = new Date(block.end_date).toISOString().split('T')[0];
-    return dateStr >= startDate && dateStr <= endDate;
-  });
-}
-
-export function getBookingStatusColor(status?: string | null): string {
-  switch (status) {
-    case 'confirmed':
-      return 'bg-green-100 text-green-800 border-green-200';
-    case 'pending':
-      return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-    case 'cancelled':
-      return 'bg-red-100 text-red-800 border-red-200';
-    default:
-      return 'bg-gray-100 text-gray-800 border-gray-200';
-  }
-}
-
-export function getBlockTypeColor(reason?: string | null): string {
-  switch (reason) {
-    case 'maintenance':
-      return 'bg-orange-100 text-orange-800 border-orange-200';
-    case 'personal':
-      return 'bg-blue-100 text-blue-800 border-blue-200';
-    case 'unavailable':
-      return 'bg-gray-100 text-gray-800 border-gray-200';
-    default:
-      return 'bg-purple-100 text-purple-800 border-purple-200';
+    setSelectedPropertyId: setEffectivePropertyId
   }
 }

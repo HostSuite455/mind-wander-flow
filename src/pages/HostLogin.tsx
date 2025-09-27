@@ -3,19 +3,21 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Home as HomeIcon, AlertCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import logoImage from "@/assets/logo.png";
 
 const HostLogin = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isRegistering, setIsRegistering] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   const isValidEmail = (email: string) => {
     return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
@@ -25,68 +27,66 @@ const HostLogin = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     setIsLoading(true);
-    setError(null);
+
+    if (!isValidEmail(email)) {
+      setError("Inserisci un indirizzo email valido");
+      setIsLoading(false);
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("La password deve essere di almeno 6 caratteri");
+      setIsLoading(false);
+      return;
+    }
+
+    if (isRegistering && password !== confirmPassword) {
+      setError("Le password non corrispondono");
+      setIsLoading(false);
+      return;
+    }
 
     try {
-      // First try to sign in
-      let { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      // If user doesn't exist, try to create account
-      if (error && error.message.includes('Invalid login credentials')) {
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      if (isRegistering) {
+        // Registrazione
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
         });
 
-        if (signUpError) {
-          setError(signUpError.message);
-          toast({
-            variant: "destructive",
-            title: "Errore di registrazione",
-            description: signUpError.message,
-          });
+        if (error) {
+          setError(error.message);
           return;
         }
 
-        if (signUpData.user) {
-          toast({
-            title: "Account creato",
-            description: "Account creato con successo! Accesso effettuato.",
-          });
-          navigate("/dashboard");
+        if (data.user) {
+          toast.success("Account creato con successo! Controlla la tua email per confermare l'account.");
+          // Dopo la registrazione, passa alla modalità login
+          setIsRegistering(false);
+          setConfirmPassword("");
+        }
+      } else {
+        // Login
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) {
+          setError("Credenziali non valide");
           return;
         }
-      }
 
-      if (error) {
-        setError(error.message);
-        toast({
-          variant: "destructive",
-          title: "Errore di accesso",
-          description: error.message,
-        });
-        return;
+        if (data.user) {
+          toast.success("Accesso effettuato con successo!");
+          navigate("/calendario");
+        }
       }
-
-      if (data.user) {
-        toast({
-          title: "Accesso effettuato",
-          description: "Benvenuto nella tua dashboard!",
-        });
-        navigate("/dashboard");
-      }
-    } catch (err) {
-      const errorMessage = "Errore durante l'accesso. Riprova.";
-      setError(errorMessage);
-      toast({
-        variant: "destructive",
-        title: "Errore",
-        description: errorMessage,
-      });
+    } catch (error) {
+      console.error("Errore durante l'autenticazione:", error);
+      setError("Si è verificato un errore. Riprova più tardi.");
     } finally {
       setIsLoading(false);
     }
@@ -104,13 +104,45 @@ const HostLogin = () => {
 
         <Card className="shadow-elegant border-hostsuite-primary/20">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold text-hostsuite-primary">Area Host</CardTitle>
+            <CardTitle className="text-2xl font-bold text-hostsuite-primary">
+              {isRegistering ? "Registrati" : "Area Host"}
+            </CardTitle>
             <CardDescription className="text-hostsuite-text">
-              Accedi alla tua dashboard di gestione
+              {isRegistering 
+                ? "Crea un nuovo account per accedere alla piattaforma" 
+                : "Accedi alla tua dashboard di gestione"
+              }
             </CardDescription>
           </CardHeader>
           
           <CardContent>
+            {/* Toggle tra Login e Registrazione */}
+            <div className="flex rounded-lg bg-hostsuite-light/20 p-1 mb-6">
+              <Button
+                type="button"
+                variant={!isRegistering ? "default" : "ghost"}
+                className="flex-1"
+                onClick={() => {
+                  setIsRegistering(false);
+                  setConfirmPassword("");
+                  setError("");
+                }}
+              >
+                Accedi
+              </Button>
+              <Button
+                type="button"
+                variant={isRegistering ? "default" : "ghost"}
+                className="flex-1"
+                onClick={() => {
+                  setIsRegistering(true);
+                  setError("");
+                }}
+              >
+                Registrati
+              </Button>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-hostsuite-primary font-medium">
@@ -142,6 +174,24 @@ const HostLogin = () => {
                 />
               </div>
 
+              {/* Campo Conferma Password - solo in modalità registrazione */}
+              {isRegistering && (
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword" className="text-hostsuite-primary font-medium">
+                    Conferma Password
+                  </Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    placeholder="********"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="border-hostsuite-primary/30 focus:border-hostsuite-primary"
+                    required
+                  />
+                </div>
+              )}
+
               {error && (
                 <div className="p-3 rounded-lg bg-red-50 border border-red-200 flex items-center gap-2" role="alert">
                   <AlertCircle className="w-4 h-4 text-red-500" />
@@ -158,12 +208,12 @@ const HostLogin = () => {
                 {isLoading ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Accesso in corso...
+                    {isRegistering ? "Creazione account..." : "Accesso in corso..."}
                   </>
                 ) : (
                   <>
                     <HomeIcon className="w-4 h-4 mr-2" />
-                    Accedi
+                    {isRegistering ? "Crea Account" : "Accedi"}
                   </>
                 )}
               </Button>
