@@ -35,11 +35,44 @@ export const CalendarBlocksCard = ({ propertyId, propertyName }: CalendarBlocksC
     is_active: true
   });
 
-  const feedUrl = `https://blsiiqhijlubzhpmtswc.supabase.co/functions/v1/ical-feed/${propertyId}`;
+  const [exportUrl, setExportUrl] = useState<string>('');
+  const [isGeneratingToken, setIsGeneratingToken] = useState(false);
 
   useEffect(() => {
     loadBlocks();
+    loadExportUrl();
   }, [propertyId]);
+
+  const loadExportUrl = async () => {
+    const { getExportUrl } = await import("@/lib/supaIcal");
+    const { url } = await getExportUrl(propertyId);
+    if (url) {
+      setExportUrl(url);
+    }
+  };
+
+  const generateNewToken = async () => {
+    setIsGeneratingToken(true);
+    try {
+      const { generateExportToken } = await import("@/lib/supaIcal");
+      const { data } = await generateExportToken(propertyId);
+      if (data?.export_url) {
+        setExportUrl(data.export_url);
+        toast({
+          title: "Token Generato",
+          description: "Nuovo token di esportazione creato con successo"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Errore",
+        description: "Errore nella generazione del token",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingToken(false);
+    }
+  };
 
   const loadBlocks = async () => {
     setLoading(true);
@@ -103,15 +136,25 @@ export const CalendarBlocksCard = ({ propertyId, propertyName }: CalendarBlocksC
   };
 
   const copyFeedUrl = () => {
-    navigator.clipboard.writeText(feedUrl);
-    toast({
-      title: "Copiato!",
-      description: "URL del feed iCal copiato negli appunti"
-    });
+    if (exportUrl) {
+      navigator.clipboard.writeText(exportUrl);
+      toast({
+        title: "✅ Copiato!",
+        description: "URL del feed iCal copiato negli appunti"
+      });
+    } else {
+      toast({
+        title: "Nessun URL",
+        description: "Genera prima un token di esportazione",
+        variant: "destructive"
+      });
+    }
   };
 
   const openFeedUrl = () => {
-    window.open(feedUrl, '_blank');
+    if (exportUrl) {
+      window.open(exportUrl, '_blank');
+    }
   };
 
   return (
@@ -267,24 +310,55 @@ export const CalendarBlocksCard = ({ propertyId, propertyName }: CalendarBlocksC
             <p className="text-sm text-muted-foreground">
               Incolla questo feed su Smoobu, Airbnb, Booking.com o altri channel manager per sincronizzare i blocchi da HostSuite.
             </p>
-            <div className="flex items-center space-x-2">
-              <Input
-                value={feedUrl}
-                readOnly
-                className="flex-1 font-mono text-xs"
-              />
-              <Button variant="outline" size="sm" onClick={copyFeedUrl}>
-                <Copy className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="sm" onClick={openFeedUrl}>
-                <ExternalLink className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="text-xs text-muted-foreground">
-              <p>• Il feed si aggiorna automaticamente ogni 5 minuti</p>
-              <p>• Include solo i blocchi attivi per questa proprietà</p>
-              <p>• Compatibile con tutti i principali channel manager</p>
-            </div>
+            
+            {exportUrl ? (
+              <div className="flex items-center space-x-2">
+                <Input
+                  value={exportUrl}
+                  readOnly
+                  className="flex-1 font-mono text-xs"
+                />
+                <Button variant="outline" size="sm" onClick={copyFeedUrl}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+                <Button variant="outline" size="sm" onClick={openFeedUrl}>
+                  <ExternalLink className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="p-3 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Nessun token di esportazione configurato per questa proprietà.
+                  </p>
+                  <Button 
+                    onClick={generateNewToken} 
+                    disabled={isGeneratingToken}
+                    className="bg-primary text-primary-foreground"
+                  >
+                    {isGeneratingToken ? 'Generando...' : 'Genera Token Export'}
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            {exportUrl && (
+              <div className="flex justify-between items-center">
+                <div className="text-xs text-muted-foreground">
+                  <p>• Il feed si aggiorna automaticamente</p>
+                  <p>• Include solo i blocchi attivi per questa proprietà</p>
+                  <p>• Compatibile con tutti i principali channel manager</p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={generateNewToken}
+                  disabled={isGeneratingToken}
+                >
+                  {isGeneratingToken ? 'Rigenerando...' : 'Rigenera Token'}
+                </Button>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

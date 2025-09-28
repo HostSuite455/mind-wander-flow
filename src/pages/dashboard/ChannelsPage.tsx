@@ -153,8 +153,8 @@ export default function ChannelsPage() {
   const handleCreateConfig = async () => {
     if (selectedPropertyId === 'all') {
       toast({
-        title: "Errore",
-        description: "Seleziona una proprietà specifica per creare una configurazione iCal",
+        title: "⚠️ Seleziona Proprietà",
+        description: "Scegli una proprietà specifica per creare una configurazione iCal",
         variant: "destructive",
       });
       return;
@@ -165,16 +165,16 @@ export default function ChannelsPage() {
       if (error) throw error;
       
       toast({
-        title: "Successo",
-        description: "Configurazione iCal creata con successo",
+        title: "✅ Configurazione Creata",
+        description: "Configurazione iCal creata con successo. Ora puoi aggiungere URL iCal.",
       });
       
       await load(); // Reload data
     } catch (error) {
       logError("Failed to create iCal config", error, { component: "ChannelsPage" });
       toast({
-        title: "Errore",
-        description: "Errore nella creazione della configurazione iCal",
+        title: "❌ Errore Configurazione",
+        description: error instanceof Error ? error.message : "Errore nella creazione della configurazione iCal",
         variant: "destructive",
       });
     }

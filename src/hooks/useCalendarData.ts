@@ -21,11 +21,16 @@ export interface CalendarBooking {
   booking_status?: string;
   channel?: string;
   booking_reference?: string;
-  external_booking_id: string;
+  external_booking_id?: string;
   created_at?: string;
   updated_at?: string;
   last_sync_at?: string;
   property?: { nome: string };
+  // New fields for iCal integration
+  isBlock?: boolean;
+  source?: string;
+  sourceIcon?: string;
+  reason?: string; // For blocked periods
 }
 
 // Supporta sia la vecchia firma (userId) che la nuova (oggetto con parametri)
@@ -101,20 +106,66 @@ export function useCalendarData(
           setEffectivePropertyId(targetPropertyId)
         }
 
-        // 3. Fetch bookings if we have a property
-        if (targetPropertyId) {
+        // 3. Fetch bookings and calendar blocks if we have properties
+        const propertyIds = targetPropertyId ? [targetPropertyId] : fetchedProperties.map(p => p.id);
+        
+        if (propertyIds.length > 0) {
+          // Fetch regular bookings
           const { data: bookingsData, error: bookingsError } = await supabase
             .from('bookings')
             .select('*')
-            .eq('property_id', targetPropertyId)
-            .gte('check_in', stableRange.start.toISOString())
-            .lte('check_out', stableRange.end.toISOString())
+            .in('property_id', propertyIds)
+            .gte('check_in', stableRange.start.toISOString().split('T')[0])
+            .lte('check_out', stableRange.end.toISOString().split('T')[0]);
+
+          // Fetch calendar blocks (including imported iCal blocks)
+          const { data: calendarBlocksData, error: calendarBlocksError } = await supabase
+            .from('calendar_blocks')
+            .select('*')
+            .in('property_id', propertyIds)
+            .gte('start_date', stableRange.start.toISOString().split('T')[0])
+            .lte('end_date', stableRange.end.toISOString().split('T')[0]);
 
           if (bookingsError) {
-            console.error('❌ Error fetching bookings:', bookingsError)
-            setLoading(false)
-          } else if (!cancelled) {
-            setEvents(bookingsData || [])
+            console.error('❌ Error fetching bookings:', bookingsError);
+          }
+          
+          if (calendarBlocksError) {
+            console.error('❌ Error fetching calendar blocks:', calendarBlocksError);
+          }
+
+          if (!cancelled) {
+            // Combine bookings and blocks into a unified events array
+            const allBookings: CalendarBooking[] = (bookingsData || []).map(booking => ({
+              ...booking,
+              isBlock: false,
+              booking_status: booking.booking_status || 'confirmed'
+            }));
+
+            // Transform calendar blocks to match CalendarBooking interface
+            const calendarBlocks: CalendarBooking[] = (calendarBlocksData || []).map(block => ({
+              id: block.id,
+              property_id: block.property_id,
+              check_in: block.start_date,
+              check_out: block.end_date,
+              guest_name: block.reason || 'Blocked',
+              booking_status: block.source?.startsWith('ical_') ? 'imported' : 'blocked',
+              source: block.source || 'manual',
+              reason: block.reason,
+              isBlock: true,
+              // Add visual indicator for imported blocks
+              sourceIcon: block.source?.startsWith('ical_') ? 
+                (block.source.includes('airbnb') ? '🏠' : 
+                 block.source.includes('booking') ? '🔵' : 
+                 block.source.includes('vrbo') ? '🏖️' : 
+                 block.source.includes('agoda') ? '🌏' :
+                 block.source.includes('tripadvisor') ? '🦉' : '📅') : '🚫',
+              external_booking_id: block.external_id || block.id
+            }));
+
+            // Combine all events
+            const allEvents = [...allBookings, ...calendarBlocks];
+            setEvents(allEvents);
           }
         }
 
@@ -131,8 +182,8 @@ export function useCalendarData(
     return () => { cancelled = true }
   }, [userId, effectivePropertyId, stableRange])
 
-  const bookings = useMemo(() => events.filter(e => e.type !== 'block'), [events])
-  const blocks = useMemo(() => events.filter(e => e.type === 'block'), [events])
+  const bookings = useMemo(() => events.filter(e => !e.isBlock), [events])
+  const blocks = useMemo(() => events.filter(e => e.isBlock), [events])
 
   const rangeStart = stableRange.start
   const rangeEnd = stableRange.end
@@ -156,8 +207,8 @@ export function useCalendarData(
 
   const getBlocksForDate = (date: Date) => {
     return blocks.filter(block => {
-      const startDate = new Date(block.start_date)
-      const endDate = new Date(block.end_date)
+      const startDate = new Date(block.check_in) // Now using check_in/check_out for consistency
+      const endDate = new Date(block.check_out)
       return date >= startDate && date <= endDate
     })
   }
@@ -173,11 +224,18 @@ export function useCalendarData(
 
   const getStyleForDate = (date: Date) => {
     const status = getStatusForDate(date)
+    const dateBlocks = getBlocksForDate(date)
+    
     switch (status) {
       case 'booked':
         return { backgroundColor: '#ef4444', color: 'white' }
       case 'blocked':
-        return { backgroundColor: '#f59e0b', color: 'white' }
+        // Different colors for imported vs manual blocks
+        const hasImportedBlock = dateBlocks.some(block => block.source?.startsWith('ical_'))
+        if (hasImportedBlock) {
+          return { backgroundColor: '#8b5cf6', color: 'white' } // Purple for imported
+        }
+        return { backgroundColor: '#f59e0b', color: 'white' } // Orange for manual
       default:
         return {}
     }

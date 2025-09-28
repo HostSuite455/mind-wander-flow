@@ -379,22 +379,116 @@ export async function syncIcalUrl(id: string) {
     if (error) {
       debugToast('syncIcalUrl', error);
       toast({
-        title: "Errore",
-        description: "Errore nella sincronizzazione dell'URL iCal",
+        title: "Errore di Sincronizzazione",
+        description: `Errore nella sincronizzazione: ${error.message || 'Errore sconosciuto'}`,
         variant: "destructive"
       });
       return { data: null, error };
     }
 
-    toast({
-      title: "Successo",
-      description: "Sincronizzazione completata con successo"
-    });
+    const result = data as { success: boolean; processed?: number; created?: number; updated?: number; message?: string };
+    
+    if (result?.success) {
+      toast({
+        title: "✅ Sincronizzazione Completata",
+        description: result.message || `Elaborati ${result.processed || 0} eventi, creati ${result.created || 0}, aggiornati ${result.updated || 0}`,
+      });
+    } else {
+      toast({
+        title: "Attenzione",
+        description: "Sincronizzazione completata ma senza risultati",
+        variant: "destructive"
+      });
+    }
 
     return { data, error: null };
   } catch (err) {
     debugToast('syncIcalUrl', err);
+    toast({
+      title: "Errore di Connessione",
+      description: "Impossibile contattare il servizio di sincronizzazione",
+      variant: "destructive"
+    });
     return { data: null, error: err };
+  }
+}
+
+/** Generate export token for a property */
+export async function generateExportToken(propertyId: string) {
+  try {
+    // Generate a secure random token
+    const token = Array.from(crypto.getRandomValues(new Uint8Array(16)), 
+      byte => byte.toString(16).padStart(2, '0')).join('');
+    
+    // Check if there's already a channel account for this property
+    const { data: existingAccount } = await supabase
+      .from('channel_accounts')
+      .select('*')
+      .eq('property_id', propertyId)
+      .maybeSingle();
+    
+    if (existingAccount) {
+      // Update existing account with new token
+      const { data, error } = await supabase
+        .from('channel_accounts')
+        .update({ ics_export_token: token })
+        .eq('id', existingAccount.id)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      return { data: { ...data, export_url: `${window.location.origin}/api/ics-export?property_id=${propertyId}&token=${token}` }, error: null };
+    } else {
+      // Create new channel account
+      const { data, error } = await supabase
+        .from('channel_accounts')
+        .insert({
+          property_id: propertyId,
+          name: 'Export iCal',
+          kind: 'export',
+          ics_export_token: token
+        })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      return { 
+        data: { 
+          ...data, 
+          export_url: `https://blsiiqhijlubzhpmtswc.supabase.co/functions/v1/ics-export?property_id=${propertyId}&token=${token}` 
+        }, 
+        error: null 
+      };
+    }
+  } catch (err) {
+    debugToast('generateExportToken', err);
+    return { data: null, error: err };
+  }
+}
+
+/** Get export URL for a property */
+export async function getExportUrl(propertyId: string): Promise<{ url: string | null; error: any }> {
+  try {
+    const { data: account, error } = await supabase
+      .from('channel_accounts')
+      .select('ics_export_token')
+      .eq('property_id', propertyId)
+      .eq('kind', 'export')
+      .maybeSingle();
+      
+    if (error) throw error;
+    
+    if (account?.ics_export_token) {
+      return {
+        url: `https://blsiiqhijlubzhpmtswc.supabase.co/functions/v1/ics-export?property_id=${propertyId}&token=${account.ics_export_token}`,
+        error: null
+      };
+    }
+    
+    return { url: null, error: null };
+  } catch (err) {
+    debugToast('getExportUrl', err);
+    return { url: null, error: err };
   }
 }
 
