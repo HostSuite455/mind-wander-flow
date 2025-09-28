@@ -110,16 +110,16 @@ export default function ChannelsPage() {
     setErr(null);
     try {
       // Load properties
-      const { data: propsData, error: propsError } = await supaSelect(
-        supabase.from("properties").select("id, nome")
-      );
+      const { data: propsData, error: propsError } = await supabase
+        .from("properties")
+        .select("id, nome");
       if (propsError) throw propsError;
       setProperties(propsData || []);
 
       // Load channel accounts
-      const { data: accountsData, error: accountsError } = await supaSelect(
-        supabase.from("channel_accounts").select("*")
-      );
+      const { data: accountsData, error: accountsError } = await supabase
+        .from("channel_accounts")
+        .select("*");
       if (accountsError) throw accountsError;
       setAccounts(accountsData || []);
 
@@ -397,7 +397,7 @@ export default function ChannelsPage() {
       }
 
       const result = await response.json();
-      logInfo("Sync completed", result, { component: "ChannelsPage" });
+      logInfo("Sync completed", result);
 
       toast({
         title: "Successo",
@@ -750,7 +750,10 @@ export default function ChannelsPage() {
 
       {/* Calendar Blocks Card */}
       {selectedPropertyId !== 'all' && (
-        <CalendarBlocksCard propertyId={selectedPropertyId} />
+        <CalendarBlocksCard 
+          propertyId={selectedPropertyId} 
+          propertyName={getPropertyName(selectedPropertyId)} 
+        />
       )}
 
       {/* Account canali configurati */}
@@ -959,9 +962,13 @@ export default function ChannelsPage() {
       <IcalUrlModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+        onSuccess={async () => {
+          setIsModalOpen(false);
+          await load();
+        }}
         mode={modalMode}
-        onSubmit={modalMode === 'create' ? handleCreateUrl : handleUpdateUrl}
-        initialData={selectedIcalUrl}
+        icalUrl={selectedIcalUrl}
+        icalConfigId={selectedConfigId}
       />
 
       <ChannelManagerWizard
@@ -971,7 +978,8 @@ export default function ChannelsPage() {
           setIsWizardOpen(false);
           load();
         }}
-        properties={properties}
+        propertyId={selectedPropertyId !== 'all' ? selectedPropertyId : (properties[0]?.id || '')}
+        propertyName={selectedPropertyId !== 'all' ? getPropertyName(selectedPropertyId) : (properties[0]?.nome || 'Seleziona proprietà')}
       />
 
       {previewUrl && (
