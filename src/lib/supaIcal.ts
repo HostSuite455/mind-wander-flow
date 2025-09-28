@@ -48,32 +48,39 @@ const debugToast = (action: string, error: any) => {
 export async function listIcalUrls(propertyId?: string | 'all'): Promise<{ data: IcalUrl[], error: any }> {
   try {
     // Join esplicito: ical_urls -> ical_configs (inner), poi proprietà annidata
-    const select = `
-      id,url,source,is_active,is_primary,last_sync_at,created_at,updated_at,
-      ical_config_id,
-      ical_configs!inner (
-        id, property_id, is_active,
-        properties:property_id ( id, nome )
-      )
-    `;
+    let query = supabase
+      .from('ical_urls')
+      .select(`
+        *,
+        ical_configs!inner (
+          id,
+          property_id,
+          properties!inner (
+            id,
+            host_id
+          )
+        )
+      `);
 
-    let query = supabase.from('ical_urls').select(select).order('created_at', { ascending: false });
-
-    // Filtra per property se passato
+    // Se propertyId è specificato e non è 'all', filtra per quella proprietà
     if (propertyId && propertyId !== 'all') {
       query = query.eq('ical_configs.property_id', propertyId);
     }
 
-    // Opzionale: mostra solo config attive
-    query = query.eq('ical_configs.is_active', true);
-
     const { data, error } = await query;
+
     if (error) {
       debugToast('listIcalUrls', error);
       return { data: [], error };
     }
-    
-    return { data: data as any ?? [], error: null };
+
+    // Flatten the nested structure
+    const flattenedData = (data || []).map(item => ({
+      ...item,
+      ical_config_id: item.ical_configs.id
+    }));
+
+    return { data: flattenedData, error: null };
   } catch (err) {
     debugToast('listIcalUrls', err);
     return { data: [], error: err };
@@ -83,33 +90,29 @@ export async function listIcalUrls(propertyId?: string | 'all'): Promise<{ data:
 /** List all iCal configs for a specific property or all properties of the current host */
 export async function listIcalConfigs(propertyId?: string | 'all'): Promise<{ data: IcalConfig[], error: any }> {
   try {
-    const select = `
-      id,
-      property_id,
-      is_active,
-      config_type,
-      channel_manager_name,
-      api_endpoint,
-      api_key_name,
-      provider_config,
-      status,
-      created_at,
-      updated_at
-    `;
+    let query = supabase
+      .from('ical_configs')
+      .select(`
+        *,
+        properties!inner (
+          id,
+          host_id
+        )
+      `);
 
-    let query = supabase.from('ical_configs').select(select).order('created_at', { ascending: false });
-
+    // Se propertyId è specificato e non è 'all', filtra per quella proprietà
     if (propertyId && propertyId !== 'all') {
       query = query.eq('property_id', propertyId);
     }
 
     const { data, error } = await query;
+
     if (error) {
       debugToast('listIcalConfigs', error);
       return { data: [], error };
     }
 
-    return { data: data as IcalConfig[] ?? [], error: null };
+    return { data: data || [], error: null };
   } catch (err) {
     debugToast('listIcalConfigs', err);
     return { data: [], error: err };
@@ -131,9 +134,13 @@ export async function createIcalUrl({
   is_primary?: boolean;
 }) {
   try {
-    // If setting as primary, unset other primary URLs for the same config
+    // If this is set as primary, unset other primary URLs for this config
     if (is_primary) {
-      await unsetPrimaryByConfig(ical_config_id);
+      const { error: unsetError } = await unsetPrimaryByConfig(ical_config_id);
+      if (unsetError) {
+        debugToast('createIcalUrl - unsetPrimary', unsetError);
+        // Continue anyway, as this is not critical
+      }
     }
 
     const { data, error } = await supabase
@@ -142,7 +149,6 @@ export async function createIcalUrl({
         ical_config_id,
         url,
         source,
-        ota_name: source, // Keep compatibility with existing schema
         is_active,
         is_primary
       }])
@@ -153,7 +159,7 @@ export async function createIcalUrl({
       debugToast('createIcalUrl', error);
       toast({
         title: "Errore",
-        description: "Impossibile creare il link iCal",
+        description: "Errore nella creazione dell'URL iCal",
         variant: "destructive"
       });
       return { data: null, error };
@@ -161,7 +167,7 @@ export async function createIcalUrl({
 
     toast({
       title: "Successo",
-      description: "Link iCal creato con successo"
+      description: "URL iCal creato con successo"
     });
 
     return { data, error: null };
@@ -179,16 +185,20 @@ export async function updateIcalUrl(id: string, updates: Partial<{
   is_primary: boolean;
 }>) {
   try {
-    // If setting as primary, get the config_id first and unset others
+    // If setting as primary, first get the config_id and unset other primaries
     if (updates.is_primary) {
-      const { data: currentUrl } = await supabase
+      const { data: urlData } = await supabase
         .from('ical_urls')
         .select('ical_config_id')
         .eq('id', id)
         .single();
-      
-      if (currentUrl) {
-        await unsetPrimaryByConfig(currentUrl.ical_config_id);
+
+      if (urlData) {
+        const { error: unsetError } = await unsetPrimaryByConfig(urlData.ical_config_id);
+        if (unsetError) {
+          debugToast('updateIcalUrl - unsetPrimary', unsetError);
+          // Continue anyway
+        }
       }
     }
 
@@ -203,7 +213,7 @@ export async function updateIcalUrl(id: string, updates: Partial<{
       debugToast('updateIcalUrl', error);
       toast({
         title: "Errore",
-        description: "Impossibile aggiornare il link iCal",
+        description: "Errore nell'aggiornamento dell'URL iCal",
         variant: "destructive"
       });
       return { data: null, error };
@@ -211,7 +221,7 @@ export async function updateIcalUrl(id: string, updates: Partial<{
 
     toast({
       title: "Successo",
-      description: "Link iCal aggiornato con successo"
+      description: "URL iCal aggiornato con successo"
     });
 
     return { data, error: null };
@@ -233,7 +243,7 @@ export async function deleteIcalUrl(id: string) {
       debugToast('deleteIcalUrl', error);
       toast({
         title: "Errore",
-        description: "Impossibile eliminare il link iCal",
+        description: "Errore nell'eliminazione dell'URL iCal",
         variant: "destructive"
       });
       return { error };
@@ -241,7 +251,7 @@ export async function deleteIcalUrl(id: string) {
 
     toast({
       title: "Successo",
-      description: "Link iCal eliminato con successo"
+      description: "URL iCal eliminato con successo"
     });
 
     return { error: null };
@@ -251,7 +261,7 @@ export async function deleteIcalUrl(id: string) {
   }
 }
 
-/** Unset all primary flags for a specific config */
+/** Unset primary flag for all URLs in a config */
 export async function unsetPrimaryByConfig(ical_config_id: string) {
   try {
     const { error } = await supabase
@@ -262,9 +272,10 @@ export async function unsetPrimaryByConfig(ical_config_id: string) {
 
     if (error) {
       debugToast('unsetPrimaryByConfig', error);
+      return { error };
     }
 
-    return { error };
+    return { error: null };
   } catch (err) {
     debugToast('unsetPrimaryByConfig', err);
     return { error: err };
@@ -290,17 +301,10 @@ export async function createIcalConfig({
   is_active?: boolean;
 }) {
   try {
-    // Get current user ID for host_id
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
-
     const { data, error } = await supabase
       .from('ical_configs')
       .insert([{
         property_id,
-        host_id: user.id,
         config_type,
         channel_manager_name,
         api_endpoint,
@@ -316,14 +320,14 @@ export async function createIcalConfig({
       debugToast('createIcalConfig', error);
       toast({
         title: "Errore",
-        description: "Impossibile creare la configurazione iCal",
+        description: "Errore nella creazione della configurazione iCal",
         variant: "destructive"
       });
       return { data: null, error };
     }
 
     toast({
-      title: "Successo", 
+      title: "Successo",
       description: "Configurazione iCal creata con successo"
     });
 
@@ -334,36 +338,95 @@ export async function createIcalConfig({
   }
 }
 
-/** Format URL for display (truncate long URLs) */
+/** Delete an iCal config */
+export async function deleteIcalConfig(id: string) {
+  try {
+    const { error } = await supabase
+      .from('ical_configs')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      debugToast('deleteIcalConfig', error);
+      toast({
+        title: "Errore",
+        description: "Errore nell'eliminazione della configurazione iCal",
+        variant: "destructive"
+      });
+      return { error };
+    }
+
+    toast({
+      title: "Successo",
+      description: "Configurazione iCal eliminata con successo"
+    });
+
+    return { error: null };
+  } catch (err) {
+    debugToast('deleteIcalConfig', err);
+    return { error: err };
+  }
+}
+
+/** Sync an iCal URL */
+export async function syncIcalUrl(id: string) {
+  try {
+    // Call the ics-sync edge function
+    const { data, error } = await supabase.functions.invoke('ics-sync', {
+      body: { ical_url_id: id }
+    });
+
+    if (error) {
+      debugToast('syncIcalUrl', error);
+      toast({
+        title: "Errore",
+        description: "Errore nella sincronizzazione dell'URL iCal",
+        variant: "destructive"
+      });
+      return { data: null, error };
+    }
+
+    toast({
+      title: "Successo",
+      description: "Sincronizzazione completata con successo"
+    });
+
+    return { data, error: null };
+  } catch (err) {
+    debugToast('syncIcalUrl', err);
+    return { data: null, error: err };
+  }
+}
+
+/** Format URL for display */
 export function formatUrl(url: string, maxLength = 50): string {
-  if (url.length <= maxLength) return url;
-  return url.substring(0, maxLength) + '...';
+  return url.length > maxLength ? `${url.substring(0, maxLength)}...` : url;
 }
 
-/** Get source icon/emoji based on source name */
+/** Get icon for source */
 export function getSourceIcon(source: string): string {
-  switch (source?.toLowerCase()) {
-    case 'airbnb': return '🏠';
-    case 'booking.com': return '🔵';
-    case 'vrbo': return '🏖️';
-    case 'smoobu': return '📊';
-    default: return '🔗';
-  }
+  const icons: Record<string, string> = {
+    'booking.com': '🏨',
+    'airbnb': '🏠',
+    'expedia': '✈️',
+    'vrbo': '🏡',
+    'default': '📅'
+  };
+  return icons[source.toLowerCase()] || icons.default;
 }
 
-/** Validate iCal URL format */
+/** Validate iCal URL */
 export function validateIcalUrl(url: string): { isValid: boolean; message?: string } {
-  if (!url.trim()) {
-    return { isValid: false, message: 'URL è obbligatorio' };
+  try {
+    const urlObj = new URL(url);
+    if (!['http:', 'https:'].includes(urlObj.protocol)) {
+      return { isValid: false, message: 'URL deve utilizzare protocollo HTTP o HTTPS' };
+    }
+    if (!url.toLowerCase().includes('ical') && !url.toLowerCase().includes('.ics')) {
+      return { isValid: false, message: 'URL non sembra essere un feed iCal valido' };
+    }
+    return { isValid: true };
+  } catch {
+    return { isValid: false, message: 'URL non valido' };
   }
-
-  if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    return { isValid: false, message: 'URL deve iniziare con http:// o https://' };
-  }
-
-  if (!url.toLowerCase().includes('ical') && !url.toLowerCase().includes('.ics')) {
-    return { isValid: false, message: 'URL dovrebbe contenere "ical" o terminare con ".ics"' };
-  }
-
-  return { isValid: true };
 }
