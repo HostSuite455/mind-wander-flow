@@ -108,20 +108,37 @@ export default function ChannelsPage() {
   async function load() {
     setLoading(true);
     setErr(null);
+
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setErr("Devi effettuare l'accesso");
+        return;
+      }
+
       // Load properties
-      const { data: propsData, error: propsError } = await supabase
-        .from("properties")
-        .select("id, nome");
-      if (propsError) throw propsError;
-      setProperties(propsData || []);
+      const { data: propertiesData, error: propertiesError } = await supaSelect('properties', 'id,nome');
+      if (propertiesError) throw propertiesError;
+      setProperties(propertiesData || []);
 
       // Load channel accounts
       const { data: accountsData, error: accountsError } = await supabase
         .from("channel_accounts")
         .select("*");
-      if (accountsError) throw accountsError;
+      if (accountsError) {
+        logError("Failed to load channel accounts", accountsError, { component: "ChannelsPage" });
+        setErr(accountsError.message);
+        return;
+      }
+
       setAccounts(accountsData || []);
+
+      // Load iCal configurations
+      const { data: configsData, error: configsError } = await listIcalConfigs(
+        selectedPropertyId !== 'all' ? selectedPropertyId : undefined
+      );
+      if (configsError) throw configsError;
+      setIcalConfigs(configsData || []);
 
       // Load iCal URLs
       const { data: urlsData, error: urlsError } = await listIcalUrls(
@@ -130,25 +147,220 @@ export default function ChannelsPage() {
       if (urlsError) throw urlsError;
       setIcalUrls(urlsData || []);
 
-      // Load iCal configs
-      const { data: configsData, error: configsError } = await listIcalConfigs(
-        selectedPropertyId !== 'all' ? selectedPropertyId : undefined
-      );
-      if (configsError) throw configsError;
-      setIcalConfigs(configsData || []);
-
     } catch (error) {
-      logError("Failed to load data", error, { component: "ChannelsPage" });
-      setErr(error instanceof Error ? error.message : "Errore nel caricamento dei dati");
+      logError("Unexpected error loading data", error, { component: "ChannelsPage" });
+      setErr("Errore imprevisto durante il caricamento");
     } finally {
       setLoading(false);
     }
   }
 
-  // Reload when selectedPropertyId changes
-  useEffect(() => {
-    load();
+  useEffect(() => { 
+    document.title = "Channels • HostSuite AI"; 
+    load(); 
   }, [selectedPropertyId]);
+
+  // iCal functions
+  const handleCreateConfig = async () => {
+    if (selectedPropertyId === 'all') {
+      toast({
+        title: "Errore",
+        description: "Seleziona una proprietà specifica per creare una configurazione iCal",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { data, error } = await createIcalConfig({ property_id: selectedPropertyId });
+      if (error) throw error;
+      
+      toast({
+        title: "Successo",
+        description: "Configurazione iCal creata con successo",
+      });
+      
+      await load(); // Reload data
+    } catch (error) {
+      logError("Failed to create iCal config", error, { component: "ChannelsPage" });
+      toast({
+        title: "Errore",
+        description: "Errore nella creazione della configurazione iCal",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteConfig = async (configId: string) => {
+    try {
+      const { error } = await deleteIcalConfig(configId);
+      if (error) throw error;
+      
+      toast({
+        title: "Successo",
+        description: "Configurazione iCal eliminata con successo",
+      });
+      
+      await load(); // Reload data
+    } catch (error) {
+      logError("Failed to delete iCal config", error, { component: "ChannelsPage" });
+      toast({
+        title: "Errore",
+        description: "Errore nell'eliminazione della configurazione iCal",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCreateUrl = async (url: string, source: string) => {
+    if (!selectedConfigId) {
+      toast({
+        title: "Errore",
+        description: "Seleziona una configurazione iCal",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { data, error } = await createIcalUrl(selectedConfigId, url, source);
+      if (error) throw error;
+      
+      toast({
+        title: "Successo",
+        description: "URL iCal aggiunto con successo",
+      });
+      
+      setIsModalOpen(false);
+      await load(); // Reload data
+    } catch (error) {
+      logError("Failed to create iCal URL", error, { component: "ChannelsPage" });
+      toast({
+        title: "Errore",
+        description: "Errore nell'aggiunta dell'URL iCal",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUpdateUrl = async (urlId: string, url: string, source: string) => {
+    try {
+      const { data, error } = await updateIcalUrl(urlId, { url, source });
+      if (error) throw error;
+      
+      toast({
+        title: "Successo",
+        description: "URL iCal aggiornato con successo",
+      });
+      
+      setIsModalOpen(false);
+      await load(); // Reload data
+    } catch (error) {
+      logError("Failed to update iCal URL", error, { component: "ChannelsPage" });
+      toast({
+        title: "Errore",
+        description: "Errore nell'aggiornamento dell'URL iCal",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteUrl = async (urlId: string) => {
+    try {
+      const { data, error } = await deleteIcalUrl(urlId);
+      if (error) throw error;
+      
+      toast({
+        title: "Successo",
+        description: "URL iCal eliminato con successo",
+      });
+      
+      await load(); // Reload data
+    } catch (error) {
+      logError("Failed to delete iCal URL", error, { component: "ChannelsPage" });
+      toast({
+        title: "Errore",
+        description: "Errore nell'eliminazione dell'URL iCal",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSyncUrl = async (urlId: string) => {
+    try {
+      setSyncingId(urlId);
+      const { data, error } = await syncIcalUrl(urlId);
+      if (error) throw error;
+      
+      toast({
+        title: "Successo",
+        description: "Sincronizzazione iCal completata",
+      });
+      
+      await load(); // Reload data
+    } catch (error) {
+      logError("Failed to sync iCal URL", error, { component: "ChannelsPage" });
+      toast({
+        title: "Errore",
+        description: "Errore nella sincronizzazione iCal",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingId(null);
+    }
+  };
+
+  // Filter and group functions
+  const filteredUrls = icalUrls.filter(url => {
+    if (statusFilter !== 'all') {
+      const isActive = url.is_active;
+      if (statusFilter === 'active' && !isActive) return false;
+      if (statusFilter === 'inactive' && isActive) return false;
+    }
+    
+    if (sourceFilter !== 'all' && url.source !== sourceFilter) return false;
+    
+    return true;
+  });
+
+  const groupedUrls = filteredUrls.reduce((acc, url) => {
+    const config = icalConfigs.find(c => c.id === url.ical_config_id);
+    const property = properties.find(p => p.id === config?.property_id);
+    const key = property?.nome || 'Proprietà sconosciuta';
+    
+    if (!acc[key]) acc[key] = [];
+    acc[key].push({ ...url, config, property });
+    return acc;
+  }, {} as Record<string, Array<IcalUrl & { config?: IcalConfig; property?: Property }>>);
+
+  const uniqueSources = [...new Set(icalUrls.map(url => url.source))];
+
+  async function addChannelAccount() {
+    setErr(null);
+    if (!propertyId) { setErr("Seleziona un appartamento"); return; }
+    if (!channelName) { setErr("Inserisci un nome per il canale"); return; }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setErr("Devi effettuare l'accesso"); return; }
+
+      const { error } = await supabase.from("channel_accounts").insert({
+        host_id: user.id,
+        property_id: propertyId,
+        kind: 'ics',
+        name: channelName,
+      });
+
+      if (error) {
+        logError("Failed to create channel account", error, { component: "ChannelsPage" });
+        setErr(error.message);
+        return;
+      }
+
+      setPropertyId("");
+      setChannelName("");
+      load();
+  }
 
   const handleCreateConfig = async () => {
     if (selectedPropertyId === 'all') {
@@ -560,7 +772,280 @@ export default function ChannelsPage() {
         </CardContent>
       </Card>
 
-      {/* iCal Configurations Section */}
+      {/* iCal Configuration Section */}
+      <Card className="mt-8">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              <CardTitle>Configurazioni iCal</CardTitle>
+            </div>
+            <div className="flex items-center gap-2">
+              <Select value={selectedPropertyId} onValueChange={setSelectedPropertyId}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Seleziona proprietà" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutte le proprietà</SelectItem>
+                  {properties.map((property) => (
+                    <SelectItem key={property.id} value={property.id}>
+                      {property.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button 
+                onClick={handleCreateConfig}
+                disabled={selectedPropertyId === 'all'}
+                size="sm"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Nuova Configurazione
+              </Button>
+            </div>
+          </div>
+          <CardDescription>
+            Gestisci le configurazioni iCal per importare prenotazioni da Airbnb, Booking.com e altri canali
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          ) : (
+            <>
+              {/* Filters */}
+              <div className="flex items-center gap-4 mb-6">
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4" />
+                  <Select value={statusFilter} onValueChange={(value: 'all' | 'active' | 'inactive') => setStatusFilter(value)}>
+                    <SelectTrigger className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Tutti</SelectItem>
+                      <SelectItem value="active">Attivi</SelectItem>
+                      <SelectItem value="inactive">Inattivi</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Tutte le fonti</SelectItem>
+                    {uniqueSources.map((source) => (
+                      <SelectItem key={source} value={source}>
+                        {source}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* iCal Configurations */}
+              <div className="space-y-6">
+                {Object.entries(groupedUrls).map(([propertyName, urls]) => (
+                  <div key={propertyName} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-semibold text-lg">{propertyName}</h3>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          const config = urls[0]?.config;
+                          if (config) {
+                            setSelectedConfigId(config.id);
+                            setModalMode('create');
+                            setSelectedIcalUrl(null);
+                            setIsModalOpen(true);
+                          }
+                        }}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Aggiungi URL
+                      </Button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {urls.map((url) => (
+                        <div key={url.id} className="flex items-center justify-between p-3 border rounded-lg bg-gray-50">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge variant={url.is_active ? "default" : "secondary"}>
+                                {url.source}
+                              </Badge>
+                              <Badge variant={url.is_active ? "default" : "outline"}>
+                                {url.is_active ? "Attivo" : "Inattivo"}
+                              </Badge>
+                              {url.last_sync_at && (
+                                <span className="text-xs text-gray-500">
+                                  Ultimo sync: {new Date(url.last_sync_at).toLocaleString()}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-600 truncate max-w-md">
+                              {url.url}
+                            </p>
+                            {url.last_sync_error && (
+                              <p className="text-xs text-red-600 mt-1">
+                                Errore: {url.last_sync_error}
+                              </p>
+                            )}
+                          </div>
+                          
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleSyncUrl(url.id)}
+                              disabled={syncingId === url.id}
+                            >
+                              {syncingId === url.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <RefreshCw className="h-4 w-4" />
+                              )}
+                            </Button>
+                            
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedIcalUrl(url);
+                                setModalMode('edit');
+                                setIsModalOpen(true);
+                              }}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                            
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDeleteUrl(url.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Configuration actions */}
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const config = urls[0]?.config;
+                            if (config) {
+                              const feedUrl = `${window.location.origin}/api/ical/${config.id}`;
+                              navigator.clipboard.writeText(feedUrl);
+                              toast({
+                                title: "URL copiato",
+                                description: "URL del feed iCal copiato negli appunti",
+                              });
+                            }
+                          }}
+                        >
+                          <Copy className="h-4 w-4 mr-2" />
+                          Copia Feed URL
+                        </Button>
+                        
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const config = urls[0]?.config;
+                            if (config) {
+                              const feedUrl = `${window.location.origin}/api/ical/${config.id}`;
+                              setPreviewUrl(feedUrl);
+                            }
+                          }}
+                        >
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          Anteprima
+                        </Button>
+                      </div>
+                      
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => {
+                          const config = urls[0]?.config;
+                          if (config) {
+                            handleDeleteConfig(config.id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Elimina Configurazione
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+
+                {Object.keys(groupedUrls).length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                    <p className="text-lg font-medium mb-2">Nessuna configurazione iCal</p>
+                    <p className="text-sm">
+                      {selectedPropertyId === 'all' 
+                        ? "Seleziona una proprietà specifica per creare una configurazione iCal"
+                        : "Crea la prima configurazione iCal per questa proprietà"
+                      }
+                    </p>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* iCal URL Modal */}
+      <IcalUrlModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={load}
+        icalUrl={selectedIcalUrl}
+        icalConfigId={selectedConfigId}
+        mode={modalMode}
+      />
+
+      {/* Preview Modal */}
+      {previewUrl && (
+        <Dialog open={!!previewUrl} onOpenChange={() => setPreviewUrl(null)}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-auto">
+            <DialogHeader>
+              <DialogTitle>Anteprima Feed iCal</DialogTitle>
+            </DialogHeader>
+            <iframe
+              src={previewUrl}
+              className="w-full h-96 border rounded"
+              title="iCal Preview"
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Channel Manager Wizard */}
+      <ChannelManagerWizard
+        isOpen={isWizardOpen}
+        onClose={() => setIsWizardOpen(false)}
+        onComplete={() => {
+          setIsWizardOpen(false);
+          load();
+        }}
+      />
+
+
+
+>>>>>>> 459d116 (chore: progressi della sessione)
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">

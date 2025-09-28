@@ -12,6 +12,65 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Simple iCal parser for VEVENT blocks
+function parseICalData(icsData: string) {
+  const events = [];
+  const lines = icsData.split('\n').map(line => line.trim());
+  
+  let currentEvent: any = null;
+  
+  for (const line of lines) {
+    if (line === 'BEGIN:VEVENT') {
+      currentEvent = {};
+    } else if (line === 'END:VEVENT' && currentEvent) {
+      if (currentEvent.dtstart && currentEvent.dtend) {
+        events.push(currentEvent);
+      }
+      currentEvent = null;
+    } else if (currentEvent && line.includes(':')) {
+      const [key, ...valueParts] = line.split(':');
+      const value = valueParts.join(':');
+      
+      switch (key.toUpperCase()) {
+        case 'DTSTART':
+        case 'DTSTART;VALUE=DATE':
+          currentEvent.dtstart = parseICalDate(value);
+          break;
+        case 'DTEND':
+        case 'DTEND;VALUE=DATE':
+          currentEvent.dtend = parseICalDate(value);
+          break;
+        case 'SUMMARY':
+          currentEvent.summary = value;
+          break;
+        case 'DESCRIPTION':
+          currentEvent.description = value;
+          break;
+        case 'UID':
+          currentEvent.uid = value;
+          break;
+      }
+    }
+  }
+  
+  return events;
+}
+
+// Parse iCal date format (YYYYMMDD or YYYYMMDDTHHMMSSZ)
+function parseICalDate(dateStr: string): string {
+  // Remove any timezone info and take first 8 characters for date
+  const cleanDate = dateStr.replace(/[TZ]/g, '').substring(0, 8);
+  
+  if (cleanDate.length === 8) {
+    const year = cleanDate.substring(0, 4);
+    const month = cleanDate.substring(4, 6);
+    const day = cleanDate.substring(6, 8);
+    return `${year}-${month}-${day}`;
+  }
+  
+  return new Date().toISOString().split('T')[0]; // fallback to today
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -52,6 +111,53 @@ serve(async (req) => {
           status: 404,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
+      }
+
+      const icsData = await icsResponse.text();
+      console.log(`Fetched ICS data, length: ${icsData.length} chars`);
+
+      // Parse ICS data
+      const events = parseICalData(icsData);
+      console.log(`Parsed ${events.length} events from iCal data`);
+
+      if (events.length > 0) {
+        // Get property_id from account (assuming there's a property_id field)
+        const propertyId = account.property_id;
+        
+        if (!propertyId) {
+          throw new Error('No property_id associated with this account');
+        }
+
+        // Delete existing blocks from this source to avoid duplicates
+        await supabase
+          .from('calendar_blocks')
+          .delete()
+          .eq('property_id', propertyId)
+          .eq('source', `ical_${accountId}`);
+
+        // Create calendar blocks from parsed events
+        const calendarBlocks = events.map(event => ({
+          host_id: account.host_id,
+          property_id: propertyId,
+          start_date: event.dtstart,
+          end_date: event.dtend,
+          reason: event.summary || event.description || 'Blocked via iCal sync',
+          source: `ical_${accountId}`,
+          is_active: true,
+          created_by: account.host_id
+        }));
+
+        // Insert new blocks
+        const { data: insertedBlocks, error: insertError } = await supabase
+          .from('calendar_blocks')
+          .insert(calendarBlocks)
+          .select();
+
+        if (insertError) {
+          throw new Error(`Failed to insert calendar blocks: ${insertError.message}`);
+        }
+
+        console.log(`Successfully created ${insertedBlocks?.length || 0} calendar blocks`);
       }
       
       icalUrl = data;

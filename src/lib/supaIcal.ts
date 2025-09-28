@@ -353,7 +353,7 @@ export async function deleteIcalConfig(id: string) {
       debugToast('deleteIcalConfig', error);
       toast({
         title: "Errore",
-        description: "Errore nell'eliminazione della configurazione iCal",
+        description: "Impossibile eliminare la configurazione iCal",
         variant: "destructive"
       });
       return { error };

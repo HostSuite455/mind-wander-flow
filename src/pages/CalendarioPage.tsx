@@ -288,7 +288,10 @@ export default function CalendarioPage() {
             created_at: block.created_at || new Date().toISOString(),
             updated_at: block.updated_at || new Date().toISOString()
           }))}
-          onRefresh={() => window.location.reload()}
+          currentDate={currentDate}
+          onDateChange={setCurrentDate}
+          selectedPropertyId={selectedPropertyId}
+          onPropertyChange={setSelectedPropertyId}
         />
       )}
     </div>

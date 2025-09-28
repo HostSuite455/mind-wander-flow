@@ -31,10 +31,8 @@ import Properties from "./pages/properties";
 import Calendar from "./pages/calendar";
 import CalendarPro from "./pages/calendar-pro";
 import Export from "./pages/export";
-import HostAgentHome from "./pages/host-agent-home";
 import HostAgentConfig from "./pages/host-agent-config";
 import HostBookings from "./pages/host-bookings";
-import HostIcalConfig from "./pages/host-ical-config";
 import HostUnansweredQuestions from "./pages/host-unanswered-questions";
 import PuliziePage from "./pages/PuliziePage";
 import CleanerTasksPage from "./pages/CleanerTasksPage";
@@ -79,7 +77,6 @@ const App = () => (
                 <Route path="calendar-pro" element={<Navigate to="/dashboard/calendar" replace />} />
                 <Route path="channels" element={<ChannelsPage />} />
                 <Route path="export" element={<ExportPage />} />
-                <Route path="host-agent-home" element={<HostAgentHome />} />
                 <Route path="host-agent-config" element={<HostAgentConfig />} />
                 <Route path="host-bookings" element={<HostBookings />} />
                 <Route path="host-unanswered-questions" element={<HostUnansweredQuestions />} />
@@ -106,17 +103,11 @@ const App = () => (
               <Route path="/export" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
                 <Route index element={<Export />} />
               </Route>
-              <Route path="/host-agent-home" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-                <Route index element={<HostAgentHome />} />
-              </Route>
               <Route path="/host-agent-config" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
                 <Route index element={<HostAgentConfig />} />
               </Route>
               <Route path="/host-bookings" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
                 <Route index element={<HostBookings />} />
-              </Route>
-              <Route path="/host-ical-config" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-                <Route index element={<HostIcalConfig />} />
               </Route>
               <Route path="/host-unanswered-questions" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
                 <Route index element={<HostUnansweredQuestions />} />

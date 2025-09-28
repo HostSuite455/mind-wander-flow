@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/integrations/supabase/client'
+import { parseAndEnrichICS } from '@/lib/ics-parse'
 
 type Range = { start: Date; end: Date }
 type EventItem = any // tipizza se hai i tipi
@@ -167,6 +168,110 @@ export function useCalendarData(
             const allEvents = [...allBookings, ...calendarBlocks];
             setEvents(allEvents);
           }
+
+          // Fetch calendar blocks (from iCal sync)
+          const { data: blocksData, error: blocksError } = await supabase
+            .from('calendar_blocks')
+            .select('*')
+            .eq('property_id', targetPropertyId)
+            .gte('start_date', stableRange.start.toISOString().split('T')[0])
+            .lte('end_date', stableRange.end.toISOString().split('T')[0])
+
+          if (blocksError) {
+            console.error('❌ Error fetching calendar blocks:', blocksError)
+          }
+
+          if (!cancelled) {
+             // Combine bookings and blocks into events array
+             const allEvents = [
+               ...(bookingsData || []).map(booking => ({ ...booking, type: 'booking' })),
+               ...(blocksData || []).map(block => ({ ...block, type: 'block' }))
+             ]
+
+             // Also try to load iCal data if available
+             try {
+               console.log('🔍 useCalendarData: searching for iCal URLs for property:', targetPropertyId)
+               
+               const { data: icalUrls, error: icalError } = await supabase
+                 .from('ical_urls')
+                 .select(`
+                   id, url, source, is_active,
+                   ical_configs!inner(
+                     id, property_id, is_active
+                   )
+                 `)
+                 .eq('is_active', true)
+                 .eq('ical_configs.property_id', targetPropertyId)
+                 .eq('ical_configs.is_active', true)
+
+               console.log('📡 useCalendarData: iCal query result:', { icalUrls, icalError })
+
+               if (icalError) {
+                 console.warn('⚠️ Error querying iCal URLs:', icalError)
+               }
+
+               if (icalUrls && icalUrls.length > 0) {
+                 console.log('📡 useCalendarData: found iCal URLs:', icalUrls.length)
+                 
+                 for (const icalUrl of icalUrls) {
+                   try {
+                     console.log('🌐 Fetching iCal from:', icalUrl.url)
+                     // Fetch and parse iCal data
+                     const response = await fetch(icalUrl.url, { mode: 'cors' })
+                     if (response.ok) {
+                       const icalText = await response.text()
+                       const icalEvents = parseAndEnrichICS(icalText)
+                       
+                       // Convert iCal events to calendar blocks format
+                       const icalBlocks = icalEvents
+                         .filter(event => {
+                           const eventStart = new Date(event.start || '')
+                           const eventEnd = new Date(event.end || '')
+                           return eventStart >= stableRange.start && eventEnd <= stableRange.end
+                         })
+                         .map(event => ({
+                           id: `ical-${event.uid}`,
+                           property_id: targetPropertyId,
+                           start_date: event.start?.split('T')[0] || '',
+                           end_date: event.end?.split('T')[0] || '',
+                           reason: event.summary || 'iCal Block',
+                           source: `ical_${icalUrl.source}`,
+                           type: 'block',
+                           guest_name: event.guestName,
+                           channel: event.channel
+                         }))
+                       
+                       allEvents.push(...icalBlocks)
+                       console.log(`📅 useCalendarData: loaded ${icalBlocks.length} iCal events from ${icalUrl.source}`)
+                     } else {
+                       console.warn(`⚠️ Failed to fetch iCal from ${icalUrl.url}: ${response.status} ${response.statusText}`)
+                     }
+                   } catch (icalError) {
+                     console.warn(`⚠️ Failed to load iCal from ${icalUrl.url}:`, icalError)
+                   }
+                 }
+               } else {
+                 console.log('📡 useCalendarData: no iCal URLs found for property:', targetPropertyId)
+                 
+                 // Let's also check if there are any ical_configs for this property
+                 const { data: icalConfigs } = await supabase
+                   .from('ical_configs')
+                   .select('*')
+                   .eq('property_id', targetPropertyId)
+                 
+                 console.log('🔍 useCalendarData: ical_configs for property:', icalConfigs)
+               }
+             } catch (icalError) {
+               console.warn('⚠️ Error loading iCal data:', icalError)
+             }
+
+             console.log('📅 useCalendarData: loaded events:', {
+               bookings: bookingsData?.length || 0,
+               blocks: blocksData?.length || 0,
+               total: allEvents.length
+             })
+             setEvents(allEvents)
+           }
         }
 
       } catch (error) {

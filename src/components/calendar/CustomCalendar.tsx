@@ -1,5 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import { 
   format, 
   startOfMonth, 
@@ -7,51 +6,39 @@ import {
   startOfWeek, 
   endOfWeek, 
   eachDayOfInterval, 
-  addMonths, 
-  subMonths, 
   isSameMonth, 
-  isToday,
-  parseISO,
-  isWithinInterval,
-  addDays
+  isToday, 
+  parseISO, 
+  isWithinInterval, 
+  addDays,
+  addMonths,
+  subMonths
 } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { 
+  Calendar as CalendarIcon, 
   ChevronLeft, 
   ChevronRight, 
-  Calendar as CalendarIcon, 
-  Users, 
   Home,
-  Clock,
-  TrendingUp,
-  ArrowUpRight,
-  ArrowDownRight,
-  Settings,
-  MousePointer2
+  Eye,
+  EyeOff
 } from 'lucide-react';
-import '../../styles/calendar.css';
 
 // Types
 interface Property {
   id: string;
   name: string;
   address?: string;
-  user_id: string;
-  created_at: string;
-  updated_at: string;
 }
 
 interface Booking {
   id: string;
   property_id: string;
   guest_name: string;
-  guest_email: string;
   check_in: string;
   check_out: string;
   status: 'confirmed' | 'pending' | 'cancelled';
-  total_price?: number;
-  created_at: string;
-  updated_at: string;
+  total_amount?: number;
 }
 
 interface CalendarBlock {
@@ -59,163 +46,81 @@ interface CalendarBlock {
   property_id: string;
   start_date: string;
   end_date: string;
-  block_type: 'maintenance' | 'personal' | 'unavailable';
-  reason?: string;
-  created_at: string;
-  updated_at: string;
+  reason: string;
+  source: string;
+  is_active: boolean;
 }
 
-interface UpcomingEvent {
-  id: string;
-  type: 'check-in' | 'check-out';
-  date: Date;
-  guest: string;
-  property: string;
-  isToday: boolean;
-}
-
-interface RecentBooking {
-  id: string;
-  guest: string;
-  property: string;
-  dates: string;
-  amount: number;
-  status: 'confirmed' | 'pending' | 'cancelled';
-  createdAt: Date;
-  isNew: boolean;
-}
-
-interface CustomCalendarProps {
+export interface CustomCalendarProps {
   properties: Property[];
   bookings: Booking[];
   blocks: CalendarBlock[];
-  onRefresh?: () => void;
+  currentDate: Date;
+  onDateChange: (date: Date) => void;
+  selectedPropertyId?: string | null;
+  onPropertyChange: (propertyId: string | null) => void;
 }
 
-// Utility functions
-const getInitials = (name: string): string => {
-  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-};
-
-const getStatusColor = (status: string): string => {
+// Helper functions
+const getBookingColor = (status: string): string => {
   switch (status) {
-    case 'confirmed': return '#4299e1';
-    case 'pending': return '#ed8936';
-    case 'cancelled': return '#e53e3e';
-    default: return '#718096';
+    case 'confirmed': return 'bg-emerald-500';
+    case 'pending': return 'bg-amber-500';
+    case 'cancelled': return 'bg-red-500';
+    default: return 'bg-gray-500';
   }
 };
 
-const getBlockColor = (type: string): string => {
-  switch (type) {
-    case 'maintenance': return '#718096';
-    case 'personal': return '#805ad5';
-    case 'unavailable': return '#e53e3e';
-    default: return '#718096';
+const getBlockColor = (reason: string): string => {
+  switch (reason.toLowerCase()) {
+    case 'maintenance': return 'bg-gray-500';
+    case 'personal': return 'bg-purple-500';
+    case 'unavailable': return 'bg-red-500';
+    case 'blocked': return 'bg-orange-500';
+    default: return 'bg-gray-500';
   }
 };
 
 // Components
-const ViewModeToggle: React.FC<{
-  viewMode: 'single' | 'multi';
-  onViewModeChange: (mode: 'single' | 'multi') => void;
-}> = ({ viewMode, onViewModeChange }) => (
-  <div className="view-toggle">
-    <button
-      className={viewMode === 'single' ? 'active' : ''}
-      onClick={() => onViewModeChange('single')}
-    >
-      Singola
-    </button>
-    <button
-      className={viewMode === 'multi' ? 'active' : ''}
-      onClick={() => onViewModeChange('multi')}
-    >
-      Multiple
-    </button>
-  </div>
-);
-
-const PropertySelector: React.FC<{
-  properties: Property[];
-  selectedPropertyId: string | null;
-  onPropertyChange: (propertyId: string | null) => void;
-}> = ({ properties, selectedPropertyId, onPropertyChange }) => (
-  <div className="property-selector">
-    <select
-      value={selectedPropertyId || 'all'}
-      onChange={(e) => onPropertyChange(e.target.value === 'all' ? null : e.target.value)}
-      className="property-select"
-    >
-      <option value="all">Tutte le proprietà</option>
-      {properties.map(property => (
-        <option key={property.id} value={property.id}>
-          {property.name}
-        </option>
-      ))}
-    </select>
-  </div>
-);
-
-const CalendarHeader: React.FC<{
-  currentDate: Date;
-  onPrevMonth: () => void;
-  onNextMonth: () => void;
-  onToday: () => void;
-}> = ({ currentDate, onPrevMonth, onNextMonth, onToday }) => (
-  <div className="calendar-header">
-    <div className="flex items-center justify-between">
-      <div>
-        <h1 className="flex items-center gap-3">
-          <CalendarIcon className="h-8 w-8" />
-          Calendario Prenotazioni
-        </h1>
-        <p className="subtitle">
-          {format(currentDate, 'MMMM yyyy', { locale: it })}
-        </p>
-      </div>
-      <div className="flex items-center gap-2">
-        <button className="nav-button" onClick={onPrevMonth}>
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-        <button className="nav-button" onClick={onToday}>
-          Oggi
-        </button>
-        <button className="nav-button" onClick={onNextMonth}>
-          <ChevronRight className="h-4 w-4" />
-        </button>
-      </div>
-    </div>
-  </div>
-);
-
 const BookingBlock: React.FC<{
   booking: Booking;
   property?: Property;
-  onClick?: () => void;
-}> = ({ booking, property, onClick }) => (
+}> = ({ booking, property }) => (
   <div
-    className={`booking-block ${booking.status}`}
-    onClick={onClick}
-    style={{ backgroundColor: getStatusColor(booking.status) }}
+    className={`
+      text-xs p-1 rounded text-white truncate cursor-pointer
+      ${getBookingColor(booking.status)}
+      hover:opacity-80 transition-opacity
+    `}
+    title={`${booking.guest_name} - ${property?.name || 'Proprietà'} (${booking.status})`}
   >
-    <div className="booking-initials">
-      {getInitials(booking.guest_name)}
-    </div>
-    <div className="booking-name">
-      {booking.guest_name}
-    </div>
+    {booking.guest_name}
+  </div>
+);
+
+const CalendarBlock: React.FC<{
+  block: CalendarBlock;
+}> = ({ block }) => (
+  <div
+    className={`
+      text-xs p-1 rounded text-white truncate cursor-pointer
+      ${getBlockColor(block.reason)}
+      hover:opacity-80 transition-opacity
+    `}
+    title={`${block.reason} - ${block.source}`}
+  >
+    {block.reason}
   </div>
 );
 
 const CalendarCell: React.FC<{
   date: Date;
-  currentDate: Date;
   bookings: Booking[];
   blocks: CalendarBlock[];
+  currentDate: Date;
   properties: Property[];
-  onDateClick?: (date: Date) => void;
-}> = ({ date, currentDate, bookings, blocks, properties, onDateClick }) => {
+  compact?: boolean;
+}> = ({ date, bookings, blocks, currentDate, properties, compact = false }) => {
   const dayBookings = bookings.filter(booking => {
     const checkIn = parseISO(booking.check_in);
     const checkOut = parseISO(booking.check_out);
@@ -230,40 +135,143 @@ const CalendarCell: React.FC<{
 
   const isCurrentMonth = isSameMonth(date, currentDate);
   const isTodayDate = isToday(date);
+  const hasEvents = dayBookings.length > 0 || dayBlocks.length > 0;
+
+  if (compact) {
+    return (
+      <div
+        className={`
+          w-full h-full rounded-sm border transition-all duration-200
+          ${!isCurrentMonth ? 'bg-gray-100 border-gray-200' : 'bg-white border-gray-300'} 
+          ${isTodayDate ? 'bg-blue-100 border-blue-400' : ''} 
+          ${hasEvents ? 'bg-green-100 border-green-400' : ''}
+          ${dayBlocks.length > 0 ? 'bg-red-100 border-red-400' : ''}
+        `}
+        title={`${format(date, 'dd/MM/yyyy')} - ${dayBookings.length} prenotazioni, ${dayBlocks.length} blocchi`}
+      />
+    );
+  }
 
   return (
     <div
-      className={`calendar-cell ${!isCurrentMonth ? 'other-month' : ''} ${isTodayDate ? 'today' : ''}`}
-      onClick={() => onDateClick?.(date)}
+      className={`
+        relative min-h-[120px] p-2 border border-gray-200 cursor-pointer transition-all duration-200 rounded-lg
+        ${!isCurrentMonth ? 'bg-gray-50 text-gray-400' : 'bg-white hover:bg-gray-50'} 
+        ${isTodayDate ? 'bg-blue-50 border-blue-300 ring-1 ring-blue-200' : ''} 
+        ${hasEvents ? 'border-l-4 border-l-blue-500' : ''}
+      `}
     >
-      <div className="calendar-cell-date">
+      <div className={`text-sm font-medium mb-2 ${isTodayDate ? 'text-blue-600' : ''}`}>
         {format(date, 'd')}
       </div>
       
-      {dayBookings.map((booking, index) => {
-        const property = properties.find(p => p.id === booking.property_id);
-        return (
-          <BookingBlock
-            key={booking.id}
-            booking={booking}
-            property={property}
-            onClick={() => console.log('Booking clicked:', booking)}
+      <div className="space-y-1">
+        {dayBookings.slice(0, 2).map((booking) => {
+          const property = properties.find(p => p.id === booking.property_id);
+          return (
+            <BookingBlock
+              key={booking.id}
+              booking={booking}
+              property={property}
+            />
+          );
+        })}
+        
+        {dayBlocks.slice(0, 1).map((block) => (
+          <CalendarBlock
+            key={block.id}
+            block={block}
           />
-        );
-      })}
+        ))}
+      </div>
       
-      {dayBlocks.map((block, index) => (
-        <div
-          key={block.id}
-          className={`calendar-block ${block.block_type}`}
-          style={{ 
-            backgroundColor: getBlockColor(block.block_type),
-            top: `${2 + (dayBookings.length * 1.5)}rem`
-          }}
-        >
-          {block.block_type}
+      {(dayBookings.length > 2 || dayBlocks.length > 1) && (
+        <div className="absolute bottom-1 right-1 bg-gray-600 text-white text-xs px-2 py-1 rounded-full">
+          +{(dayBookings.length + dayBlocks.length) - 2}
         </div>
-      ))}
+      )}
+    </div>
+  );
+};
+
+const CalendarGrid: React.FC<{
+  weeks: Date[][];
+  bookings: Booking[];
+  blocks: CalendarBlock[];
+  currentDate: Date;
+  properties: Property[];
+}> = ({ weeks, bookings, blocks, currentDate, properties }) => {
+  const weekDays = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
+  
+  return (
+    <div className="calendar-grid">
+      {/* Header */}
+      <div className="grid grid-cols-7 gap-1 mb-2">
+        {weekDays.map(day => (
+          <div key={day} className="p-2 text-center text-sm font-medium text-gray-500 bg-gray-50 rounded">
+            {day}
+          </div>
+        ))}
+      </div>
+      
+      {/* Calendar Body */}
+      <div className="space-y-1">
+        {weeks.map((week, weekIndex) => (
+          <div key={weekIndex} className="grid grid-cols-7 gap-1">
+            {week.map(date => (
+              <CalendarCell
+                key={date.toISOString()}
+                date={date}
+                bookings={bookings}
+                blocks={blocks}
+                currentDate={currentDate}
+                properties={properties}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const SinglePropertyView: React.FC<{
+  properties: Property[];
+  bookings: Booking[];
+  blocks: CalendarBlock[];
+  weeks: Date[][];
+  currentDate: Date;
+}> = ({ properties, bookings, blocks, weeks, currentDate }) => {
+  const property = properties[0];
+  
+  if (!property) {
+    return (
+      <div className="text-center py-12">
+        <CalendarIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Nessuna proprietà selezionata</h3>
+        <p className="text-gray-500">Seleziona una proprietà per visualizzare il calendario</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border">
+      <div className="p-4 border-b bg-gray-50">
+        <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+          <Home className="w-5 h-5 mr-2 text-blue-500" />
+          {property.name}
+        </h3>
+      </div>
+      
+      <div className="p-4">
+        <CalendarGrid 
+          weeks={weeks}
+          bookings={bookings}
+          blocks={blocks}
+          currentDate={currentDate}
+          properties={[property]}
+        />
+      </div>
     </div>
   );
 };
@@ -273,67 +281,20 @@ const PropertyRow: React.FC<{
   dates: Date[];
   bookings: Booking[];
   blocks: CalendarBlock[];
-  properties: Property[];
-}> = ({ property, dates, bookings, blocks, properties }) => (
-  <>
-    <div className="property-label">
-      <div>
-        <div className="font-medium">{property.name}</div>
-        {property.address && (
-          <div className="text-xs text-gray-500 mt-1">{property.address}</div>
-        )}
-      </div>
-    </div>
-    {dates.map(date => (
-      <CalendarCell
-        key={date.toISOString()}
-        date={date}
-        currentDate={new Date()}
-        bookings={bookings.filter(b => b.property_id === property.id)}
-        blocks={blocks.filter(b => b.property_id === property.id)}
-        properties={properties}
-      />
-    ))}
-  </>
-);
-
-const SinglePropertyView: React.FC<{
   currentDate: Date;
-  bookings: Booking[];
-  blocks: CalendarBlock[];
-  properties: Property[];
-}> = ({ currentDate, bookings, blocks, properties }) => {
-  const monthStart = startOfMonth(currentDate);
-  const monthEnd = endOfMonth(currentDate);
-  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
-  const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
-
-  const weeks = [];
-  for (let i = 0; i < calendarDays.length; i += 7) {
-    weeks.push(calendarDays.slice(i, i + 7));
-  }
-
+}> = ({ property, dates, bookings, blocks, currentDate }) => {
   return (
-    <div className="calendar-grid">
-      <div className="calendar-weekdays">
-        {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(day => (
-          <div key={day} className="calendar-weekday">{day}</div>
-        ))}
-      </div>
-      
-      {weeks.map((week, weekIndex) => (
-        <div key={weekIndex} className="grid grid-cols-7">
-          {week.map(date => (
-            <CalendarCell
-              key={date.toISOString()}
-              date={date}
-              currentDate={currentDate}
-              bookings={bookings}
-              blocks={blocks}
-              properties={properties}
-            />
-          ))}
+    <div className="flex space-x-1 overflow-x-auto pb-2">
+      {dates.map(date => (
+        <div key={date.toISOString()} className="flex-shrink-0 w-8 h-8">
+          <CalendarCell
+            date={date}
+            bookings={bookings}
+            blocks={blocks}
+            currentDate={currentDate}
+            properties={[property]}
+            compact
+          />
         </div>
       ))}
     </div>
@@ -341,369 +302,312 @@ const SinglePropertyView: React.FC<{
 };
 
 const MultiPropertyView: React.FC<{
-  currentDate: Date;
   properties: Property[];
   bookings: Booking[];
   blocks: CalendarBlock[];
-}> = ({ currentDate, properties, bookings, blocks }) => {
-  const monthStart = startOfMonth(currentDate);
-  const monthEnd = endOfMonth(currentDate);
-  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
-  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
-  const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+  dates: Date[];
+  currentDate: Date;
+}> = ({ properties, bookings, blocks, dates, currentDate }) => {
+  if (properties.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <Home className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Nessuna proprietà disponibile</h3>
+        <p className="text-gray-500">Aggiungi delle proprietà per visualizzare il calendario</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="calendar-grid">
-      <div className="multi-property-grid">
-        <div className="calendar-weekday"></div>
-        {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map(day => (
-          <div key={day} className="calendar-weekday">{day}</div>
-        ))}
+    <div className="space-y-6">
+      {properties.map(property => {
+        const propertyBookings = bookings.filter(b => b.property_id === property.id);
+        const propertyBlocks = blocks.filter(b => b.property_id === property.id);
         
-        {properties.map(property => (
-          <PropertyRow
-            key={property.id}
-            property={property}
-            dates={calendarDays}
-            bookings={bookings}
-            blocks={blocks}
-            properties={properties}
-          />
-        ))}
-      </div>
+        return (
+          <div key={property.id} className="bg-white rounded-lg shadow-sm border">
+            <div className="p-4 border-b bg-gray-50">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                <Home className="w-5 h-5 mr-2 text-blue-500" />
+                {property.name}
+                <span className="ml-auto text-sm text-gray-500">
+                  {propertyBookings.length} prenotazioni
+                </span>
+              </h3>
+            </div>
+            
+            <div className="p-4">
+              <PropertyRow
+                property={property}
+                dates={dates}
+                bookings={propertyBookings}
+                blocks={propertyBlocks}
+                currentDate={currentDate}
+              />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 };
 
-const UpcomingEvents: React.FC<{ events: UpcomingEvent[] }> = ({ events }) => (
-  <div className="event-panel">
-    <div className="event-panel-header">
-      <Clock className="h-5 w-5 text-blue-600" />
-      <h3 className="event-panel-title">Prossimi Eventi</h3>
-    </div>
-    
-    <div className="event-list">
-      {events.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-title">Nessun evento</div>
-          <div className="empty-state-description">
-            Non ci sono eventi nei prossimi 7 giorni
-          </div>
-        </div>
-      ) : (
-        events.map(event => (
-          <div key={event.id} className="event-item">
-            <div className={`event-icon ${event.type}`}>
-              {event.type === 'check-in' ? (
-                <ArrowDownRight className="h-4 w-4" />
-              ) : (
-                <ArrowUpRight className="h-4 w-4" />
-              )}
-            </div>
-            <div className="event-content">
-              <div className="event-title">
-                {event.guest}
-                <span className={`event-badge ${event.isToday ? 'today' : 'normal'}`}>
-                  {event.isToday ? 'Oggi' : format(event.date, 'dd/MM', { locale: it })}
-                </span>
-              </div>
-              <div className="event-subtitle">{event.property}</div>
-            </div>
-          </div>
-        ))
-      )}
-    </div>
-  </div>
-);
-
-const RecentBookings: React.FC<{ bookings: RecentBooking[] }> = ({ bookings }) => (
-  <div className="event-panel">
-    <div className="event-panel-header">
-      <TrendingUp className="h-5 w-5 text-green-600" />
-      <h3 className="event-panel-title">Prenotazioni Recenti</h3>
-    </div>
-    
-    <div className="event-list">
-      {bookings.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-title">Nessuna prenotazione</div>
-          <div className="empty-state-description">
-            Non ci sono prenotazioni recenti
-          </div>
-        </div>
-      ) : (
-        bookings.map(booking => (
-          <div key={booking.id} className="booking-item">
-            <div className="booking-avatar">
-              {getInitials(booking.guest)}
-            </div>
-            <div className="booking-details">
-              <div className="booking-guest">
-                {booking.guest}
-                {booking.isNew && (
-                  <span className="status-badge new-booking-badge">Nuovo</span>
-                )}
-              </div>
-              <div className="booking-property">{booking.property}</div>
-              <div className="booking-dates">{booking.dates}</div>
-            </div>
-            <div className="booking-price">
-              <div className="booking-amount">€{booking.amount}</div>
-              <div className={`status-badge ${booking.status}`}>
-                {booking.status === 'confirmed' ? 'Confermata' : 
-                 booking.status === 'pending' ? 'In attesa' : 'Annullata'}
-              </div>
-            </div>
-          </div>
-        ))
-      )}
-    </div>
-  </div>
-);
-
-// Empty state component for when no property is selected or no events exist
-const CalendarEmptyState: React.FC<{ 
-  selectedPropertyId: string | null; 
-  properties: Property[];
-  hasEvents: boolean;
-}> = ({ selectedPropertyId, properties, hasEvents }) => {
-  if (!selectedPropertyId && properties.length > 0) {
-    return (
-      <div className="empty-state-panel">
-        <div className="empty-state-content">
-          <CalendarIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Seleziona una proprietà</h3>
-          <p className="text-gray-600 mb-4">
-            Scegli una proprietà dal menu a tendina per visualizzare il calendario delle prenotazioni.
-          </p>
-        </div>
-      </div>
-    );
+// Funzione di validazione globale per le date
+const validateDate = (dateValue: any, defaultValue: string = 'Data non valida'): string => {
+  if (!dateValue || isNaN(dateValue.getTime())) {
+    console.warn('Invalid date detected:', dateValue);
+    return defaultValue;
   }
-
-  if (selectedPropertyId && !hasEvents) {
-    const selectedProperty = properties.find(p => p.id === selectedPropertyId);
-    return (
-      <div className="empty-state-panel">
-        <div className="empty-state-content">
-          <MousePointer2 className="h-16 w-16 text-blue-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Inizia a gestire il calendario</h3>
-          <p className="text-gray-600 mb-4">
-            Seleziona un intervallo sul calendario trascinando il mouse per creare un blocco manuale.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link
-              to={`/dashboard/channels${selectedPropertyId ? `?propertyId=${selectedPropertyId}` : ''}`}
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Gestisci canali ICS
-            </Link>
-          </div>
-          {selectedProperty && (
-            <p className="text-sm text-gray-500 mt-4">
-              Proprietà selezionata: <strong>{selectedProperty.name}</strong>
-            </p>
-          )}
-        </div>
-      </div>
-    );
-  }
-
-  return null;
+  return format(dateValue, 'MMMM yyyy', { locale: it });
 };
 
-// Main Component
-const CustomCalendar: React.FC<CustomCalendarProps> = ({ 
-  properties, 
-  bookings, 
-  blocks, 
-  onRefresh 
+const PropertySelector: React.FC<{
+  properties: Property[];
+  selectedPropertyId: string | null;
+  onPropertyChange: (propertyId: string | null) => void;
+}> = ({ properties, selectedPropertyId, onPropertyChange }) => {
+  return (
+    <div className="flex items-center space-x-2">
+      <label className="text-sm font-medium text-blue-100">Proprietà:</label>
+      <select
+        value={selectedPropertyId || ''}
+        onChange={(e) => onPropertyChange(e.target.value || null)}
+        className="px-3 py-1 bg-blue-800 text-white border border-blue-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+      >
+        <option value="">Tutte le proprietà</option>
+        {properties.map(property => (
+          <option key={property.id} value={property.id}>
+            {property.name}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+};
+
+const ViewModeToggle: React.FC<{
+  viewMode: 'single' | 'multi';
+  onViewModeChange: (mode: 'single' | 'multi') => void;
+}> = ({ viewMode, onViewModeChange }) => {
+  return (
+    <div className="flex items-center bg-blue-800 rounded-lg p-1">
+      <button
+        onClick={() => onViewModeChange('single')}
+        className={`px-3 py-1 text-sm rounded-md transition-colors ${
+          viewMode === 'single' 
+            ? 'bg-white text-blue-600 font-medium' 
+            : 'text-blue-100 hover:text-white'
+        }`}
+      >
+        Singola
+      </button>
+      <button
+        onClick={() => onViewModeChange('multi')}
+        className={`px-3 py-1 text-sm rounded-md transition-colors ${
+          viewMode === 'multi' 
+            ? 'bg-white text-blue-600 font-medium' 
+            : 'text-blue-100 hover:text-white'
+        }`}
+      >
+        Multiple
+      </button>
+    </div>
+  );
+};
+
+const MonthNavigation: React.FC<{
+  currentDate: Date;
+  onDateChange: (date: Date) => void;
+}> = ({ currentDate, onDateChange }) => {
+  // Debug per MonthNavigation
+  console.log('MonthNavigation - currentDate:', currentDate);
+  console.log('Type of currentDate:', typeof currentDate);
+  console.log('Is valid date?', currentDate instanceof Date && !isNaN(currentDate.getTime()));
+
+  // Aggiungi validazione all'inizio del componente
+  if (!currentDate || isNaN(currentDate.getTime())) {
+    console.error('MonthNavigation: Invalid currentDate:', currentDate);
+    return (
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-lg font-semibold text-white">Caricamento...</span>
+      </div>
+    );
+  }
+
+  const handlePrevMonth = () => {
+    onDateChange(subMonths(currentDate, 1));
+  };
+
+  const handleNextMonth = () => {
+    onDateChange(addMonths(currentDate, 1));
+  };
+
+  const handleToday = () => {
+    onDateChange(new Date());
+  };
+
+  // Validazione aggiuntiva per il formato della data usando la funzione globale
+  const monthYearText = validateDate(currentDate, 'Seleziona data');
+
+  return (
+    <div className="flex items-center space-x-4">
+      <button
+        onClick={handlePrevMonth}
+        className="p-2 text-white hover:bg-blue-800 rounded-lg transition-colors"
+      >
+        <ChevronLeft className="w-5 h-5" />
+      </button>
+      
+      <div className="flex items-center space-x-2">
+        <h2 className="text-xl font-semibold text-white">
+          {monthYearText}
+        </h2>
+        <button
+          onClick={handleToday}
+          className="px-3 py-1 text-xs bg-blue-800 text-white rounded-full hover:bg-blue-900 transition-colors"
+        >
+          Oggi
+        </button>
+      </div>
+      
+      <button
+        onClick={handleNextMonth}
+        className="p-2 text-white hover:bg-blue-800 rounded-lg transition-colors"
+      >
+        <ChevronRight className="w-5 h-5" />
+      </button>
+    </div>
+  );
+};
+
+// Main CustomCalendar Component
+const CustomCalendar: React.FC<CustomCalendarProps> = ({
+  properties,
+  bookings,
+  blocks,
+  currentDate,
+  onDateChange,
+  selectedPropertyId,
+  onPropertyChange
 }) => {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<'single' | 'multi'>('multi');
-  const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'single' | 'multi'>('single');
   
-  // Querystring support
-  const [searchParams] = useSearchParams();
-  const qsProp = searchParams.get("propertyId") || null;
+  // Inizializza currentMonth con new Date() se non definito
+  const [currentMonth, setCurrentMonth] = useState<Date>(currentDate || new Date());
   
-  // Set property from querystring
+  // Debug per CustomCalendar
   useEffect(() => {
-    if (qsProp) {
-      setSelectedPropertyId(qsProp);
-    }
-  }, [qsProp]);
-  
-  // Automatic fallback to first property
+    console.log('=== CustomCalendar Debug ===');
+    console.log('currentMonth:', currentMonth);
+    console.log('currentMonth is Date?', currentMonth instanceof Date);
+    console.log('currentMonth is valid?', currentMonth && !isNaN(currentMonth.getTime()));
+    console.log('currentDate prop:', currentDate);
+    console.log('properties:', properties);
+    console.log('bookings:', bookings);
+    console.log('blocks:', blocks);
+    console.log('========================');
+  }, [currentMonth, currentDate, properties, bookings, blocks]);
+
+  // Aggiorna currentMonth quando currentDate cambia
   useEffect(() => {
-    if (!selectedPropertyId && properties.length > 0) {
-      setSelectedPropertyId(properties[0].id);
+    if (currentDate && !isNaN(currentDate.getTime())) {
+      setCurrentMonth(currentDate);
     }
-  }, [properties, selectedPropertyId]);
-
-  const filteredBookings = useMemo(() => {
-    if (selectedPropertyId && selectedPropertyId !== 'all') {
-      return bookings.filter(booking => booking.property_id === selectedPropertyId);
-    }
-    return bookings;
-  }, [bookings, selectedPropertyId]);
-
-  const filteredBlocks = useMemo(() => {
-    if (selectedPropertyId === 'all') return blocks;
-    return blocks.filter(block => block.property_id === selectedPropertyId);
-  }, [blocks, selectedPropertyId]);
-
-  const upcomingEvents = useMemo((): UpcomingEvent[] => {
-    const today = new Date();
-    const nextWeek = addDays(today, 7);
-    const events: UpcomingEvent[] = [];
-
-    filteredBookings.forEach(booking => {
-      const checkIn = parseISO(booking.check_in);
-      const checkOut = parseISO(booking.check_out);
-      const property = properties.find(p => p.id === booking.property_id);
-
-      if (isWithinInterval(checkIn, { start: today, end: nextWeek })) {
-        events.push({
-          id: `checkin-${booking.id}`,
-          type: 'check-in',
-          date: checkIn,
-          guest: booking.guest_name,
-          property: property?.name || 'Proprietà sconosciuta',
-          isToday: isToday(checkIn)
-        });
-      }
-
-      if (isWithinInterval(checkOut, { start: today, end: nextWeek })) {
-        events.push({
-          id: `checkout-${booking.id}`,
-          type: 'check-out',
-          date: checkOut,
-          guest: booking.guest_name,
-          property: property?.name || 'Proprietà sconosciuta',
-          isToday: isToday(checkOut)
-        });
-      }
-    });
-
-    return events.sort((a, b) => a.date.getTime() - b.date.getTime());
-  }, [filteredBookings, properties]);
-
-  const recentBookings = useMemo((): RecentBooking[] => {
-    const thirtyDaysAgo = addDays(new Date(), -30);
-    
-    return filteredBookings
-      .filter(booking => {
-        const createdAt = parseISO(booking.created_at);
-        return createdAt >= thirtyDaysAgo;
-      })
-      .map(booking => {
-        const property = properties.find(p => p.id === booking.property_id);
-        const createdAt = parseISO(booking.created_at);
-        const checkIn = parseISO(booking.check_in);
-        const checkOut = parseISO(booking.check_out);
-        
-        return {
-          id: booking.id,
-          guest: booking.guest_name,
-          property: property?.name || 'Proprietà sconosciuta',
-          dates: `${format(checkIn, 'dd/MM', { locale: it })} - ${format(checkOut, 'dd/MM', { locale: it })}`,
-          amount: booking.total_price || 0,
-          status: booking.status,
-          createdAt,
-          isNew: addDays(createdAt, 3) >= new Date()
-        };
-      })
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .slice(0, 10);
-  }, [filteredBookings, properties]);
-
-  const handlePrevMonth = useCallback(() => {
-    setCurrentDate(prev => subMonths(prev, 1));
-  }, []);
-
-  const handleNextMonth = useCallback(() => {
-    setCurrentDate(prev => addMonths(prev, 1));
-  }, []);
-
-  const handleToday = useCallback(() => {
-    setCurrentDate(new Date());
-  }, []);
-
-  // Check if there are events in the current view
-  const hasEvents = useMemo(() => {
-    if (viewMode === 'single' && selectedPropertyId) {
-      return filteredBookings.length > 0 || filteredBlocks.length > 0;
-    }
-    return bookings.length > 0 || blocks.length > 0;
-  }, [viewMode, selectedPropertyId, filteredBookings, filteredBlocks, bookings, blocks]);
+  }, [currentDate]);
 
   return (
     <div className="calendar-container">
-      <CalendarHeader
-        currentDate={currentDate}
-        onPrevMonth={handlePrevMonth}
-        onNextMonth={handleNextMonth}
-        onToday={handleToday}
-      />
-      
-      <div className="calendar-nav">
-        <ViewModeToggle
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
-        />
-        
-        {viewMode === 'single' && (
-          <PropertySelector
-          properties={properties}
-          selectedPropertyId={selectedPropertyId || 'all'}
-          onPropertyChange={setSelectedPropertyId}
-        />
-        )}
-        
-        <div className="flex items-center gap-4 ml-auto">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Home className="h-4 w-4" />
-            {properties.length} proprietà
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-t-lg p-6 text-white">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-4">
+            <CalendarIcon className="w-8 h-8" />
+            <h1 className="text-2xl font-bold">Calendario Prenotazioni</h1>
           </div>
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Users className="h-4 w-4" />
-            {filteredBookings.length} prenotazioni
+          
+          <div className="flex items-center space-x-4">
+            <PropertySelector
+              properties={properties}
+              selectedPropertyId={selectedPropertyId}
+              onPropertyChange={onPropertyChange}
+            />
+            <ViewModeToggle
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
+            />
           </div>
         </div>
+        
+        <MonthNavigation
+          currentDate={currentMonth}
+          onDateChange={(date) => {
+            setCurrentMonth(date);
+            onDateChange(date);
+          }}
+        />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 p-6">
-        <div className="lg:col-span-3">
-          {/* Show empty state if no property selected in single mode or no events */}
-          {(viewMode === 'single' && !selectedPropertyId) || 
-           (viewMode === 'single' && selectedPropertyId && !hasEvents) ? (
-            <CalendarEmptyState
-              selectedPropertyId={selectedPropertyId}
-              properties={properties}
-              hasEvents={hasEvents}
-            />
-          ) : viewMode === 'single' && selectedPropertyId ? (
+      {/* Calendar Body */}
+      <div className="bg-white rounded-b-lg p-6">
+        {(() => {
+          // Filter properties based on selection
+          const filteredProperties = selectedPropertyId 
+            ? properties.filter(p => p.id === selectedPropertyId)
+            : properties;
+
+          // Generate calendar data usando currentMonth validato
+          const validCurrentMonth = currentMonth && !isNaN(currentMonth.getTime()) ? currentMonth : new Date();
+          const monthStart = startOfMonth(validCurrentMonth);
+          const monthEnd = endOfMonth(validCurrentMonth);
+          const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
+          const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+          const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+          
+          const weeks = [];
+          for (let i = 0; i < calendarDays.length; i += 7) {
+            weeks.push(calendarDays.slice(i, i + 7));
+          }
+
+          return viewMode === 'single' ? (
             <SinglePropertyView
-              currentDate={currentDate}
-              bookings={filteredBookings}
+              properties={filteredProperties}
+              bookings={bookings}
               blocks={blocks}
-              properties={properties}
+              weeks={weeks}
+              currentDate={validCurrentMonth}
             />
           ) : (
             <MultiPropertyView
-              currentDate={currentDate}
-              properties={properties}
-              bookings={filteredBookings}
-              blocks={filteredBlocks}
+              properties={filteredProperties}
+              bookings={bookings}
+              blocks={blocks}
+              dates={calendarDays}
+              currentDate={validCurrentMonth}
             />
-          )}
-        </div>
-        
-        <div className="space-y-6">
-          <UpcomingEvents events={upcomingEvents} />
-          <RecentBookings bookings={recentBookings} />
+          );
+        })()}
+      </div>
+
+      {/* Legend */}
+      <div className="mt-6 bg-gray-50 rounded-lg p-4">
+        <h3 className="text-sm font-medium text-gray-900 mb-3">Legenda</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-4 bg-green-500 rounded"></div>
+            <span>Prenotazione confermata</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-4 bg-yellow-500 rounded"></div>
+            <span>Prenotazione in attesa</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-4 bg-red-500 rounded"></div>
+            <span>Non disponibile</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-4 bg-purple-500 rounded"></div>
+            <span>Uso personale</span>
+          </div>
         </div>
       </div>
     </div>
