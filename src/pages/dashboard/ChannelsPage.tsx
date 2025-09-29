@@ -572,14 +572,6 @@ export default function ChannelsPage() {
                 Gestisci le configurazioni iCal per importare prenotazioni da fonti esterne
               </CardDescription>
             </div>
-            <Button 
-              onClick={handleCreateConfig}
-              disabled={selectedPropertyId === 'all'}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Nuova Configurazione
-            </Button>
           </div>
         </CardHeader>
         <CardContent>

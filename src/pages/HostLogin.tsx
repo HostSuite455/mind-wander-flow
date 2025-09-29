@@ -81,7 +81,7 @@ const HostLogin = () => {
 
         if (data.user) {
           toast.success("Accesso effettuato con successo!");
-          navigate("/calendario");
+          navigate("/dashboard");
         }
       }
     } catch (error) {
