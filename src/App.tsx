@@ -36,6 +36,9 @@ import HostAgentConfig from "./pages/host-agent-config";
 import HostBookings from "./pages/host-bookings";
 import HostIcalConfig from "./pages/host-ical-config";
 import HostUnansweredQuestions from "./pages/host-unanswered-questions";
+import PuliziePage from "./pages/PuliziePage";
+import CleanerTasksPage from "./pages/CleanerTasksPage";
+import CleanerGuard from "./components/cleaning/CleanerGuard";
 import NotFound from "./pages/NotFound";
 import AppErrorBoundary from "./components/AppErrorBoundary";
 
@@ -80,6 +83,7 @@ const App = () => (
                 <Route path="host-agent-config" element={<HostAgentConfig />} />
                 <Route path="host-bookings" element={<HostBookings />} />
                 <Route path="host-unanswered-questions" element={<HostUnansweredQuestions />} />
+                <Route path="pulizie" element={<PuliziePage />} />
                 <Route path="admin-users" element={<AdminUsers />} />
               </Route>
               
@@ -125,6 +129,12 @@ const App = () => (
               {/* Protected Guest Routes */}
               <Route path="/guest-dashboard" element={<GuestGuard><GuestDashboard /></GuestGuard>} />
               <Route path="/welcome-booklet" element={<WelcomeBooklet />} />
+
+              {/* Cleaner Portal Route */}
+              <Route path="/cleaner" element={<CleanerGuard><CleanerTasksPage /></CleanerGuard>} />
+              
+              {/* Additional Cleaning Routes */}
+              <Route path="/pulizie" element={<ProtectedRoute><PuliziePage /></ProtectedRoute>} />
               
               {/* Admin Routes */}
               <Route path="/admin-users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />

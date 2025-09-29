@@ -245,6 +245,97 @@ export type Database = {
         }
         Relationships: []
       }
+      cleaners: {
+        Row: {
+          email: string | null
+          id: string
+          name: string
+          owner_id: string
+          phone: string | null
+          user_id: string | null
+        }
+        Insert: {
+          email?: string | null
+          id?: string
+          name: string
+          owner_id: string
+          phone?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          email?: string | null
+          id?: string
+          name?: string
+          owner_id?: string
+          phone?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      cleaning_tasks: {
+        Row: {
+          assigned_cleaner_id: string | null
+          created_at: string | null
+          duration_min: number
+          id: string
+          notes: string | null
+          property_id: string
+          reservation_id: string | null
+          scheduled_end: string
+          scheduled_start: string
+          status: string
+          type: string
+        }
+        Insert: {
+          assigned_cleaner_id?: string | null
+          created_at?: string | null
+          duration_min?: number
+          id?: string
+          notes?: string | null
+          property_id: string
+          reservation_id?: string | null
+          scheduled_end: string
+          scheduled_start: string
+          status?: string
+          type: string
+        }
+        Update: {
+          assigned_cleaner_id?: string | null
+          created_at?: string | null
+          duration_min?: number
+          id?: string
+          notes?: string | null
+          property_id?: string
+          reservation_id?: string | null
+          scheduled_end?: string
+          scheduled_start?: string
+          status?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cleaning_tasks_assigned_cleaner_id_fkey"
+            columns: ["assigned_cleaner_id"]
+            isOneToOne: false
+            referencedRelation: "cleaners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cleaning_tasks_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cleaning_tasks_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "reservations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       guest_codes: {
         Row: {
           check_in: string
@@ -338,6 +429,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "ical_configs_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ical_sources: {
+        Row: {
+          active: boolean
+          channel: string
+          created_at: string | null
+          id: string
+          last_error: string | null
+          last_status: string | null
+          last_sync_at: string | null
+          property_id: string
+          url: string
+        }
+        Insert: {
+          active?: boolean
+          channel: string
+          created_at?: string | null
+          id?: string
+          last_error?: string | null
+          last_status?: string | null
+          last_sync_at?: string | null
+          property_id: string
+          url: string
+        }
+        Update: {
+          active?: boolean
+          channel?: string
+          created_at?: string | null
+          id?: string
+          last_error?: string | null
+          last_status?: string | null
+          last_sync_at?: string | null
+          property_id?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ical_sources_property_id_fkey"
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"

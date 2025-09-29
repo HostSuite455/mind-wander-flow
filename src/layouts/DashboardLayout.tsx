@@ -1,7 +1,7 @@
 import { Outlet, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, X, LayoutDashboard, Settings, Calendar, RefreshCw, Download, Building, LogOut, User, Bot, MessageSquare, BookOpen, Users } from "lucide-react";
+import { Menu, X, LayoutDashboard, Settings, Calendar, RefreshCw, Download, Building, LogOut, User, Bot, MessageSquare, BookOpen, Users, Sparkles } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -23,6 +23,7 @@ const DashboardLayout = () => {
     { path: "/dashboard/properties", label: "Proprietà", icon: Building },
     { path: "/dashboard/calendar-pro", label: "Calendario", icon: Calendar },
     { path: "/dashboard/channels", label: "Portali di prenotazione", icon: RefreshCw },
+    { path: "/dashboard/pulizie", label: "Pulizie", icon: Sparkles },
     { path: "/dashboard/export", label: "Export", icon: Download },
     { path: "/dashboard/host-agent-home", label: "iAgent Home", icon: Bot },
     { path: "/dashboard/host-agent-config", label: "Config Agent", icon: Settings },
