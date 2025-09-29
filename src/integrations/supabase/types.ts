@@ -358,7 +358,10 @@ export type Database = {
       }
       cleaning_tasks: {
         Row: {
+          actual_end: string | null
+          actual_start: string | null
           assigned_cleaner_id: string | null
+          billable_min: number | null
           created_at: string | null
           duration_min: number
           id: string
@@ -371,7 +374,10 @@ export type Database = {
           type: string
         }
         Insert: {
+          actual_end?: string | null
+          actual_start?: string | null
           assigned_cleaner_id?: string | null
+          billable_min?: number | null
           created_at?: string | null
           duration_min?: number
           id?: string
@@ -384,7 +390,10 @@ export type Database = {
           type: string
         }
         Update: {
+          actual_end?: string | null
+          actual_start?: string | null
           assigned_cleaner_id?: string | null
+          billable_min?: number | null
           created_at?: string | null
           duration_min?: number
           id?: string
@@ -882,6 +891,7 @@ export type Database = {
           country: string | null
           created_at: string | null
           currency: string | null
+          default_turnover_duration_min: number
           guests: number | null
           host_id: string
           ical_url: string | null
@@ -912,6 +922,7 @@ export type Database = {
           country?: string | null
           created_at?: string | null
           currency?: string | null
+          default_turnover_duration_min?: number
           guests?: number | null
           host_id: string
           ical_url?: string | null
@@ -942,6 +953,7 @@ export type Database = {
           country?: string | null
           created_at?: string | null
           currency?: string | null
+          default_turnover_duration_min?: number
           guests?: number | null
           host_id?: string
           ical_url?: string | null

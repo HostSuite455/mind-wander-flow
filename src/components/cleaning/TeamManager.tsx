@@ -126,14 +126,14 @@ export default function TeamManager({ propertyId }: TeamManagerProps) {
     }
   };
 
-  const setRate = async (cleanerId: string, amountCents: number) => {
+  const setRate = async (cleanerId: string, rateType: 'per_task' | 'per_hour', amountCents: number) => {
     try {
       const { error } = await supabase
         .from('cleaner_rates')
         .upsert({
           cleaner_id: cleanerId,
           property_id: propertyId,
-          rate_type: 'per_task',
+          rate_type: rateType,
           amount_cents: amountCents
         }, {
           onConflict: 'cleaner_id,property_id'
@@ -250,18 +250,32 @@ export default function TeamManager({ propertyId }: TeamManagerProps) {
                     <div className="font-medium">{assignment.cleaners?.name}</div>
                     <div className="text-sm text-muted-foreground">
                       Peso: {assignment.weight} • 
-                      Tariffa: €{rate ? (rate.amount_cents / 100).toFixed(2) : '30.00'} per task
+                      Tariffa: €{rate ? (rate.amount_cents / 100).toFixed(2) : '30.00'} {rate?.rate_type === 'per_hour' ? 'per ora' : 'per task'}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    <select 
+                      className="border border-border rounded px-2 py-1 bg-background text-sm"
+                      defaultValue={rate?.rate_type || 'per_task'}
+                      onChange={(e) => {
+                        const rateType = e.target.value as 'per_task' | 'per_hour';
+                        const amount = rate?.amount_cents || 3000;
+                        setRate(assignment.cleaner_id, rateType, amount);
+                      }}
+                    >
+                      <option value="per_task">Per Task</option>
+                      <option value="per_hour">Per Ora</option>
+                    </select>
                     <Input
                       type="number"
                       placeholder="30.00"
                       className="w-24"
+                      defaultValue={rate ? (rate.amount_cents / 100).toFixed(2) : '30.00'}
                       onBlur={(e) => {
                         const value = parseFloat(e.target.value);
                         if (value > 0) {
-                          setRate(assignment.cleaner_id, Math.round(value * 100));
+                          const rateType = rate?.rate_type || 'per_task';
+                          setRate(assignment.cleaner_id, rateType, Math.round(value * 100));
                         }
                       }}
                     />

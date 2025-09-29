@@ -31,7 +31,7 @@ export default function CleanerGuard({ children }: { children: JSX.Element }) {
     )
   }
   
-  if (!ok) return <Navigate to="/login" replace />
+  if (!ok) return <Navigate to="/cleaner-login" replace />
   
   return children
 }

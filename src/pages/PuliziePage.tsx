@@ -84,14 +84,13 @@ export default function PuliziePage(){
     setSyncing(true)
     
     try {
-      const response = await supabase.functions.invoke('ical-sync-fetch', {
-        body: { property_id: propId }
+      const { data, error } = await supabase.functions.invoke('ical-sync-fetch', { 
+        body: { property_id: propId } 
       })
-      
-      if (response.error) throw response.error
+      if (error || !data?.ok) throw new Error(data?.error || error?.message || 'sync failed')
       
       // Refetch tasks after sync
-      const { data } = await supabase
+      const { data: tasksData } = await supabase
         .from('cleaning_tasks')
         .select(`
           *, 
@@ -103,15 +102,24 @@ export default function PuliziePage(){
         .gte('scheduled_start', from.toISOString())
         .lt('scheduled_start', to.toISOString())
         .order('scheduled_start')
-      setTasks(data??[])
+      setTasks(tasksData??[])
       
       toast.success('Sincronizzazione completata')
-    } catch (error) {
-      toast.error('Errore durante la sincronizzazione')
-      console.error(error)
+    } catch (e: any) {
+      console.error(e)
+      toast.error(`Errore durante la sincronizzazione: ${e.message || e}`)
     } finally {
       setSyncing(false)
     }
+  }
+
+  async function debugParse(){
+    if(!propId) return
+    const { data } = await supabase.functions.invoke('ical-sync-fetch', { 
+      body: { property_id: propId, debug: true } 
+    })
+    console.log('ICAL DEBUG', data)
+    alert(`Parsed: ${JSON.stringify(data?.debug, null, 2).slice(0,1200)}...`)
   }
 
   async function updateStatus(id:string, status:'todo'|'in_progress'|'done'|'blocked'){
@@ -127,6 +135,23 @@ export default function PuliziePage(){
       toast.success('Stato aggiornato')
     } catch (error) {
       toast.error('Errore nell\'aggiornamento dello stato')
+      console.error(error)
+    }
+  }
+
+  async function updateBillableMinutes(id: string, billableMin: number) {
+    try {
+      const { error } = await supabase
+        .from('cleaning_tasks')
+        .update({ billable_min: billableMin })
+        .eq('id', id)
+      
+      if (error) throw error
+      
+      setTasks(t=>t.map(x=>x.id===id?{...x,billable_min:billableMin}:x))
+      toast.success('Minuti fatturabili aggiornati')
+    } catch (error) {
+      toast.error('Errore nell\'aggiornamento dei minuti fatturabili')
       console.error(error)
     }
   }
@@ -177,7 +202,7 @@ export default function PuliziePage(){
                             {new Date(t.scheduled_start).toLocaleString()}
                           </div>
                           <div className="text-sm text-muted-foreground">
-                            {t.properties?.nome ?? t.property_id} • {t.type}
+                            {t.properties?.nome ?? t.property_id} • {t.type} • {t.duration_min}min
                           </div>
                           {t.reservations?.guest_name && (
                             <div className="text-sm">
@@ -189,6 +214,21 @@ export default function PuliziePage(){
                               Assegnato a: {t.cleaners.name}
                             </div>
                           )}
+                          <div className="flex items-center gap-2 text-sm">
+                            <span>Minuti fatturabili:</span>
+                            <input
+                              type="number"
+                              className="border border-border rounded px-2 py-1 w-20 bg-background"
+                              value={t.billable_min || t.duration_min}
+                              onChange={(e) => {
+                                const value = parseInt(e.target.value);
+                                if (value > 0) {
+                                  updateBillableMinutes(t.id, value);
+                                }
+                              }}
+                              disabled={t.status === 'done'}
+                            />
+                          </div>
                         </div>
                         <div className="flex flex-col gap-2 items-end">
                           {getStatusBadge(t.status)}
@@ -228,13 +268,22 @@ export default function PuliziePage(){
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle>Sorgenti iCal</CardTitle>
-                <Button 
-                  onClick={syncNow} 
-                  disabled={syncing}
-                  variant="outline"
-                >
-                  {syncing ? 'Sincronizzando...' : 'Sincronizza ora'}
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={syncNow} 
+                    disabled={syncing}
+                    variant="outline"
+                  >
+                    {syncing ? 'Sincronizzando...' : 'Sincronizza ora'}
+                  </Button>
+                  <Button 
+                    onClick={debugParse}
+                    variant="outline"
+                    size="sm"
+                  >
+                    Debug parse
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-3">
