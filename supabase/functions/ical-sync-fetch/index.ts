@@ -54,6 +54,14 @@ serve(async (req) => {
     const propertyId = url.searchParams.get("property_id");
     const all = url.searchParams.get("all") === "true";
 
+    // Input validation
+    if (propertyId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(propertyId)) {
+      return new Response(JSON.stringify({ ok: false, error: "Invalid property_id format" }), { 
+        status: 400, 
+        headers: { ...corsHeaders, 'content-type': 'application/json' }
+      });
+    }
+
     let propertyIds: string[] = [];
     if (all) {
       const { data: props, error } = await supabase.from("properties").select("id");
@@ -63,7 +71,7 @@ serve(async (req) => {
       propertyIds = [propertyId];
     } else {
       return new Response(JSON.stringify({ ok: false, error: "missing property_id or all=true" }), { 
-        status: 400,
+        status: 400, 
         headers: { ...corsHeaders, "content-type": "application/json" }
       });
     }
@@ -82,7 +90,28 @@ serve(async (req) => {
       console.log(`Syncing iCal from ${s.url} for property ${s.property_id}`);
       
       try {
-        const res = await fetch(s.url);
+        // Validate URL to prevent SSRF attacks
+        const sourceUrl = new URL(s.url);
+        if (!['http:', 'https:'].includes(sourceUrl.protocol)) {
+          console.error(`Invalid protocol for source ${s.id}: ${sourceUrl.protocol}`);
+          continue;
+        }
+        if (['localhost', '127.0.0.1', '0.0.0.0'].includes(sourceUrl.hostname)) {
+          console.error(`Blocked internal URL for source ${s.id}: ${sourceUrl.hostname}`);
+          continue;
+        }
+
+        const res = await fetch(s.url, {
+          headers: {
+            'User-Agent': 'Hostsuite-iCal-Sync/1.0'
+          }
+        });
+        
+        if (!res.ok) {
+          console.error(`Failed to fetch iCal for source ${s.id}: ${res.status}`);
+          continue;
+        }
+        
         const ics = await res.text();
         const evs = parseICS(ics);
 

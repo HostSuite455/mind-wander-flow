@@ -707,6 +707,39 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          created_at: string | null
+          first_name: string | null
+          id: string
+          is_active: boolean | null
+          last_name: string | null
+          phone: string | null
+          role: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          first_name?: string | null
+          id: string
+          is_active?: boolean | null
+          last_name?: string | null
+          phone?: string | null
+          role?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          first_name?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_name?: string | null
+          phone?: string | null
+          role?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       properties: {
         Row: {
           address: string | null
@@ -798,15 +831,7 @@ export type Database = {
           updated_at?: string | null
           whatsapp_link?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "properties_host_id_fkey"
-            columns: ["host_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       property_ai_data: {
         Row: {
@@ -1058,45 +1083,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      users: {
-        Row: {
-          created_at: string | null
-          email: string | null
-          first_name: string | null
-          id: string
-          is_active: boolean | null
-          last_name: string | null
-          password: string | null
-          phone: string | null
-          role: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          email?: string | null
-          first_name?: string | null
-          id: string
-          is_active?: boolean | null
-          last_name?: string | null
-          password?: string | null
-          phone?: string | null
-          role?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          email?: string | null
-          first_name?: string | null
-          id?: string
-          is_active?: boolean | null
-          last_name?: string | null
-          password?: string | null
-          phone?: string | null
-          role?: string | null
-          updated_at?: string | null
-        }
-        Relationships: []
       }
     }
     Views: {

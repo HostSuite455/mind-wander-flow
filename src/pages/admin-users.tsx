@@ -48,7 +48,8 @@ const AdminUsers = () => {
       setIsLoading(true);
       setError(null);
 
-      const { data, error } = await supaSelect('auth.users', '*');
+      // Use profiles table instead of auth.users for security
+      const { data, error } = await supaSelect('profiles', '*');
 
       if (error) {
         console.error('Error loading users:', error);
