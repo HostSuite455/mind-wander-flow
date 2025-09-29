@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import PropertyPicker from '@/components/cleaning/PropertyPicker'
+import TeamManager from '@/components/cleaning/TeamManager'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
 
 export default function PuliziePage(){
@@ -30,7 +32,7 @@ export default function PuliziePage(){
       .from('cleaning_tasks')
       .select(`
         *, 
-        reservations(guest_count,check_in,check_out,guest_name), 
+        reservations(guest_name,start_date,end_date), 
         properties(nome),
         cleaners(name)
       `)
@@ -93,7 +95,7 @@ export default function PuliziePage(){
         .from('cleaning_tasks')
         .select(`
           *, 
-          reservations(guest_count,check_in,check_out,guest_name), 
+          reservations(guest_name,start_date,end_date), 
           properties(nome),
           cleaners(name)
         `)
@@ -152,140 +154,154 @@ export default function PuliziePage(){
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Tasks Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Task di Pulizia (prossimi 7 giorni)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {tasks.map(t=>(
-                <div key={t.id} className="border rounded-lg p-4 space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <div className="font-medium">
-                        {new Date(t.scheduled_start).toLocaleString()}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {t.properties?.nome ?? t.property_id} • {t.type}
-                      </div>
-                      {t.reservations?.guest_name && (
-                        <div className="text-sm">
-                          Ospite: {t.reservations.guest_name} ({t.reservations?.guest_count ?? '-'} persone)
-                        </div>
-                      )}
-                      {t.cleaners?.name && (
-                        <div className="text-sm">
-                          Assegnato a: {t.cleaners.name}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex flex-col gap-2 items-end">
-                      {getStatusBadge(t.status)}
-                    </div>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      onClick={()=>updateStatus(t.id,'in_progress')}
-                      disabled={t.status === 'done'}
-                    >
-                      Avvia
-                    </Button>
-                    <Button 
-                      size="sm"
-                      onClick={()=>updateStatus(t.id,'done')}
-                      disabled={t.status === 'done'}
-                    >
-                      Completa
-                    </Button>
-                  </div>
-                </div>
-              ))}
-              {!tasks.length && (
-                <div className="text-center py-8 text-muted-foreground">
-                  Nessun task programmato
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+      {propId && (
+        <Tabs defaultValue="tasks" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="tasks">Task</TabsTrigger>
+            <TabsTrigger value="ical">iCal Sources</TabsTrigger>
+            <TabsTrigger value="team">Team</TabsTrigger>
+          </TabsList>
 
-        {/* iCal Sources Section */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Sorgenti iCal</CardTitle>
-            <Button 
-              onClick={syncNow} 
-              disabled={syncing}
-              variant="outline"
-            >
-              {syncing ? 'Sincronizzando...' : 'Sincronizza ora'}
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              {ical.map((s:any)=>(
-                <div key={s.id} className="border rounded-lg p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Badge variant="outline">{s.channel}</Badge>
-                    <Badge variant={s.active ? 'default' : 'destructive'}>
-                      {s.active ? 'Attivo' : 'Inattivo'}
-                    </Badge>
-                  </div>
-                  <div className="text-sm break-all">{s.url}</div>
-                  {s.last_sync_at && (
-                    <div className="text-xs text-muted-foreground">
-                      Ultimo sync: {new Date(s.last_sync_at).toLocaleString()}
+          <TabsContent value="tasks" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Task di Pulizia (prossimi 7 giorni)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {tasks.map(t=>(
+                    <div key={t.id} className="border rounded-lg p-4 space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-1">
+                          <div className="font-medium">
+                            {new Date(t.scheduled_start).toLocaleString()}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {t.properties?.nome ?? t.property_id} • {t.type}
+                          </div>
+                          {t.reservations?.guest_name && (
+                            <div className="text-sm">
+                              Ospite: {t.reservations.guest_name}
+                            </div>
+                          )}
+                          {t.cleaners?.name && (
+                            <div className="text-sm">
+                              Assegnato a: {t.cleaners.name}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-col gap-2 items-end">
+                          {getStatusBadge(t.status)}
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={()=>updateStatus(t.id,'in_progress')}
+                          disabled={t.status === 'done'}
+                        >
+                          Avvia
+                        </Button>
+                        <Button 
+                          size="sm"
+                          onClick={()=>updateStatus(t.id,'done')}
+                          disabled={t.status === 'done'}
+                        >
+                          Completa
+                        </Button>
+                      </div>
                     </div>
-                  )}
-                  {s.last_error && (
-                    <div className="text-xs text-destructive">
-                      Errore: {s.last_error}
+                  ))}
+                  {!tasks.length && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      Nessun task programmato
                     </div>
                   )}
                 </div>
-              ))}
-              {!ical.length && (
-                <div className="text-center py-4 text-muted-foreground">
-                  Nessuna sorgente configurata
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="ical" className="space-y-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Sorgenti iCal</CardTitle>
+                <Button 
+                  onClick={syncNow} 
+                  disabled={syncing}
+                  variant="outline"
+                >
+                  {syncing ? 'Sincronizzando...' : 'Sincronizza ora'}
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  {ical.map((s:any)=>(
+                    <div key={s.id} className="border rounded-lg p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Badge variant="outline">{s.channel}</Badge>
+                        <Badge variant={s.active ? 'default' : 'destructive'}>
+                          {s.active ? 'Attivo' : 'Inattivo'}
+                        </Badge>
+                      </div>
+                      <div className="text-sm break-all">{s.url}</div>
+                      {s.last_sync_at && (
+                        <div className="text-xs text-muted-foreground">
+                          Ultimo sync: {new Date(s.last_sync_at).toLocaleString()}
+                        </div>
+                      )}
+                      {s.last_error && (
+                        <div className="text-xs text-destructive">
+                          Errore: {s.last_error}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {!ical.length && (
+                    <div className="text-center py-4 text-muted-foreground">
+                      Nessuna sorgente configurata
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            
-            <form 
-              className="flex gap-2" 
-              onSubmit={async (e:any)=>{
-                e.preventDefault(); 
-                const f=new FormData(e.currentTarget); 
-                await addIcal(String(f.get('channel')), String(f.get('url'))); 
-                e.currentTarget.reset();
-              }}
-            >
-              <select 
-                name="channel" 
-                className="border border-border rounded px-3 py-2 bg-background"
-                required
-              >
-                <option value="airbnb">Airbnb</option>
-                <option value="booking">Booking.com</option>
-                <option value="vrbo">Vrbo</option>
-                <option value="other">Altro</option>
-              </select>
-              <input 
-                name="url" 
-                className="border border-border rounded px-3 py-2 bg-background flex-1" 
-                placeholder="https://...ics" 
-                required 
-              />
-              <Button type="submit">Aggiungi</Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+                
+                <form 
+                  className="flex gap-2" 
+                  onSubmit={async (e:any)=>{
+                    e.preventDefault(); 
+                    const f=new FormData(e.currentTarget); 
+                    await addIcal(String(f.get('channel')), String(f.get('url'))); 
+                    e.currentTarget.reset();
+                  }}
+                >
+                  <select 
+                    name="channel" 
+                    className="border border-border rounded px-3 py-2 bg-background"
+                    required
+                  >
+                    <option value="airbnb">Airbnb</option>
+                    <option value="booking">Booking.com</option>
+                    <option value="vrbo">Vrbo</option>
+                    <option value="other">Altro</option>
+                  </select>
+                  <input 
+                    name="url" 
+                    className="border border-border rounded px-3 py-2 bg-background flex-1" 
+                    placeholder="https://...ics" 
+                    required 
+                  />
+                  <Button type="submit">Aggiungi</Button>
+                </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="team" className="space-y-4">
+            <TeamManager propertyId={propId} />
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
   )
 }

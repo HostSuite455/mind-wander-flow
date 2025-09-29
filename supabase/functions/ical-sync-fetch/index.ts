@@ -1,45 +1,94 @@
-// Deno Edge Function: parse ICS per ogni sorgente attiva e upsert in reservations
 import { serve } from "https://deno.land/std/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-const supabase = createClient(
-  Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")! // impostare in dashboard
-);
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const supabase = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+);
+
+type ReqBody = { property_id?: string; all?: boolean };
+
+function parseDt(raw: string | null): string | null {
+  if (!raw) return null;
+  
+  try {
+    // Support: DTSTART:20250926, DTSTART;VALUE=DATE:20250926, DTSTART;TZID=Europe/Rome:20250926T100000
+    const [, meta, val] = raw.match(/^([^:]*):(.*)$/) ?? [null, null, raw];
+    const tzMatch = meta?.match(/TZID=([^;]+)/);
+    const isDateOnly = /VALUE=DATE/i.test(meta ?? '');
+    
+    if (isDateOnly) {
+      // Treat date as checkout at 10:00 local time for MVP consistency
+      return new Date(`${val}T10:00:00`).toISOString();
+    }
+    
+    if (tzMatch) {
+      // Keep declared time, browser/Node doesn't apply ICS TZ → best-effort
+      return new Date(val.replace(/Z?$/, '')).toISOString();
+    }
+    
+    // Default: ISO/Z supported
+    return new Date(val).toISOString();
+  } catch (e) {
+    console.error('Date parsing error for:', raw, e);
+    return null;
+  }
+}
+
 function parseICS(ics: string) {
   const events: Array<{
-    uid: string | null;
-    dtStart: string | null;
-    dtEnd: string | null;
+    uid: string;
+    start: string | null;
+    end: string | null;
     status: string;
     summary: string;
     desc: string;
     guest_count: number;
   }> = [];
-  const blocks = ics.split("BEGIN:VEVENT").slice(1);
+  
+  const blocks = ics.split('BEGIN:VEVENT').slice(1);
+  
   for (const b of blocks) {
-    const seg = b.split("END:VEVENT")[0];
+    const seg = b.split('END:VEVENT')[0];
+    
     const get = (k: string) => {
       const m = seg.match(new RegExp(`${k}(?:;[^\\n]*)?:(.+)`));
       return m ? m[1].trim() : null;
     };
-    const uid = get("UID");
-    const dtStart = get("DTSTART");
-    const dtEnd = get("DTEND");
-    const status = (get("STATUS") || "CONFIRMED").toUpperCase();
-    const summary = get("SUMMARY") || "";
-    const desc = get("DESCRIPTION") || "";
+    
+    const meta = (k: string) => (seg.match(new RegExp(`(${k}[^\\n]*)`))?.[1] ?? null);
+    
+    const uid = get('UID') || crypto.randomUUID();
+    const dtStart = meta('DTSTART');
+    const dtEnd = meta('DTEND');
+    const status = (get('STATUS') || 'CONFIRMED').toUpperCase();
+    const summary = get('SUMMARY') || '';
+    const desc = get('DESCRIPTION') || '';
     const txt = `${summary}\n${desc}`;
-    const gmatch = txt.match(/(Guests|Ospiti)\\s*[:=]\\s*(\\d+)/i);
+    const gmatch = txt.match(/(Guests|Ospiti)\s*[:=]\s*(\d+)/i);
     const guest_count = gmatch ? parseInt(gmatch[2]) : 2;
-    events.push({ uid, dtStart, dtEnd, status, summary, desc, guest_count });
+    
+    const startDate = parseDt(dtStart);
+    const endDate = parseDt(dtEnd);
+    
+    if (startDate && endDate) {
+      events.push({
+        uid,
+        start: startDate,
+        end: endDate,
+        status,
+        summary,
+        desc,
+        guest_count,
+      });
+    }
   }
+  
   return events;
 }
 
@@ -50,9 +99,16 @@ serve(async (req) => {
   }
 
   try {
-    const url = new URL(req.url);
-    const propertyId = url.searchParams.get("property_id");
-    const all = url.searchParams.get("all") === "true";
+    if (req.method !== 'POST') {
+      return new Response('Method Not Allowed', { 
+        status: 405, 
+        headers: { ...corsHeaders, 'content-type': 'application/json' }
+      });
+    }
+
+    const body = (await req.json().catch(() => ({}))) as ReqBody;
+    const propertyId = body.property_id;
+    const all = !!body.all;
 
     // Input validation
     if (propertyId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(propertyId)) {
@@ -70,9 +126,9 @@ serve(async (req) => {
     } else if (propertyId) {
       propertyIds = [propertyId];
     } else {
-      return new Response(JSON.stringify({ ok: false, error: "missing property_id or all=true" }), { 
+      return new Response(JSON.stringify({ ok: false, error: "missing property_id or all:true" }), { 
         status: 400, 
-        headers: { ...corsHeaders, "content-type": "application/json" }
+        headers: { ...corsHeaders, 'content-type': 'application/json' }
       });
     }
 
@@ -96,53 +152,37 @@ serve(async (req) => {
           console.error(`Invalid protocol for source ${s.id}: ${sourceUrl.protocol}`);
           continue;
         }
-        if (['localhost', '127.0.0.1', '0.0.0.0'].includes(sourceUrl.hostname)) {
-          console.error(`Blocked internal URL for source ${s.id}: ${sourceUrl.hostname}`);
-          continue;
-        }
 
-        const res = await fetch(s.url, {
-          headers: {
-            'User-Agent': 'Hostsuite-iCal-Sync/1.0'
-          }
+        const res = await fetch(s.url, { 
+          headers: { 'User-Agent': 'HostSuiteSync/1.0' }
         });
         
         if (!res.ok) {
           console.error(`Failed to fetch iCal for source ${s.id}: ${res.status}`);
+          await supabase
+            .from('ical_sources')
+            .update({ 
+              last_status: 'fetch_error', 
+              last_error: `HTTP ${res.status}`,
+              last_sync_at: new Date().toISOString()
+            })
+            .eq('id', s.id);
           continue;
         }
-        
+
         const ics = await res.text();
         const evs = parseICS(ics);
 
+        console.log(`Parsed ${evs.length} events from ${s.url}`);
+
         for (const ev of evs) {
-          if (!ev.uid || !ev.dtStart || !ev.dtEnd) continue;
-          
-          const status = ev.status === "CANCELLED" ? "canceled" : "booked";
-          
-          // Parse date strings - handle both DATE and DATETIME formats
-          let checkIn: Date;
-          let checkOut: Date;
-          
-          try {
-            if (ev.dtStart.includes('T')) {
-              // DATETIME format
-              checkIn = new Date(ev.dtStart.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/, '$1-$2-$3T$4:$5:$6'));
-            } else {
-              // DATE format
-              checkIn = new Date(ev.dtStart.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3'));
-            }
-            
-            if (ev.dtEnd.includes('T')) {
-              checkOut = new Date(ev.dtEnd.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/, '$1-$2-$3T$4:$5:$6'));
-            } else {
-              checkOut = new Date(ev.dtEnd.replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3'));
-            }
-          } catch (dateError) {
-            console.error(`Error parsing dates for event ${ev.uid}:`, dateError);
+          if (!ev.uid || !ev.start || !ev.end) {
+            console.warn('Skipping invalid event:', ev);
             continue;
           }
 
+          const status = ev.status === "CANCELLED" ? "canceled" : "booked";
+          
           const { data: existing } = await supabase
             .from("reservations")
             .select("id")
@@ -154,10 +194,10 @@ serve(async (req) => {
             property_id: s.property_id,
             source_id: s.id,
             ext_uid: ev.uid,
-            guest_name: ev.summary?.slice(0, 120) || null,
+            guest_name: ev.summary.slice(0, 120) || null,
             guest_count: ev.guest_count,
-            check_in: checkIn.toISOString(),
-            check_out: checkOut.toISOString(),
+            start_date: ev.start,
+            end_date: ev.end,
             status,
           };
 
@@ -167,7 +207,10 @@ serve(async (req) => {
               .update(reservationData)
               .eq("id", existing.id);
             
-            if (updateError) throw updateError;
+            if (updateError) {
+              console.error('Update error:', updateError);
+              continue;
+            }
             if (status === "canceled") canceled++;
             else updated++;
           } else {
@@ -175,7 +218,10 @@ serve(async (req) => {
               .from("reservations")
               .insert(reservationData);
             
-            if (insertError) throw insertError;
+            if (insertError) {
+              console.error('Insert error:', insertError);
+              continue;
+            }
             if (status === "canceled") canceled++;
             else inserted++;
           }
@@ -207,10 +253,10 @@ serve(async (req) => {
       headers: { ...corsHeaders, "content-type": "application/json" },
     });
   } catch (e) {
-    console.error("Function error:", e);
-    return new Response(JSON.stringify({ ok: false, error: String(e) }), { 
+    console.error('Function error:', e);
+    return new Response(JSON.stringify({ ok: false, error: String(e) }), {
       status: 500,
-      headers: { ...corsHeaders, "content-type": "application/json" }
+      headers: { ...corsHeaders, 'content-type': 'application/json' }
     });
   }
 });

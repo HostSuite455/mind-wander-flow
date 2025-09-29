@@ -245,6 +245,90 @@ export type Database = {
         }
         Relationships: []
       }
+      cleaner_assignments: {
+        Row: {
+          active: boolean
+          cleaner_id: string
+          created_at: string | null
+          id: string
+          property_id: string
+          weight: number
+        }
+        Insert: {
+          active?: boolean
+          cleaner_id: string
+          created_at?: string | null
+          id?: string
+          property_id: string
+          weight?: number
+        }
+        Update: {
+          active?: boolean
+          cleaner_id?: string
+          created_at?: string | null
+          id?: string
+          property_id?: string
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cleaner_assignments_cleaner_id_fkey"
+            columns: ["cleaner_id"]
+            isOneToOne: false
+            referencedRelation: "cleaners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cleaner_assignments_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cleaner_rates: {
+        Row: {
+          amount_cents: number
+          cleaner_id: string
+          created_at: string | null
+          id: string
+          property_id: string | null
+          rate_type: string
+        }
+        Insert: {
+          amount_cents: number
+          cleaner_id: string
+          created_at?: string | null
+          id?: string
+          property_id?: string | null
+          rate_type?: string
+        }
+        Update: {
+          amount_cents?: number
+          cleaner_id?: string
+          created_at?: string | null
+          id?: string
+          property_id?: string | null
+          rate_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cleaner_rates_cleaner_id_fkey"
+            columns: ["cleaner_id"]
+            isOneToOne: false
+            referencedRelation: "cleaners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cleaner_rates_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cleaners: {
         Row: {
           email: string | null
@@ -686,6 +770,47 @@ export type Database = {
           },
         ]
       }
+      payouts: {
+        Row: {
+          amount_cents: number
+          cleaner_id: string
+          created_at: string | null
+          id: string
+          period_end: string
+          period_start: string
+          status: string
+          stripe_transfer_id: string | null
+        }
+        Insert: {
+          amount_cents: number
+          cleaner_id: string
+          created_at?: string | null
+          id?: string
+          period_end: string
+          period_start: string
+          status?: string
+          stripe_transfer_id?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          cleaner_id?: string
+          created_at?: string | null
+          id?: string
+          period_end?: string
+          period_start?: string
+          status?: string
+          stripe_transfer_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payouts_cleaner_id_fkey"
+            columns: ["cleaner_id"]
+            isOneToOne: false
+            referencedRelation: "cleaners"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       place_cache: {
         Row: {
           exists: boolean
@@ -1045,6 +1170,47 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "channel_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_accounting: {
+        Row: {
+          cleaner_earnings_cents: number
+          created_at: string | null
+          host_amount_cents: number
+          id: string
+          platform_fee_cleaner_cents: number
+          platform_fee_host_cents: number
+          status: string
+          task_id: string
+        }
+        Insert: {
+          cleaner_earnings_cents: number
+          created_at?: string | null
+          host_amount_cents: number
+          id?: string
+          platform_fee_cleaner_cents: number
+          platform_fee_host_cents: number
+          status?: string
+          task_id: string
+        }
+        Update: {
+          cleaner_earnings_cents?: number
+          created_at?: string | null
+          host_amount_cents?: number
+          id?: string
+          platform_fee_cleaner_cents?: number
+          platform_fee_host_cents?: number
+          status?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_accounting_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: true
+            referencedRelation: "cleaning_tasks"
             referencedColumns: ["id"]
           },
         ]
