@@ -4,10 +4,12 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
+import PhotoUpload from '@/components/cleaning/PhotoUpload'
 
 export default function CleanerTasksPage(){
   const [tasks, setTasks] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [showPhotoUpload, setShowPhotoUpload] = useState<string | null>(null)
 
   useEffect(() => {
     loadTasks()
@@ -26,6 +28,7 @@ export default function CleanerTasksPage(){
           type,
           duration_min,
           notes,
+          completion_photo_url,
           properties(nome), 
           reservations(guest_count, guest_name, check_in, check_out)
         `)
@@ -43,6 +46,15 @@ export default function CleanerTasksPage(){
   }
 
   async function setStatus(id: string, status: 'in_progress' | 'done') {
+    // If trying to mark as done, require photo first
+    if (status === 'done') {
+      const task = tasks.find(t => t.id === id)
+      if (!task?.completion_photo_url) {
+        setShowPhotoUpload(id)
+        return
+      }
+    }
+
     try {
       const { error } = await supabase
         .from('cleaning_tasks')
@@ -57,6 +69,15 @@ export default function CleanerTasksPage(){
       toast.error('Errore nell\'aggiornamento dello stato')
       console.error(error)
     }
+  }
+
+  const handlePhotoUploaded = (taskId: string, photoUrl: string) => {
+    // Update the task with the photo URL
+    setTasks(t => t.map(x => x.id === taskId ? { ...x, completion_photo_url: photoUrl } : x))
+    setShowPhotoUpload(null)
+    
+    // Now mark the task as done
+    setStatus(taskId, 'done')
   }
 
   const getStatusBadge = (status: string) => {
@@ -150,6 +171,16 @@ export default function CleanerTasksPage(){
                         <strong>Note:</strong> {t.notes}
                       </div>
                     )}
+                    {t.completion_photo_url && (
+                      <div>
+                        <strong>Foto completamento:</strong> 
+                        <img 
+                          src={t.completion_photo_url} 
+                          alt="Foto completamento task" 
+                          className="mt-1 w-20 h-20 object-cover rounded border"
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -168,12 +199,12 @@ export default function CleanerTasksPage(){
                   onClick={() => setStatus(t.id, 'done')}
                   disabled={t.status === 'done'}
                 >
-                  {t.status === 'done' ? 'Completato' : 'Completa'}
+                  {t.status === 'done' ? 'Completato' : t.completion_photo_url ? 'Completa' : 'Aggiungi foto e completa'}
                 </Button>
               </div>
             </CardContent>
           </Card>
-        ))}
+        )}
         
         {!tasks.length && (
           <Card>
@@ -186,6 +217,23 @@ export default function CleanerTasksPage(){
           </Card>
         )}
       </div>
+
+      {/* Photo Upload Modal */}
+      {showPhotoUpload && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-lg font-semibold mb-4">Foto obbligatoria per completare il task</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Per completare questo task è necessario caricare una foto di prova del lavoro svolto.
+            </p>
+            <PhotoUpload
+              taskId={showPhotoUpload}
+              onPhotoUploaded={handlePhotoUploaded}
+              onCancel={() => setShowPhotoUpload(null)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
