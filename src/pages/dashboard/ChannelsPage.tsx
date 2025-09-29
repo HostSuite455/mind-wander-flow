@@ -212,40 +212,11 @@ export default function ChannelsPage() {
     }
   };
 
-  const handleCreateUrl = async (url: string, source: string) => {
-    if (!selectedConfigId) {
-      toast({
-        title: "Errore",
-        description: "Seleziona una configurazione iCal",
-        variant: "destructive",
-      });
-      return;
-    }
+  const handleUpdateUrl = async (data: { url: string; source: string; is_active: boolean; is_primary: boolean }) => {
+    if (!selectedIcalUrl) return;
 
     try {
-      const { data, error } = await createIcalUrl(selectedConfigId, url, source);
-      if (error) throw error;
-      
-      toast({
-        title: "Successo",
-        description: "URL iCal aggiunto con successo",
-      });
-      
-      setIsModalOpen(false);
-      await load(); // Reload data
-    } catch (error) {
-      logError("Failed to create iCal URL", error, { component: "ChannelsPage" });
-      toast({
-        title: "Errore",
-        description: "Errore nell'aggiunta dell'URL iCal",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleUpdateUrl = async (urlId: string, url: string, source: string) => {
-    try {
-      const { data, error } = await updateIcalUrl(urlId, { url, source });
+      const { error } = await updateIcalUrl(selectedIcalUrl.id, data);
       if (error) throw error;
       
       toast({
@@ -333,8 +304,6 @@ export default function ChannelsPage() {
     return acc;
   }, {} as Record<string, Array<IcalUrl & { config?: IcalConfig; property?: Property }>>);
 
-  const uniqueSources = [...new Set(icalUrls.map(url => url.source))];
-
   async function addChannelAccount() {
     setErr(null);
     if (!propertyId) { setErr("Seleziona un appartamento"); return; }
@@ -360,162 +329,11 @@ export default function ChannelsPage() {
       setPropertyId("");
       setChannelName("");
       load();
+    } catch (error) {
+      logError("Failed to create channel", error, { component: "ChannelsPage" });
+      setErr(error instanceof Error ? error.message : "Errore durante la creazione del canale");
+    }
   }
-
-  const handleCreateConfig = async () => {
-    if (selectedPropertyId === 'all') {
-      toast({
-        title: "⚠️ Seleziona Proprietà",
-        description: "Scegli una proprietà specifica per creare una configurazione iCal",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const { data, error } = await createIcalConfig({ property_id: selectedPropertyId });
-      if (error) throw error;
-      
-      toast({
-        title: "✅ Configurazione Creata",
-        description: "Configurazione iCal creata con successo. Ora puoi aggiungere URL iCal.",
-      });
-      
-      await load(); // Reload data
-    } catch (error) {
-      logError("Failed to create iCal config", error, { component: "ChannelsPage" });
-      toast({
-        title: "❌ Errore Configurazione",
-        description: error instanceof Error ? error.message : "Errore nella creazione della configurazione iCal",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDeleteConfig = async (configId: string) => {
-    try {
-      const { error } = await deleteIcalConfig(configId);
-      if (error) throw error;
-      
-      toast({
-        title: "Successo",
-        description: "Configurazione iCal eliminata con successo",
-      });
-      
-      await load(); // Reload data
-    } catch (error) {
-      logError("Failed to delete iCal config", error, { component: "ChannelsPage" });
-      toast({
-        title: "Errore",
-        description: "Errore nell'eliminazione della configurazione iCal",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleCreateUrl = async (data: { url: string; source: string; is_active: boolean; is_primary: boolean }) => {
-    if (!selectedConfigId) {
-      toast({
-        title: "Errore",
-        description: "Seleziona una configurazione per aggiungere un URL",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const { error } = await createIcalUrl({
-        ical_config_id: selectedConfigId,
-        ota_name: data.source,
-        ...data
-      });
-      if (error) throw error;
-      
-      toast({
-        title: "Successo",
-        description: "URL iCal aggiunto con successo",
-      });
-      
-      setIsModalOpen(false);
-      await load(); // Reload data
-    } catch (error) {
-      logError("Failed to create iCal URL", error, { component: "ChannelsPage" });
-      toast({
-        title: "Errore",
-        description: "Errore nell'aggiunta dell'URL iCal",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleUpdateUrl = async (data: { url: string; source: string; is_active: boolean; is_primary: boolean }) => {
-    if (!selectedIcalUrl) return;
-
-    try {
-      const { error } = await updateIcalUrl(selectedIcalUrl.id, data);
-      if (error) throw error;
-      
-      toast({
-        title: "Successo",
-        description: "URL iCal aggiornato con successo",
-      });
-      
-      setIsModalOpen(false);
-      await load(); // Reload data
-    } catch (error) {
-      logError("Failed to update iCal URL", error, { component: "ChannelsPage" });
-      toast({
-        title: "Errore",
-        description: "Errore nell'aggiornamento dell'URL iCal",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDeleteUrl = async (urlId: string) => {
-    try {
-      const { error } = await deleteIcalUrl(urlId);
-      if (error) throw error;
-      
-      toast({
-        title: "Successo",
-        description: "URL iCal eliminato con successo",
-      });
-      
-      await load(); // Reload data
-    } catch (error) {
-      logError("Failed to delete iCal URL", error, { component: "ChannelsPage" });
-      toast({
-        title: "Errore",
-        description: "Errore nell'eliminazione dell'URL iCal",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleSyncUrl = async (urlId: string) => {
-    try {
-      setSyncingId(urlId);
-      const { error } = await syncIcalUrl(urlId);
-      if (error) throw error;
-      
-      toast({
-        title: "Successo",
-        description: "Sincronizzazione completata con successo",
-      });
-      
-      await load(); // Reload data
-    } catch (error) {
-      logError("Failed to sync iCal URL", error, { component: "ChannelsPage" });
-      toast({
-        title: "Errore",
-        description: "Errore nella sincronizzazione dell'URL iCal",
-        variant: "destructive",
-      });
-    } finally {
-      setSyncingId(null);
-    }
-  };
 
   async function createChannel() {
     if (!propertyId || !channelName) {
@@ -1045,7 +863,6 @@ export default function ChannelsPage() {
 
 
 
->>>>>>> 459d116 (chore: progressi della sessione)
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
