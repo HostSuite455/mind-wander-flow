@@ -21,7 +21,8 @@ const SOURCE_OPTIONS = [
   { value: 'Airbnb', label: 'Airbnb', icon: '🏠' },
   { value: 'Booking.com', label: 'Booking.com', icon: '🔵' },
   { value: 'VRBO', label: 'VRBO', icon: '🏖️' },
-  { value: 'Smoobu', label: 'Smoobu', icon: '📊' },
+  { value: 'Agoda', label: 'Agoda', icon: '🌏' },
+  { value: 'TripAdvisor', label: 'TripAdvisor', icon: '🦉' },
   { value: 'Other', label: 'Altro', icon: '🔗' }
 ];
 

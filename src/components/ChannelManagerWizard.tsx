@@ -19,7 +19,7 @@ interface ChannelManagerWizardProps {
   propertyName: string;
 }
 
-type WizardStep = 'type' | 'provider' | 'configuration';
+type WizardStep = 'type' | 'provider' | 'ical-input';
 
 // Channel Manager integrato (Channex.io)
 const INTEGRATED_CHANNEL_MANAGER = {
@@ -85,10 +85,14 @@ export default function ChannelManagerWizard({
   const [providerConfig, setProviderConfig] = useState<Record<string, any>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [icalUrl, setIcalUrl] = useState('');
+
   const selectedOTA = OTA_DIRECT.find(ota => ota.id === selectedProvider);
 
   const handleNext = () => {
     if (currentStep === 'provider' && selectedProvider) {
+      setCurrentStep('ical-input');
+    } else if (currentStep === 'ical-input' && icalUrl.trim()) {
       handleSubmit();
     }
   };
@@ -96,7 +100,7 @@ export default function ChannelManagerWizard({
   const handleBack = () => {
     if (currentStep === 'provider') {
       setCurrentStep('type');
-    } else if (currentStep === 'configuration') {
+    } else if (currentStep === 'ical-input') {
       setCurrentStep('provider');
     }
   };
@@ -111,15 +115,29 @@ export default function ChannelManagerWizard({
         is_active: isActive,
       };
 
-      const { data, error } = await createIcalConfig(configData);
+      const { data: configResult, error: configError } = await createIcalConfig(configData);
       
-      if (error) {
-        throw new Error(error.message || 'Errore durante la creazione della configurazione');
+      if (configError) {
+        throw new Error(configError.message || 'Errore durante la creazione della configurazione');
+      }
+
+      // Create the iCal URL
+      const { createIcalUrl } = await import('@/lib/supaIcal');
+      const { data: urlResult, error: urlError } = await createIcalUrl({
+        ical_config_id: configResult.id,
+        url: icalUrl,
+        source: selectedProvider,
+        is_primary: true,
+        is_active: true
+      });
+
+      if (urlError) {
+        throw new Error(urlError.message || 'Errore durante la creazione del link iCal');
       }
 
       toast({
         title: "Configurazione creata",
-        description: `OTA ${selectedOTA?.name} configurata con successo`
+        description: `${selectedOTA?.name} configurato con successo`
       });
 
       // Reset wizard state
@@ -127,6 +145,7 @@ export default function ChannelManagerWizard({
       setSelectedType(null);
       setSelectedProvider('');
       setProviderConfig({});
+      setIcalUrl('');
       
       onSuccess();
       onClose();
@@ -150,6 +169,7 @@ export default function ChannelManagerWizard({
       setSelectedType(null);
       setSelectedProvider('');
       setProviderConfig({});
+      setIcalUrl('');
       onClose();
     }
   };
@@ -245,6 +265,48 @@ export default function ChannelManagerWizard({
         )}
 
 
+        {/* Step 3: iCal URL Input */}
+        {currentStep === 'ical-input' && (
+          <div className="space-y-6">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <ArrowLeft className="w-4 h-4" />
+              Inserisci il link iCal per {selectedOTA?.name}
+            </div>
+            
+            <Card className="border-2 border-primary/20 bg-primary/5">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="text-2xl">{selectedOTA?.icon}</span>
+                  <div>
+                    <h3 className="font-semibold text-lg">{selectedOTA?.name}</h3>
+                    <p className="text-sm text-muted-foreground">{selectedOTA?.description}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="ical-url" className="text-sm font-medium">
+                      Link iCal *
+                    </Label>
+                    <Input
+                      id="ical-url"
+                      type="url"
+                      placeholder="https://www.airbnb.it/calendar/ical/..."
+                      value={icalUrl}
+                      onChange={(e) => setIcalUrl(e.target.value)}
+                      className="mt-2"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Inserisci il link iCal fornito da {selectedOTA?.name}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+
         {/* Navigation */}
         <div className="flex justify-between pt-6 border-t">
           <Button
@@ -257,10 +319,19 @@ export default function ChannelManagerWizard({
           
           <Button
             onClick={handleNext}
-            disabled={isSubmitting || (currentStep === 'provider' && !selectedProvider)}
+            disabled={
+              isSubmitting || 
+              (currentStep === 'provider' && !selectedProvider) ||
+              (currentStep === 'ical-input' && !icalUrl.trim())
+            }
             className="bg-primary hover:bg-primary/90"
           >
-            {isSubmitting ? 'Creando configurazione...' : 'Crea Configurazione OTA'}
+            {isSubmitting 
+              ? 'Creando configurazione...' 
+              : currentStep === 'ical-input' 
+                ? 'Crea Configurazione OTA'
+                : 'Continua'
+            }
           </Button>
         </div>
       </DialogContent>
