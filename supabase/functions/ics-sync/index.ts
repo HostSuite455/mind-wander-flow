@@ -10,66 +10,8 @@ const supabase = createClient(
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
 };
-
-// Simple iCal parser for VEVENT blocks
-function parseICalData(icsData: string) {
-  const events = [];
-  const lines = icsData.split('\n').map(line => line.trim());
-  
-  let currentEvent: any = null;
-  
-  for (const line of lines) {
-    if (line === 'BEGIN:VEVENT') {
-      currentEvent = {};
-    } else if (line === 'END:VEVENT' && currentEvent) {
-      if (currentEvent.dtstart && currentEvent.dtend) {
-        events.push(currentEvent);
-      }
-      currentEvent = null;
-    } else if (currentEvent && line.includes(':')) {
-      const [key, ...valueParts] = line.split(':');
-      const value = valueParts.join(':');
-      
-      switch (key.toUpperCase()) {
-        case 'DTSTART':
-        case 'DTSTART;VALUE=DATE':
-          currentEvent.dtstart = parseICalDate(value);
-          break;
-        case 'DTEND':
-        case 'DTEND;VALUE=DATE':
-          currentEvent.dtend = parseICalDate(value);
-          break;
-        case 'SUMMARY':
-          currentEvent.summary = value;
-          break;
-        case 'DESCRIPTION':
-          currentEvent.description = value;
-          break;
-        case 'UID':
-          currentEvent.uid = value;
-          break;
-      }
-    }
-  }
-  
-  return events;
-}
-
-// Parse iCal date format (YYYYMMDD or YYYYMMDDTHHMMSSZ)
-function parseICalDate(dateStr: string): string {
-  // Remove any timezone info and take first 8 characters for date
-  const cleanDate = dateStr.replace(/[TZ]/g, '').substring(0, 8);
-  
-  if (cleanDate.length === 8) {
-    const year = cleanDate.substring(0, 4);
-    const month = cleanDate.substring(4, 6);
-    const day = cleanDate.substring(6, 8);
-    return `${year}-${month}-${day}`;
-  }
-  
-  return new Date().toISOString().split('T')[0]; // fallback to today
-}
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -80,7 +22,7 @@ serve(async (req) => {
   try {
     const { ical_url_id, account_id } = await req.json();
     
-    console.log(`Sync request for ical_url_id: ${ical_url_id}, account_id: ${account_id}`);
+    console.log(`[iCal Sync] Starting sync for ical_url_id: ${ical_url_id}, account_id: ${account_id}`);
     
     let icalUrl;
     
@@ -103,61 +45,15 @@ serve(async (req) => {
         .single();
         
       if (error || !data) {
-        console.error('iCal URL not found:', error);
+        console.error('[iCal Sync] iCal URL not found:', error);
         return new Response(JSON.stringify({ 
           success: false, 
-          error: 'iCal URL not found' 
+          error: 'iCal URL not found',
+          debug: { ical_url_id, error: error?.message }
         }), {
           status: 404,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
-      }
-
-      const icsData = await icsResponse.text();
-      console.log(`Fetched ICS data, length: ${icsData.length} chars`);
-
-      // Parse ICS data
-      const events = parseICalData(icsData);
-      console.log(`Parsed ${events.length} events from iCal data`);
-
-      if (events.length > 0) {
-        // Get property_id from account (assuming there's a property_id field)
-        const propertyId = account.property_id;
-        
-        if (!propertyId) {
-          throw new Error('No property_id associated with this account');
-        }
-
-        // Delete existing blocks from this source to avoid duplicates
-        await supabase
-          .from('calendar_blocks')
-          .delete()
-          .eq('property_id', propertyId)
-          .eq('source', `ical_${accountId}`);
-
-        // Create calendar blocks from parsed events
-        const calendarBlocks = events.map(event => ({
-          host_id: account.host_id,
-          property_id: propertyId,
-          start_date: event.dtstart,
-          end_date: event.dtend,
-          reason: event.summary || event.description || 'Blocked via iCal sync',
-          source: `ical_${accountId}`,
-          is_active: true,
-          created_by: account.host_id
-        }));
-
-        // Insert new blocks
-        const { data: insertedBlocks, error: insertError } = await supabase
-          .from('calendar_blocks')
-          .insert(calendarBlocks)
-          .select();
-
-        if (insertError) {
-          throw new Error(`Failed to insert calendar blocks: ${insertError.message}`);
-        }
-
-        console.log(`Successfully created ${insertedBlocks?.length || 0} calendar blocks`);
       }
       
       icalUrl = data;
@@ -170,10 +66,11 @@ serve(async (req) => {
         .single();
         
       if (error || !data || !data.ics_pull_url) {
-        console.error('Channel account not found or no iCal URL configured:', error);
+        console.error('[iCal Sync] Channel account not found or no iCal URL configured:', error);
         return new Response(JSON.stringify({ 
           success: false, 
-          error: 'Account not found or no iCal URL configured' 
+          error: 'Account not found or no iCal URL configured',
+          debug: { account_id, error: error?.message }
         }), {
           status: 404,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -193,14 +90,15 @@ serve(async (req) => {
     } else {
       return new Response(JSON.stringify({ 
         success: false, 
-        error: 'Missing ical_url_id or account_id parameter' 
+        error: 'Missing ical_url_id or account_id parameter',
+        debug: { received_params: { ical_url_id, account_id } }
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log(`Fetching iCal data from: ${icalUrl.url}`);
+    console.log(`[iCal Sync] Fetching iCal data from: ${icalUrl.url}`);
     
     // Update sync status to 'running'
     if (ical_url_id) {
@@ -240,18 +138,18 @@ serve(async (req) => {
       }
 
       const icsData = await icsResponse.text();
-      console.log(`Fetched iCal data, length: ${icsData.length} chars`);
+      console.log(`[iCal Sync] Fetched iCal data, length: ${icsData.length} chars`);
       
       if (!icsData || icsData.length < 50) {
         throw new Error('Invalid or empty iCal data received');
       }
 
-      // Parse iCal data
+      // Parse iCal data using the robust parser
       const events = parseICS(icsData);
-      console.log(`Parsed ${events.length} events from iCal`);
+      console.log(`[iCal Sync] Parsed ${events.length} events from iCal`);
       
       if (events.length === 0) {
-        console.log('No events found in iCal data - this is normal for empty calendars');
+        console.log('[iCal Sync] No events found in iCal data - this is normal for empty calendars');
         
         // Still update sync status to success even with no events
         const syncUpdate = {
@@ -307,7 +205,7 @@ serve(async (req) => {
       // Process events and create/update calendar blocks
       for (const event of events) {
         if (!event.start || !event.end) {
-          console.log('Skipping event without start/end date:', event.uid);
+          console.log('[iCal Sync] Skipping event without start/end date:', event.uid);
           skippedCount++;
           continue;
         }
@@ -318,7 +216,7 @@ serve(async (req) => {
         
         // Skip if dates are invalid
         if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
-          console.log('Skipping event with invalid date format:', { startDate, endDate, uid: event.uid });
+          console.log('[iCal Sync] Skipping event with invalid date format:', { startDate, endDate, uid: event.uid });
           skippedCount++;
           continue;
         }
@@ -329,7 +227,7 @@ serve(async (req) => {
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
         
         if (startDateObj < sevenDaysAgo) {
-          console.log('Skipping past event:', { startDate, uid: event.uid });
+          console.log('[iCal Sync] Skipping past event:', { startDate, uid: event.uid });
           skippedCount++;
           continue;
         }
@@ -364,7 +262,7 @@ serve(async (req) => {
               .eq('id', existingBlock.id);
               
             if (updateError) {
-              console.error('Error updating block:', updateError);
+              console.error('[iCal Sync] Error updating block:', updateError);
             } else {
               updatedCount++;
             }
@@ -376,7 +274,7 @@ serve(async (req) => {
             .insert([blockData]);
             
           if (insertError) {
-            console.error('Error creating block:', insertError);
+            console.error('[iCal Sync] Error creating block:', insertError);
           } else {
             createdCount++;
           }
@@ -401,7 +299,7 @@ serve(async (req) => {
           .eq('id', account_id);
       }
 
-      console.log(`Sync completed: processed ${events.length}, created ${createdCount}, updated ${updatedCount}, skipped ${skippedCount}`);
+      console.log(`[iCal Sync] Sync completed: processed ${events.length}, created ${createdCount}, updated ${updatedCount}, skipped ${skippedCount}`);
       
       return new Response(JSON.stringify({ 
         success: true, 
@@ -415,7 +313,7 @@ serve(async (req) => {
       });
 
     } catch (syncError) {
-      console.error('Sync error:', syncError);
+      console.error('[iCal Sync] Sync error:', syncError);
       
       // Update sync status to 'error'
       const errorMessage = syncError instanceof Error ? syncError.message : String(syncError);
@@ -439,7 +337,12 @@ serve(async (req) => {
       return new Response(JSON.stringify({ 
         success: false, 
         error: errorMessage,
-        message: `Errore di sincronizzazione: ${errorMessage}`
+        message: `Errore di sincronizzazione: ${errorMessage}`,
+        debug: { 
+          url: icalUrl.url,
+          error_type: syncError.constructor.name,
+          stack: syncError instanceof Error ? syncError.stack : undefined
+        }
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -447,11 +350,15 @@ serve(async (req) => {
     }
 
   } catch (error) {
-    console.error('Function error:', error);
+    console.error('[iCal Sync] Function error:', error);
     return new Response(JSON.stringify({ 
       success: false, 
       error: error instanceof Error ? error.message : String(error),
-      message: 'Errore interno del server'
+      message: 'Errore interno del server',
+      debug: {
+        error_type: error instanceof Error ? error.constructor.name : typeof error,
+        stack: error instanceof Error ? error.stack : undefined
+      }
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
