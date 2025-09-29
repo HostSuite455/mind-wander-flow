@@ -93,6 +93,7 @@ export default function IcalUrlModal({
           ical_config_id: icalConfigId,
           url,
           source,
+          ota_name: source,
           is_active: isActive,
           is_primary: isPrimary
         });

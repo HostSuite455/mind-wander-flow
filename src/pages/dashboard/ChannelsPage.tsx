@@ -214,6 +214,7 @@ export default function ChannelsPage() {
     try {
       const { error } = await createIcalUrl({
         ical_config_id: selectedConfigId,
+        ota_name: data.source,
         ...data
       });
       if (error) throw error;

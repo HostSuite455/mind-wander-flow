@@ -126,6 +126,7 @@ export default function ChannelManagerWizard({
       const { data: urlResult, error: urlError } = await createIcalUrl({
         ical_config_id: configResult.id,
         url: icalUrl,
+        ota_name: selectedProvider,
         source: selectedProvider,
         is_primary: true,
         is_active: true

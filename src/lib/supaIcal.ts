@@ -124,12 +124,14 @@ export async function createIcalUrl({
   ical_config_id,
   url,
   source,
+  ota_name,
   is_active = true,
   is_primary = false
 }: {
   ical_config_id: string;
   url: string;
   source: string;
+  ota_name: string;
   is_active?: boolean;
   is_primary?: boolean;
 }) {
@@ -149,6 +151,7 @@ export async function createIcalUrl({
         ical_config_id,
         url,
         source,
+        ota_name,
         is_active,
         is_primary
       }])
