@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client'
 import { parseAndEnrichICS } from '@/lib/ics-parse'
 
 type Range = { start: Date; end: Date }
-type EventItem = any // tipizza se hai i tipi
+type EventItem = any
 type PropertyItem = { id: string; nome?: string; name?: string }
 
 export interface CalendarBooking {
@@ -27,14 +27,13 @@ export interface CalendarBooking {
   updated_at?: string;
   last_sync_at?: string;
   property?: { nome: string };
-  // New fields for iCal integration
   isBlock?: boolean;
   source?: string;
   sourceIcon?: string;
-  reason?: string; // For blocked periods
+  reason?: string;
+  ota_name?: string;
 }
 
-// Supporta sia la vecchia firma (userId) che la nuova (oggetto con parametri)
 export function useCalendarData(
   userIdOrParams?: string | null | {
     userId?: string | null
@@ -42,19 +41,16 @@ export function useCalendarData(
     range?: Range
   }
 ) {
-  // Determina se è la vecchia o nuova firma
   const isOldSignature = typeof userIdOrParams === 'string' || userIdOrParams === null || userIdOrParams === undefined
   
-  // Estrai i parametri in base alla firma
   const userId = isOldSignature ? userIdOrParams as string | null : (userIdOrParams as any)?.userId
   const selectedPropertyId = isOldSignature ? null : (userIdOrParams as any)?.selectedPropertyId
   
-  // Stabilizza l'oggetto range per evitare loop infinito
   const stableRange = useMemo(() => {
     if (isOldSignature) {
-      return { start: new Date(), end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) }
+      return { start: new Date(), end: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) }
     }
-    return (userIdOrParams as any)?.range || { start: new Date(), end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) }
+    return (userIdOrParams as any)?.range || { start: new Date(), end: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) }
   }, [isOldSignature, (userIdOrParams as any)?.range?.start?.getTime(), (userIdOrParams as any)?.range?.end?.getTime()])
 
   const [loading, setLoading] = useState(true)
@@ -62,7 +58,6 @@ export function useCalendarData(
   const [effectivePropertyId, setEffectivePropertyId] = useState<string | null>(selectedPropertyId ?? null)
   const [events, setEvents] = useState<EventItem[]>([])
 
-  // Forza l'aggiornamento quando cambia lo user o la prop selezionata
   useEffect(() => {
     if (selectedPropertyId !== undefined) {
       setEffectivePropertyId(selectedPropertyId)
@@ -72,7 +67,6 @@ export function useCalendarData(
   useEffect(() => {
     let cancelled = false
     async function run() {
-      // Aspetta che arrivi userId
       if (!userId) {
         console.log('⏳ useCalendarData: skipping fetch, no userId')
         setLoading(false)
@@ -80,7 +74,7 @@ export function useCalendarData(
       }
 
       setLoading(true)
-      console.log('🔄 useCalendarData: fetching data for userId:', userId)
+      console.log('🔄 useCalendarData: fetching data for userId:', userId, 'selectedPropertyId:', effectivePropertyId)
 
       try {
         // 1. Fetch properties
@@ -107,7 +101,7 @@ export function useCalendarData(
           setEffectivePropertyId(targetPropertyId)
         }
 
-        // 3. Fetch bookings and calendar blocks if we have properties
+        // 3. Determine which properties to query
         const propertyIds = targetPropertyId ? [targetPropertyId] : fetchedProperties.map(p => p.id);
         
         if (propertyIds.length > 0) {
@@ -119,7 +113,7 @@ export function useCalendarData(
             .gte('check_in', stableRange.start.toISOString().split('T')[0])
             .lte('check_out', stableRange.end.toISOString().split('T')[0]);
 
-          // Fetch calendar blocks (including imported iCal blocks)
+          // Fetch calendar blocks
           const { data: calendarBlocksData, error: calendarBlocksError } = await supabase
             .from('calendar_blocks')
             .select('*')
@@ -136,14 +130,13 @@ export function useCalendarData(
           }
 
           if (!cancelled) {
-            // Combine bookings and blocks into a unified events array
+            // Combine bookings and blocks
             const allBookings: CalendarBooking[] = (bookingsData || []).map(booking => ({
               ...booking,
               isBlock: false,
               booking_status: booking.booking_status || 'confirmed'
             }));
 
-            // Transform calendar blocks to match CalendarBooking interface
             const calendarBlocks: CalendarBooking[] = (calendarBlocksData || []).map(block => ({
               id: block.id,
               property_id: block.property_id,
@@ -154,7 +147,6 @@ export function useCalendarData(
               source: block.source || 'manual',
               reason: block.reason,
               isBlock: true,
-              // Add visual indicator for imported blocks
               sourceIcon: block.source?.startsWith('ical_') ? 
                 (block.source.includes('airbnb') ? '🏠' : 
                  block.source.includes('booking') ? '🔵' : 
@@ -164,114 +156,96 @@ export function useCalendarData(
               external_booking_id: block.external_id || block.id
             }));
 
-            // Combine all events
             const allEvents = [...allBookings, ...calendarBlocks];
-            setEvents(allEvents);
+
+            // Try to load iCal data if available
+            try {
+              console.log('🔍 useCalendarData: searching for iCal URLs for properties:', propertyIds)
+              
+              // Get ical_configs for these properties
+              const { data: icalConfigsData } = await supabase
+                .from('ical_configs')
+                .select('id, property_id')
+                .in('property_id', propertyIds)
+                .eq('is_active', true);
+
+              const configIds = (icalConfigsData || []).map(c => c.id);
+              
+              if (configIds.length > 0) {
+                const { data: icalUrls, error: icalError } = await supabase
+                  .from('ical_urls')
+                  .select('id, url, source, ota_name, is_active, ical_config_id')
+                  .in('ical_config_id', configIds)
+                  .eq('is_active', true);
+
+                console.log('📡 useCalendarData: iCal query result:', { icalUrls, icalError })
+
+                if (icalError) {
+                  console.warn('⚠️ Error querying iCal URLs:', icalError)
+                }
+
+                if (icalUrls && icalUrls.length > 0) {
+                  console.log('📡 useCalendarData: found iCal URLs:', icalUrls.length)
+                  
+                  for (const icalUrl of icalUrls) {
+                    try {
+                      console.log('🌐 Fetching iCal from:', icalUrl.url)
+                      const response = await fetch(icalUrl.url, { mode: 'cors' })
+                      if (response.ok) {
+                        const icalText = await response.text()
+                        const icalEvents = parseAndEnrichICS(icalText)
+                        
+                        // Get property_id for this ical_url
+                        const config = icalConfigsData?.find(c => c.id === icalUrl.ical_config_id);
+                        const propertyIdForUrl = config?.property_id;
+
+                        // Convert iCal events to calendar blocks format
+                        const icalBlocks = icalEvents
+                          .filter(event => {
+                            const eventStart = new Date(event.start || '')
+                            const eventEnd = new Date(event.end || '')
+                            return eventStart >= stableRange.start && eventEnd <= stableRange.end
+                          })
+                          .map(event => ({
+                            id: `ical-${event.uid}`,
+                            property_id: propertyIdForUrl,
+                            check_in: event.start?.split('T')[0] || '',
+                            check_out: event.end?.split('T')[0] || '',
+                            guest_name: event.guestName || event.summary || 'iCal Block',
+                            booking_status: 'imported',
+                            reason: event.summary || 'iCal Block',
+                            source: `ical_${icalUrl.source || icalUrl.ota_name}`,
+                            ota_name: icalUrl.ota_name,
+                            channel: event.channel || icalUrl.ota_name,
+                            isBlock: true,
+                            sourceIcon: '📅'
+                          }))
+                        
+                        allEvents.push(...icalBlocks)
+                        console.log(`📅 useCalendarData: loaded ${icalBlocks.length} iCal events from ${icalUrl.source || icalUrl.ota_name}`)
+                      } else {
+                        console.warn(`⚠️ Failed to fetch iCal from ${icalUrl.url}: ${response.status}`)
+                      }
+                    } catch (icalError) {
+                      console.warn(`⚠️ Failed to load iCal from ${icalUrl.url}:`, icalError)
+                    }
+                  }
+                } else {
+                  console.log('📡 useCalendarData: no iCal URLs found for properties:', propertyIds)
+                }
+              }
+            } catch (icalError) {
+              console.warn('⚠️ Error loading iCal data:', icalError)
+            }
+
+            console.log('📅 useCalendarData: loaded events:', {
+              bookings: bookingsData?.length || 0,
+              blocks: calendarBlocksData?.length || 0,
+              ical: allEvents.length - (bookingsData?.length || 0) - (calendarBlocksData?.length || 0),
+              total: allEvents.length
+            })
+            setEvents(allEvents)
           }
-
-          // Fetch calendar blocks (from iCal sync)
-          const { data: blocksData, error: blocksError } = await supabase
-            .from('calendar_blocks')
-            .select('*')
-            .eq('property_id', targetPropertyId)
-            .gte('start_date', stableRange.start.toISOString().split('T')[0])
-            .lte('end_date', stableRange.end.toISOString().split('T')[0])
-
-          if (blocksError) {
-            console.error('❌ Error fetching calendar blocks:', blocksError)
-          }
-
-          if (!cancelled) {
-             // Combine bookings and blocks into events array
-             const allEvents = [
-               ...(bookingsData || []).map(booking => ({ ...booking, type: 'booking' })),
-               ...(blocksData || []).map(block => ({ ...block, type: 'block' }))
-             ]
-
-             // Also try to load iCal data if available
-             try {
-               console.log('🔍 useCalendarData: searching for iCal URLs for property:', targetPropertyId)
-               
-               const { data: icalUrls, error: icalError } = await supabase
-                 .from('ical_urls')
-                 .select(`
-                   id, url, source, is_active,
-                   ical_configs!inner(
-                     id, property_id, is_active
-                   )
-                 `)
-                 .eq('is_active', true)
-                 .eq('ical_configs.property_id', targetPropertyId)
-                 .eq('ical_configs.is_active', true)
-
-               console.log('📡 useCalendarData: iCal query result:', { icalUrls, icalError })
-
-               if (icalError) {
-                 console.warn('⚠️ Error querying iCal URLs:', icalError)
-               }
-
-               if (icalUrls && icalUrls.length > 0) {
-                 console.log('📡 useCalendarData: found iCal URLs:', icalUrls.length)
-                 
-                 for (const icalUrl of icalUrls) {
-                   try {
-                     console.log('🌐 Fetching iCal from:', icalUrl.url)
-                     // Fetch and parse iCal data
-                     const response = await fetch(icalUrl.url, { mode: 'cors' })
-                     if (response.ok) {
-                       const icalText = await response.text()
-                       const icalEvents = parseAndEnrichICS(icalText)
-                       
-                       // Convert iCal events to calendar blocks format
-                       const icalBlocks = icalEvents
-                         .filter(event => {
-                           const eventStart = new Date(event.start || '')
-                           const eventEnd = new Date(event.end || '')
-                           return eventStart >= stableRange.start && eventEnd <= stableRange.end
-                         })
-                         .map(event => ({
-                           id: `ical-${event.uid}`,
-                           property_id: targetPropertyId,
-                           start_date: event.start?.split('T')[0] || '',
-                           end_date: event.end?.split('T')[0] || '',
-                           reason: event.summary || 'iCal Block',
-                           source: `ical_${icalUrl.source}`,
-                           type: 'block',
-                           guest_name: event.guestName,
-                           channel: event.channel
-                         }))
-                       
-                       allEvents.push(...icalBlocks)
-                       console.log(`📅 useCalendarData: loaded ${icalBlocks.length} iCal events from ${icalUrl.source}`)
-                     } else {
-                       console.warn(`⚠️ Failed to fetch iCal from ${icalUrl.url}: ${response.status} ${response.statusText}`)
-                     }
-                   } catch (icalError) {
-                     console.warn(`⚠️ Failed to load iCal from ${icalUrl.url}:`, icalError)
-                   }
-                 }
-               } else {
-                 console.log('📡 useCalendarData: no iCal URLs found for property:', targetPropertyId)
-                 
-                 // Let's also check if there are any ical_configs for this property
-                 const { data: icalConfigs } = await supabase
-                   .from('ical_configs')
-                   .select('*')
-                   .eq('property_id', targetPropertyId)
-                 
-                 console.log('🔍 useCalendarData: ical_configs for property:', icalConfigs)
-               }
-             } catch (icalError) {
-               console.warn('⚠️ Error loading iCal data:', icalError)
-             }
-
-             console.log('📅 useCalendarData: loaded events:', {
-               bookings: bookingsData?.length || 0,
-               blocks: blocksData?.length || 0,
-               total: allEvents.length
-             })
-             setEvents(allEvents)
-           }
         }
 
       } catch (error) {
@@ -294,14 +268,12 @@ export function useCalendarData(
   const rangeEnd = stableRange.end
 
   const isLoading = loading
-  const error = null // Simplified for now
+  const error = null
 
   const refetch = () => {
-    // Trigger re-fetch by updating a dependency
     setLoading(true)
   }
 
-  // Utility functions for backward compatibility
   const getBookingsForDate = (date: Date) => {
     return bookings.filter(booking => {
       const checkIn = new Date(booking.check_in)
@@ -312,7 +284,7 @@ export function useCalendarData(
 
   const getBlocksForDate = (date: Date) => {
     return blocks.filter(block => {
-      const startDate = new Date(block.check_in) // Now using check_in/check_out for consistency
+      const startDate = new Date(block.check_in)
       const endDate = new Date(block.check_out)
       return date >= startDate && date <= endDate
     })
@@ -335,12 +307,11 @@ export function useCalendarData(
       case 'booked':
         return { backgroundColor: '#ef4444', color: 'white' }
       case 'blocked':
-        // Different colors for imported vs manual blocks
         const hasImportedBlock = dateBlocks.some(block => block.source?.startsWith('ical_'))
         if (hasImportedBlock) {
-          return { backgroundColor: '#8b5cf6', color: 'white' } // Purple for imported
+          return { backgroundColor: '#8b5cf6', color: 'white' }
         }
-        return { backgroundColor: '#f59e0b', color: 'white' } // Orange for manual
+        return { backgroundColor: '#f59e0b', color: 'white' }
       default:
         return {}
     }

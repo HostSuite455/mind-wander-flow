@@ -1508,6 +1508,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_cleaner_invitation: {
+        Args: { p_code: string }
+        Returns: Json
+      }
       check_cleaner_invitation_valid: {
         Args: { p_email: string; p_owner_id: string; p_phone: string }
         Returns: boolean
@@ -1515,6 +1519,19 @@ export type Database = {
       generate_invitation_code: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      get_invitation_info: {
+        Args: { p_code: string }
+        Returns: {
+          expires_at: string
+          host_id: string
+          invitation_id: string
+          property_address: string
+          property_city: string
+          property_id: string
+          property_name: string
+          status: string
+        }[]
       }
       get_learning_stats: {
         Args: { p_property_id: string }

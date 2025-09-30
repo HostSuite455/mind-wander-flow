@@ -86,22 +86,12 @@ const App = () => (
                 <Route path="admin-users" element={<AdminUsers />} />
               </Route>
               
-              {/* Nuova rotta calendario semplificato */}
-              <Route path="/calendario" element={<ProtectedRoute><CalendarioPage /></ProtectedRoute>} />
-
-              {/* Legacy Host Routes - keeping for backward compatibility but using DashboardLayout */}
-              <Route path="/host-dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-                <Route index element={<HostDashboard />} />
-              </Route>
-              <Route path="/properties" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-                <Route index element={<Properties />} />
-              </Route>
-              <Route path="/calendar" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-                <Route index element={<Calendar />} />
-              </Route>
-              <Route path="/calendar-pro" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-                <Route index element={<CalendarPro />} />
-              </Route>
+              {/* Legacy Host Routes - redirect to dashboard */}
+              <Route path="/host-dashboard" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/properties" element={<Navigate to="/dashboard/properties" replace />} />
+              <Route path="/calendar" element={<Navigate to="/dashboard/calendar" replace />} />
+              <Route path="/calendar-pro" element={<Navigate to="/dashboard/calendar" replace />} />
+              <Route path="/calendario" element={<Navigate to="/dashboard/calendar" replace />} />
               <Route path="/export" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
                 <Route index element={<Export />} />
               </Route>

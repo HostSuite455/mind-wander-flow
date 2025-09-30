@@ -19,9 +19,12 @@ const CalendarProPage: React.FC = () => {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [activeChannels, setActiveChannels] = useState<string[]>([]);
   
-  // Usa dati reali dal feed iCal solo dopo auth
+  // Usa dati reali dal feed iCal solo dopo auth, passando selectedPropertyId
   const { properties, bookings, blocks, isLoading, error, refetch, rangeStart, rangeEnd } = useCalendarData(
-    authResolved && userId ? userId : undefined
+    authResolved && userId ? {
+      userId,
+      selectedPropertyId: selectedPropertyId || undefined
+    } : undefined
   );
   
   // useEffect unico per inizializzazione sessione e listener
@@ -63,6 +66,13 @@ const CalendarProPage: React.FC = () => {
       setSelectedPropertyId(properties[0].id);
     }
   }, [authResolved, userId, properties, selectedPropertyId]);
+
+  // Refetch data when property changes
+  useEffect(() => {
+    if (selectedPropertyId && authResolved && userId) {
+      refetch();
+    }
+  }, [selectedPropertyId]);
   
   // Debug logging migliorato
   useEffect(() => {
