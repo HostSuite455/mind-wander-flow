@@ -1508,6 +1508,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_cleaner_invitation_valid: {
+        Args: { p_email: string; p_owner_id: string; p_phone: string }
+        Returns: boolean
+      }
       generate_invitation_code: {
         Args: Record<PropertyKey, never>
         Returns: string

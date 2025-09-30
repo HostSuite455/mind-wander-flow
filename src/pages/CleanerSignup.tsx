@@ -47,7 +47,7 @@ export default function CleanerSignup() {
         .from('cleaner_invitations')
         .select(`
           *,
-          properties (
+          properties!inner (
             nome,
             address,
             city

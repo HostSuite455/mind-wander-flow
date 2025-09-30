@@ -29,7 +29,7 @@ export default function CleanerInviteAccept() {
         .from('cleaner_invitations')
         .select(`
           *,
-          properties:property_id (
+          properties (
             nome,
             address,
             city
