@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import DashboardLayout from '@/layouts/DashboardLayout';
 import CustomCalendar from '@/components/calendar/CustomCalendar';
 import { useCalendarData } from '@/hooks/useCalendarData';
@@ -7,6 +7,9 @@ import { Loader2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
+import ICalSourcesPanel from '@/components/calendar/ICalSourcesPanel';
+import ChannelLegend from '@/components/calendar/ChannelLegend';
+import { detectChannel, getChannelColor, getAllChannels } from '@/lib/channelColors';
 
 const CalendarProPage: React.FC = () => {
   // Stati per l'autenticazione stabilizzata
@@ -14,6 +17,7 @@ const CalendarProPage: React.FC = () => {
   const [userId, setUserId] = useState<string | null>(null);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [activeChannels, setActiveChannels] = useState<string[]>([]);
   
   // Usa dati reali dal feed iCal solo dopo auth
   const { properties, bookings, blocks, isLoading, error, refetch, rangeStart, rangeEnd } = useCalendarData(
@@ -78,6 +82,54 @@ const CalendarProPage: React.FC = () => {
     console.log("CalendarPro → events", [...bookings, ...blocks].length, {rangeStart, rangeEnd});
   }, [bookings, blocks, rangeStart, rangeEnd]);
 
+  // Calculate channel statistics
+  const channelStats = useMemo(() => {
+    const allEvents = [...bookings, ...blocks];
+    const stats = new Map<string, number>();
+    
+    allEvents.forEach(event => {
+      const channelKey = detectChannel(
+        event.source,
+        event.channel,
+        event.ota_name
+      );
+      stats.set(channelKey, (stats.get(channelKey) || 0) + 1);
+    });
+    
+    return getAllChannels().map(channel => ({
+      ...channel,
+      count: stats.get(channel.name.toLowerCase().replace(/\s+/g, '')) || 0,
+    }));
+  }, [bookings, blocks]);
+
+  const handleChannelToggle = (channelName: string) => {
+    setActiveChannels(prev => {
+      const channelKey = channelName.toLowerCase().replace(/\s+/g, '');
+      if (prev.includes(channelKey)) {
+        return prev.filter(c => c !== channelKey);
+      } else {
+        return [...prev, channelKey];
+      }
+    });
+  };
+
+  // Filter bookings and blocks by active channels
+  const filteredBookings = useMemo(() => {
+    if (activeChannels.length === 0) return bookings;
+    return bookings.filter(booking => {
+      const channelKey = detectChannel(booking.source, booking.channel, booking.ota_name);
+      return activeChannels.includes(channelKey);
+    });
+  }, [bookings, activeChannels]);
+
+  const filteredBlocks = useMemo(() => {
+    if (activeChannels.length === 0) return blocks;
+    return blocks.filter(block => {
+      const channelKey = detectChannel(block.source, block.channel);
+      return activeChannels.includes(channelKey);
+    });
+  }, [blocks, activeChannels]);
+
   // Contenitore del calendario con altezza fissa
   const calendarContainer = (
     <div className="h-[calc(100vh-220px)] min-h-[600px] w-full overflow-auto rounded-xl border bg-white">
@@ -106,8 +158,8 @@ const CalendarProPage: React.FC = () => {
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           }))}
-          bookings={bookings}
-          blocks={blocks}
+          bookings={filteredBookings}
+          blocks={filteredBlocks}
           currentDate={currentDate}
           onDateChange={setCurrentDate}
           selectedPropertyId={selectedPropertyId}
@@ -181,15 +233,34 @@ const CalendarProPage: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Calendario</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Calendario Avanzato</h1>
         <div className="text-sm text-gray-500">
           {properties.length} proprietà • {bookings.length + blocks.length} eventi
         </div>
       </div>
+
+      {/* iCal Sources Panel */}
+      {selectedPropertyId && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2">
+            <ICalSourcesPanel propertyId={selectedPropertyId} />
+          </div>
+          <div>
+            <ChannelLegend 
+              channels={channelStats}
+              onToggle={handleChannelToggle}
+              activeChannels={activeChannels}
+            />
+          </div>
+        </div>
+      )}
       
-      {[...bookings, ...blocks].length === 0 && selectedPropertyId && (
+      {[...filteredBookings, ...filteredBlocks].length === 0 && selectedPropertyId && (
         <div className="mb-2 text-sm text-gray-600">
-          Nessun evento nel periodo. Trascina col mouse per creare un blocco.
+          {activeChannels.length > 0 
+            ? 'Nessun evento per i canali selezionati.'
+            : 'Nessun evento nel periodo. Trascina col mouse per creare un blocco.'
+          }
         </div>
       )}
       
