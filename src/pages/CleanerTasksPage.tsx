@@ -71,13 +71,25 @@ export default function CleanerTasksPage(){
     }
   }
 
-  const handlePhotoUploaded = (taskId: string, photoUrl: string) => {
+  const handlePhotoUploaded = async (taskId: string, photoUrl: string) => {
     // Update the task with the photo URL
-    setTasks(t => t.map(x => x.id === taskId ? { ...x, completion_photo_url: photoUrl } : x))
-    setShowPhotoUpload(null)
-    
-    // Now mark the task as done
-    setStatus(taskId, 'done')
+    try {
+      const { error } = await supabase
+        .from('cleaning_tasks')
+        .update({ completion_photo_url: photoUrl })
+        .eq('id', taskId)
+      
+      if (error) throw error
+      
+      setTasks(t => t.map(x => x.id === taskId ? { ...x, completion_photo_url: photoUrl } : x))
+      setShowPhotoUpload(null)
+      
+      // Now mark as done
+      await setStatus(taskId, 'done')
+    } catch (error) {
+      toast.error('Errore nell\'aggiornamento della foto')
+      console.error(error)
+    }
   }
 
   const getStatusBadge = (status: string) => {
@@ -232,10 +244,16 @@ export default function CleanerTasksPage(){
               Per completare questo task è necessario caricare una foto di prova del lavoro svolto.
             </p>
             <PhotoUpload
-              taskId={showPhotoUpload}
               onPhotoUploaded={(photoUrl) => handlePhotoUploaded(showPhotoUpload, photoUrl)}
-              onCancel={() => setShowPhotoUpload(null)}
+              label="Foto completamento task"
             />
+            <Button
+              variant="outline"
+              onClick={() => setShowPhotoUpload(null)}
+              className="mt-4 w-full"
+            >
+              Annulla
+            </Button>
           </div>
         </div>
       )}

@@ -6,8 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import ChatSystem from '@/components/cleaning/ChatSystem';
-import PropertyPicker from '@/components/cleaning/PropertyPicker';
-import TeamManager from '@/components/cleaning/TeamManager';
+import CleanerPropertyPicker from '@/components/cleaning/CleanerPropertyPicker';
+import CleanerPaymentManager from '@/components/cleaning/CleanerPaymentManager';
 import { useAuthUser } from '@/hooks/useAuthUser';
 import { Calendar, CheckCircle2, Clock, DollarSign, Loader2, MapPin, ListChecks } from 'lucide-react';
 import { format } from 'date-fns';
@@ -204,7 +204,7 @@ export default function CleanerDashboard() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50/50 to-indigo-100/50 p-4 md:p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Property Picker */}
-        <PropertyPicker
+        <CleanerPropertyPicker
           cleanerId={cleanerProfile.id}
           selectedPropertyId={selectedPropertyId}
           onPropertySelect={setSelectedPropertyId}
@@ -395,7 +395,7 @@ export default function CleanerDashboard() {
               </TabsContent>
 
               <TabsContent value="pagamenti">
-                <TeamManager cleanerId={cleanerProfile.id} />
+                <CleanerPaymentManager cleanerId={cleanerProfile.id} />
               </TabsContent>
             </Tabs>
           </>

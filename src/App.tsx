@@ -35,6 +35,7 @@ import HostUnansweredQuestions from "./pages/host-unanswered-questions";
 import PuliziePage from "./pages/PuliziePage";
 import CleanerTasksPage from "./pages/CleanerTasksPage";
 import CleanerLogin from "./pages/CleanerLogin";
+import CleanerSignup from "./pages/CleanerSignup";
 import CleanerGuard from "./components/cleaning/CleanerGuard";
 import CleanerInviteAccept from "./pages/CleanerInviteAccept";
 import CleanerDashboard from "./pages/CleanerDashboard";
