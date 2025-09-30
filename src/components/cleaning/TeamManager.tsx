@@ -1,330 +1,200 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Trash2, UserPlus, Users } from 'lucide-react';
+import { DollarSign, Calendar, Download, TrendingUp } from 'lucide-react';
+import { format } from 'date-fns';
+import { it } from 'date-fns/locale';
 
 interface TeamManagerProps {
-  propertyId: string;
+  cleanerId: string;
 }
 
-export default function TeamManager({ propertyId }: TeamManagerProps) {
-  const [cleaners, setCleaners] = useState<any[]>([]);
-  const [assignments, setAssignments] = useState<any[]>([]);
-  const [rates, setRates] = useState<any[]>([]);
+export default function TeamManager({ cleanerId }: TeamManagerProps) {
+  const [payments, setPayments] = useState<any[]>([]);
+  const [stats, setStats] = useState({
+    totalEarnings: 0,
+    thisMonth: 0,
+    pending: 0,
+    completedTasks: 0,
+  });
   const [loading, setLoading] = useState(true);
-  const [newCleaner, setNewCleaner] = useState({ name: '', phone: '', email: '' });
 
   useEffect(() => {
-    if (propertyId) {
-      loadTeamData();
-    }
-  }, [propertyId]);
+    loadPaymentData();
+  }, [cleanerId]);
 
-  const loadTeamData = async () => {
+  const loadPaymentData = async () => {
     try {
-      setLoading(true);
-      
-      // Load cleaners owned by current user
-      const { data: cleanersData } = await supabase
-        .from('cleaners')
+      // Load payment history
+      const { data: paymentData, error: paymentError } = await supabase
+        .from('automatic_payment_logs')
         .select('*')
-        .order('name');
-      
-      // Load assignments for this property
-      const { data: assignmentsData } = await supabase
-        .from('cleaner_assignments')
-        .select(`
-          *,
-          cleaners(id, name)
-        `)
-        .eq('property_id', propertyId);
-      
-      // Load rates
-      const { data: ratesData } = await supabase
-        .from('cleaner_rates')
-        .select('*')
-        .or(`property_id.eq.${propertyId},property_id.is.null`);
-      
-      setCleaners(cleanersData || []);
-      setAssignments(assignmentsData || []);
-      setRates(ratesData || []);
-    } catch (error) {
-      toast.error('Errore nel caricamento del team');
-      console.error(error);
+        .eq('cleaner_id', cleanerId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (paymentError) throw paymentError;
+
+      setPayments(paymentData || []);
+
+      // Calculate stats
+      const total = paymentData?.reduce((sum, p) => sum + (p.amount_cents || 0), 0) || 0;
+      const thisMonth = paymentData
+        ?.filter(p => {
+          const date = new Date(p.created_at);
+          const now = new Date();
+          return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+        })
+        .reduce((sum, p) => sum + (p.amount_cents || 0), 0) || 0;
+      const pending = paymentData?.filter(p => p.status === 'pending').length || 0;
+
+      // Get completed tasks count
+      const { data: tasksData } = await supabase
+        .from('cleaning_tasks')
+        .select('id', { count: 'exact' })
+        .eq('assigned_cleaner_id', cleanerId)
+        .eq('status', 'done');
+
+      setStats({
+        totalEarnings: total / 100,
+        thisMonth: thisMonth / 100,
+        pending,
+        completedTasks: tasksData?.length || 0,
+      });
+    } catch (error: any) {
+      console.error('Error loading payment data:', error);
+      toast.error('Errore nel caricamento dei dati pagamento');
     } finally {
       setLoading(false);
     }
   };
 
-  const createCleaner = async () => {
-    if (!newCleaner.name.trim()) {
-      toast.error('Nome obbligatorio');
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('cleaners')
-        .insert({
-          name: newCleaner.name,
-          phone: newCleaner.phone || null,
-          email: newCleaner.email || null,
-          owner_id: (await supabase.auth.getUser()).data.user?.id
-        });
-
-      if (error) throw error;
-
-      setNewCleaner({ name: '', phone: '', email: '' });
-      loadTeamData();
-      toast.success('Addetto creato con successo');
-    } catch (error) {
-      toast.error('Errore nella creazione dell\'addetto');
-      console.error(error);
-    }
-  };
-
-  const assignCleaner = async (cleanerId: string) => {
-    try {
-      const { error } = await supabase
-        .from('cleaner_assignments')
-        .insert({
-          property_id: propertyId,
-          cleaner_id: cleanerId,
-          weight: 1,
-          active: true
-        });
-
-      if (error) throw error;
-
-      loadTeamData();
-      toast.success('Addetto assegnato alla proprietà');
-    } catch (error) {
-      toast.error('Errore nell\'assegnazione');
-      console.error(error);
-    }
-  };
-
-  const removeAssignment = async (assignmentId: string) => {
-    try {
-      const { error } = await supabase
-        .from('cleaner_assignments')
-        .delete()
-        .eq('id', assignmentId);
-
-      if (error) throw error;
-
-      loadTeamData();
-      toast.success('Assegnazione rimossa');
-    } catch (error) {
-      toast.error('Errore nella rimozione');
-      console.error(error);
-    }
-  };
-
-  const setRate = async (cleanerId: string, rateType: 'per_task' | 'per_hour', amountCents: number) => {
-    try {
-      const { error } = await supabase
-        .from('cleaner_rates')
-        .upsert({
-          cleaner_id: cleanerId,
-          property_id: propertyId,
-          rate_type: rateType,
-          amount_cents: amountCents
-        }, {
-          onConflict: 'cleaner_id,property_id'
-        });
-
-      if (error) throw error;
-
-      loadTeamData();
-      toast.success('Tariffa aggiornata');
-    } catch (error) {
-      toast.error('Errore nell\'aggiornamento della tariffa');
-      console.error(error);
-    }
-  };
-
-  const autoAssignWeek = async () => {
-    try {
-      const from = new Date();
-      from.setHours(0, 0, 0, 0);
-      const to = new Date(from);
-      to.setDate(to.getDate() + 7);
-
-      const { data, error } = await supabase.functions.invoke('auto-assign-week', {
-        body: {
-          property_id: propertyId,
-          from: from.toISOString(),
-          to: to.toISOString()
-        }
-      });
-
-      if (error) throw error;
-
-      toast.success(`Assegnati ${data?.assigned || 0} task automaticamente`);
-    } catch (error) {
-      toast.error('Errore nell\'auto-assegnazione');
-      console.error(error);
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'failed':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
   if (loading) {
-    return <div className="p-4">Caricamento team...</div>;
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
   }
-
-  const assignedCleanerIds = assignments.map(a => a.cleaner_id);
-  const unassignedCleaners = cleaners.filter(c => !assignedCleanerIds.includes(c.id));
 
   return (
     <div className="space-y-6">
-      {/* Create new cleaner */}
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Guadagno Totale</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">€{stats.totalEarnings.toFixed(2)}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Questo Mese</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">€{stats.thisMonth.toFixed(2)}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Task Completati</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.completedTasks}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">In Attesa</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.pending}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Payment History */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UserPlus className="w-5 h-5" />
-            Nuovo Addetto
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="name">Nome *</Label>
-              <Input
-                id="name"
-                value={newCleaner.name}
-                onChange={(e) => setNewCleaner(prev => ({ ...prev, name: e.target.value }))}
-                placeholder="Nome completo"
-              />
-            </div>
-            <div>
-              <Label htmlFor="phone">Telefono</Label>
-              <Input
-                id="phone"
-                value={newCleaner.phone}
-                onChange={(e) => setNewCleaner(prev => ({ ...prev, phone: e.target.value }))}
-                placeholder="+39 123 456 7890"
-              />
-            </div>
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={newCleaner.email}
-                onChange={(e) => setNewCleaner(prev => ({ ...prev, email: e.target.value }))}
-                placeholder="email@example.com"
-              />
-            </div>
+          <div className="flex items-center justify-between">
+            <CardTitle>Storico Pagamenti</CardTitle>
+            <Button variant="outline" size="sm">
+              <Download className="h-4 w-4 mr-2" />
+              Esporta
+            </Button>
           </div>
-          <Button onClick={createCleaner}>Crea Addetto</Button>
-        </CardContent>
-      </Card>
-
-      {/* Assigned cleaners */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Users className="w-5 h-5" />
-            Team Assegnato ({assignments.length})
-          </CardTitle>
-          <Button onClick={autoAssignWeek} variant="outline">
-            Auto-assegna Settimana
-          </Button>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {assignments.map((assignment) => {
-              const rate = rates.find(r => 
-                r.cleaner_id === assignment.cleaner_id && 
-                (r.property_id === propertyId || r.property_id === null)
-              );
-              
-              return (
-                <div key={assignment.id} className="border rounded-lg p-4 flex items-center justify-between">
-                  <div className="space-y-1">
-                    <div className="font-medium">{assignment.cleaners?.name}</div>
-                    <div className="text-sm text-muted-foreground">
-                      Peso: {assignment.weight} • 
-                      Tariffa: €{rate ? (rate.amount_cents / 100).toFixed(2) : '30.00'} {rate?.rate_type === 'per_hour' ? 'per ora' : 'per task'}
+          <div className="space-y-4">
+            {payments.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                Nessun pagamento registrato
+              </p>
+            ) : (
+              payments.map((payment) => (
+                <div
+                  key={payment.id}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-medium">
+                        €{(payment.amount_cents / 100).toFixed(2)}
+                      </p>
+                      <Badge className={getStatusColor(payment.status)}>
+                        {payment.status === 'completed' && 'Completato'}
+                        {payment.status === 'pending' && 'In Attesa'}
+                        {payment.status === 'failed' && 'Fallito'}
+                      </Badge>
                     </div>
+                    <p className="text-sm text-muted-foreground">
+                      {format(new Date(payment.created_at), 'dd MMMM yyyy, HH:mm', {
+                        locale: it,
+                      })}
+                    </p>
+                    {payment.error_message && (
+                      <p className="text-xs text-destructive mt-1">
+                        {payment.error_message}
+                      </p>
+                    )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <select 
-                      className="border border-border rounded px-2 py-1 bg-background text-sm"
-                      defaultValue={rate?.rate_type || 'per_task'}
-                      onChange={(e) => {
-                        const rateType = e.target.value as 'per_task' | 'per_hour';
-                        const amount = rate?.amount_cents || 3000;
-                        setRate(assignment.cleaner_id, rateType, amount);
-                      }}
-                    >
-                      <option value="per_task">Per Task</option>
-                      <option value="per_hour">Per Ora</option>
-                    </select>
-                    <Input
-                      type="number"
-                      placeholder="30.00"
-                      className="w-24"
-                      defaultValue={rate ? (rate.amount_cents / 100).toFixed(2) : '30.00'}
-                      onBlur={(e) => {
-                        const value = parseFloat(e.target.value);
-                        if (value > 0) {
-                          const rateType = rate?.rate_type || 'per_task';
-                          setRate(assignment.cleaner_id, rateType, Math.round(value * 100));
-                        }
-                      }}
-                    />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => removeAssignment(assignment.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
+                  
+                  {payment.stripe_payment_intent_id && (
+                    <Button variant="ghost" size="sm">
+                      Dettagli
                     </Button>
-                  </div>
+                  )}
                 </div>
-              );
-            })}
-            
-            {assignments.length === 0 && (
-              <div className="text-center py-6 text-muted-foreground">
-                Nessun addetto assegnato a questa proprietà
-              </div>
+              ))
             )}
           </div>
         </CardContent>
       </Card>
-
-      {/* Available cleaners to assign */}
-      {unassignedCleaners.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Addetti Disponibili</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {unassignedCleaners.map((cleaner) => (
-                <div key={cleaner.id} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div>
-                    <div className="font-medium">{cleaner.name}</div>
-                    {cleaner.phone && (
-                      <div className="text-sm text-muted-foreground">{cleaner.phone}</div>
-                    )}
-                  </div>
-                  <Button size="sm" onClick={() => assignCleaner(cleaner.id)}>
-                    Assegna
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

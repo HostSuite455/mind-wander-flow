@@ -121,10 +121,11 @@ const App = () => (
 
               {/* Cleaner Portal Routes */}
               <Route path="/cleaner-login" element={<><Navigation /><CleanerLogin /></>} />
+              <Route path="/cleaner-signup" element={<CleanerSignup />} />
               <Route path="/invite/cleaner/:invitationCode" element={<CleanerInviteAccept />} />
               <Route path="/cleaner-dashboard" element={<CleanerGuard><CleanerDashboard /></CleanerGuard>} />
               <Route path="/cleaner-tasks" element={<CleanerGuard><CleanerTasksPage /></CleanerGuard>} />
-              <Route path="/cleaner" element={<CleanerGuard><CleanerTasksPage /></CleanerGuard>} />
+              <Route path="/cleaner" element={<CleanerGuard><CleanerDashboard /></CleanerGuard>} />
               
               {/* Additional Cleaning Routes */}
               <Route path="/pulizie" element={<ProtectedRoute><PuliziePage /></ProtectedRoute>} />

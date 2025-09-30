@@ -59,10 +59,11 @@ export default function CleanerInviteAccept() {
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-
+      
       if (!user) {
-        // Redirect to login with return URL
-        navigate(`/cleaner-login?redirect=/invite/cleaner/${invitationCode}`);
+        // Not authenticated → redirect to signup with invitation code
+        toast.info('Crea il tuo account per accettare l\'invito');
+        navigate(`/cleaner-signup?code=${invitationCode}`);
         return;
       }
 
@@ -71,15 +72,18 @@ export default function CleanerInviteAccept() {
         .from('cleaners')
         .select('id')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      let cleanerId = existingCleaner?.id;
+      let cleanerId: string;
 
-      // Create cleaner profile if doesn't exist
-      if (!cleanerId) {
-        const { data: profileData } = await supabase
+      if (existingCleaner) {
+        // User is already a cleaner, just add new assignment
+        cleanerId = existingCleaner.id;
+      } else {
+        // Create cleaner profile from user's profile data
+        const { data: profile } = await supabase
           .from('profiles')
-          .select('first_name, last_name, phone')
+          .select('*')
           .eq('id', user.id)
           .single();
 
@@ -88,9 +92,9 @@ export default function CleanerInviteAccept() {
           .insert({
             user_id: user.id,
             owner_id: invitation.host_id,
-            name: profileData ? `${profileData.first_name || ''} ${profileData.last_name || ''}`.trim() : user.email?.split('@')[0] || 'Cleaner',
+            name: profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : user.email?.split('@')[0] || 'Cleaner',
             email: user.email,
-            phone: profileData?.phone
+            phone: profile?.phone,
           })
           .select()
           .single();
@@ -99,34 +103,42 @@ export default function CleanerInviteAccept() {
         cleanerId = newCleaner.id;
       }
 
-      // Create assignment
-      const { error: assignmentError } = await supabase
+      // Check if assignment already exists
+      const { data: existingAssignment } = await supabase
         .from('cleaner_assignments')
-        .insert({
-          cleaner_id: cleanerId,
-          property_id: invitation.property_id,
-          active: true
-        });
+        .select('id')
+        .eq('cleaner_id', cleanerId)
+        .eq('property_id', invitation.property_id)
+        .maybeSingle();
 
-      if (assignmentError) throw assignmentError;
+      if (!existingAssignment) {
+        // Create new assignment
+        const { error: assignmentError } = await supabase
+          .from('cleaner_assignments')
+          .insert({
+            cleaner_id: cleanerId,
+            property_id: invitation.property_id,
+            active: true,
+          });
+
+        if (assignmentError) throw assignmentError;
+      }
 
       // Update invitation status
-      const { error: updateError } = await supabase
+      await supabase
         .from('cleaner_invitations')
         .update({
           status: 'accepted',
           accepted_at: new Date().toISOString(),
-          cleaner_id: cleanerId
+          cleaner_id: cleanerId,
         })
         .eq('id', invitation.id);
 
-      if (updateError) throw updateError;
-
-      toast.success('Invito accettato! Benvenuto nel team!');
-      navigate('/cleaner-tasks');
-    } catch (err: any) {
-      console.error('Error accepting invitation:', err);
-      toast.error('Errore nell\'accettare l\'invito: ' + err.message);
+      toast.success('Invito accettato con successo!');
+      navigate('/cleaner-dashboard');
+    } catch (error: any) {
+      console.error('Error accepting invitation:', error);
+      toast.error(error.message || 'Errore nell\'accettazione dell\'invito');
     } finally {
       setLoading(false);
     }
