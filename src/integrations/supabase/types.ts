@@ -61,6 +61,178 @@ export type Database = {
           },
         ]
       }
+      checklist_completions: {
+        Row: {
+          completed: boolean | null
+          completed_at: string | null
+          created_at: string | null
+          id: string
+          item_id: string | null
+          notes: string | null
+          photo_url: string | null
+          task_checklist_id: string | null
+        }
+        Insert: {
+          completed?: boolean | null
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          item_id?: string | null
+          notes?: string | null
+          photo_url?: string | null
+          task_checklist_id?: string | null
+        }
+        Update: {
+          completed?: boolean | null
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          item_id?: string | null
+          notes?: string | null
+          photo_url?: string | null
+          task_checklist_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_completions_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklist_completions_task_checklist_id_fkey"
+            columns: ["task_checklist_id"]
+            isOneToOne: false
+            referencedRelation: "task_checklists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checklist_items: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          order_index: number | null
+          requires_note: boolean | null
+          requires_photo: boolean | null
+          template_id: string | null
+          title: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          order_index?: number | null
+          requires_note?: boolean | null
+          requires_photo?: boolean | null
+          template_id?: string | null
+          title: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          order_index?: number | null
+          requires_note?: boolean | null
+          requires_photo?: boolean | null
+          template_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checklist_templates: {
+        Row: {
+          category: string
+          created_at: string | null
+          description: string | null
+          id: string
+          is_default: boolean | null
+          name: string
+          property_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name: string
+          property_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          property_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_templates_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cleaner_activity_logs: {
+        Row: {
+          action: string
+          cleaner_id: string | null
+          cleaning_task_id: string | null
+          created_at: string | null
+          id: string
+          metadata: Json | null
+        }
+        Insert: {
+          action: string
+          cleaner_id?: string | null
+          cleaning_task_id?: string | null
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+        }
+        Update: {
+          action?: string
+          cleaner_id?: string | null
+          cleaning_task_id?: string | null
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cleaner_activity_logs_cleaner_id_fkey"
+            columns: ["cleaner_id"]
+            isOneToOne: false
+            referencedRelation: "cleaners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cleaner_activity_logs_cleaning_task_id_fkey"
+            columns: ["cleaning_task_id"]
+            isOneToOne: false
+            referencedRelation: "cleaning_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cleaner_assignments: {
         Row: {
           active: boolean
@@ -99,6 +271,51 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cleaner_payment_schedules: {
+        Row: {
+          auto_pay: boolean | null
+          cleaner_id: string | null
+          created_at: string | null
+          frequency: string | null
+          id: string
+          payment_method_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          auto_pay?: boolean | null
+          cleaner_id?: string | null
+          created_at?: string | null
+          frequency?: string | null
+          id?: string
+          payment_method_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          auto_pay?: boolean | null
+          cleaner_id?: string | null
+          created_at?: string | null
+          frequency?: string | null
+          id?: string
+          payment_method_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cleaner_payment_schedules_cleaner_id_fkey"
+            columns: ["cleaner_id"]
+            isOneToOne: false
+            referencedRelation: "cleaners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cleaner_payment_schedules_payment_method_id_fkey"
+            columns: ["payment_method_id"]
+            isOneToOne: false
+            referencedRelation: "payment_methods"
             referencedColumns: ["id"]
           },
         ]
@@ -147,28 +364,43 @@ export type Database = {
       }
       cleaners: {
         Row: {
+          availability: Json | null
+          avatar_url: string | null
           email: string | null
           id: string
           name: string
+          notification_preferences: Json | null
           owner_id: string
           phone: string | null
+          skills: Json | null
           user_id: string | null
+          whatsapp_number: string | null
         }
         Insert: {
+          availability?: Json | null
+          avatar_url?: string | null
           email?: string | null
           id?: string
           name: string
+          notification_preferences?: Json | null
           owner_id: string
           phone?: string | null
+          skills?: Json | null
           user_id?: string | null
+          whatsapp_number?: string | null
         }
         Update: {
+          availability?: Json | null
+          avatar_url?: string | null
           email?: string | null
           id?: string
           name?: string
+          notification_preferences?: Json | null
           owner_id?: string
           phone?: string | null
+          skills?: Json | null
           user_id?: string | null
+          whatsapp_number?: string | null
         }
         Relationships: []
       }
@@ -451,6 +683,117 @@ export type Database = {
           },
         ]
       }
+      inventory_items: {
+        Row: {
+          auto_reorder: boolean | null
+          category: string
+          cost_per_unit: number | null
+          created_at: string | null
+          current_stock: number | null
+          id: string
+          max_threshold: number | null
+          min_threshold: number | null
+          name: string
+          property_id: string | null
+          supplier_info: Json | null
+          unit: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          auto_reorder?: boolean | null
+          category: string
+          cost_per_unit?: number | null
+          created_at?: string | null
+          current_stock?: number | null
+          id?: string
+          max_threshold?: number | null
+          min_threshold?: number | null
+          name: string
+          property_id?: string | null
+          supplier_info?: Json | null
+          unit?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          auto_reorder?: boolean | null
+          category?: string
+          cost_per_unit?: number | null
+          created_at?: string | null
+          current_stock?: number | null
+          id?: string
+          max_threshold?: number | null
+          min_threshold?: number | null
+          name?: string
+          property_id?: string | null
+          supplier_info?: Json | null
+          unit?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_items_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventory_movements: {
+        Row: {
+          cleaner_id: string | null
+          cleaning_task_id: string | null
+          created_at: string | null
+          id: string
+          item_id: string | null
+          movement_type: string
+          quantity: number
+          reason: string | null
+        }
+        Insert: {
+          cleaner_id?: string | null
+          cleaning_task_id?: string | null
+          created_at?: string | null
+          id?: string
+          item_id?: string | null
+          movement_type: string
+          quantity: number
+          reason?: string | null
+        }
+        Update: {
+          cleaner_id?: string | null
+          cleaning_task_id?: string | null
+          created_at?: string | null
+          id?: string
+          item_id?: string | null
+          movement_type?: string
+          quantity?: number
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_movements_cleaner_id_fkey"
+            columns: ["cleaner_id"]
+            isOneToOne: false
+            referencedRelation: "cleaners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_cleaning_task_id_fkey"
+            columns: ["cleaning_task_id"]
+            isOneToOne: false
+            referencedRelation: "cleaning_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       learning_patterns: {
         Row: {
           category_weights: Json
@@ -501,6 +844,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      payment_methods: {
+        Row: {
+          created_at: string | null
+          details: Json
+          host_id: string
+          id: string
+          is_active: boolean | null
+          is_default: boolean | null
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          details?: Json
+          host_id: string
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          details?: Json
+          host_id?: string
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -781,6 +1157,45 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_checklists: {
+        Row: {
+          cleaning_task_id: string | null
+          completed_at: string | null
+          created_at: string | null
+          id: string
+          template_id: string | null
+        }
+        Insert: {
+          cleaning_task_id?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          template_id?: string | null
+        }
+        Update: {
+          cleaning_task_id?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          template_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_checklists_cleaning_task_id_fkey"
+            columns: ["cleaning_task_id"]
+            isOneToOne: false
+            referencedRelation: "cleaning_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_checklists_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_templates"
             referencedColumns: ["id"]
           },
         ]
