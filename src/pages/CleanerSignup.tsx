@@ -103,6 +103,15 @@ export default function CleanerSignup() {
   };
 
   const handleStep3 = async () => {
+    // Validate payment method if provided
+    if (paymentMethod === 'iban' && paymentDetails) {
+      const ibanRegex = /^[A-Z]{2}[0-9]{2}[A-Z0-9]+$/;
+      if (!ibanRegex.test(paymentDetails.replace(/\s/g, ''))) {
+        toast.error('IBAN non valido');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       // 1. Create auth user
@@ -110,40 +119,48 @@ export default function CleanerSignup() {
         email,
         password,
         options: {
+          emailRedirectTo: `${window.location.origin}/cleaner-dashboard`,
           data: {
             first_name: firstName,
             last_name: lastName,
+            phone: phone,
           }
         }
       });
 
-      if (authError) throw authError;
-      if (!authData.user) throw new Error('User creation failed');
+      if (authError) {
+        console.error('Auth signup error:', authError);
+        throw new Error(`Errore creazione account: ${authError.message}`);
+      }
+      
+      if (!authData.user) {
+        throw new Error('Errore nella creazione dell\'account');
+      }
+
+      // Wait for auth to propagate
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // 2. Create cleaner profile
-      const { error: cleanerError } = await supabase
+      const cleanerName = `${firstName} ${lastName}`.trim();
+      const { data: cleanerData, error: cleanerError } = await supabase
         .from('cleaners')
         .insert({
           user_id: authData.user.id,
           owner_id: invitation.host_id,
-          name: `${firstName} ${lastName}`,
+          name: cleanerName,
           email,
           phone,
           whatsapp_number: phone,
-        });
-
-      if (cleanerError) throw cleanerError;
-
-      // 3. Get cleaner ID
-      const { data: cleanerData } = await supabase
-        .from('cleaners')
+        })
         .select('id')
-        .eq('user_id', authData.user.id)
         .single();
 
-      if (!cleanerData) throw new Error('Cleaner profile not found');
+      if (cleanerError) {
+        console.error('Cleaner creation error:', cleanerError);
+        throw new Error(`Errore creazione profilo: ${cleanerError.message}`);
+      }
 
-      // 4. Create assignment
+      // 3. Create property assignment
       const { error: assignmentError } = await supabase
         .from('cleaner_assignments')
         .insert({
@@ -152,10 +169,13 @@ export default function CleanerSignup() {
           active: true,
         });
 
-      if (assignmentError) throw assignmentError;
+      if (assignmentError) {
+        console.error('Assignment error:', assignmentError);
+        throw new Error(`Errore assegnazione: ${assignmentError.message}`);
+      }
 
-      // 5. Update invitation status
-      await supabase
+      // 4. Update invitation status
+      const { error: inviteUpdateError } = await supabase
         .from('cleaner_invitations')
         .update({
           status: 'accepted',
@@ -164,17 +184,46 @@ export default function CleanerSignup() {
         })
         .eq('id', invitation.id);
 
-      // 6. Store payment method if provided
-      if (paymentMethod && paymentDetails) {
-        // This could be stored in a payment_methods table in the future
-        console.log('Payment method:', paymentMethod, paymentDetails);
+      if (inviteUpdateError) {
+        console.error('Invitation update error:', inviteUpdateError);
+        // Non blocchiamo per questo
       }
 
-      toast.success('Account creato con successo!');
-      navigate('/cleaner-dashboard');
+      // 5. Store payment method in cleaner preferences
+      if (paymentMethod && paymentDetails) {
+        const paymentInfo: any = {
+          payment_method: paymentMethod,
+        };
+
+        if (paymentMethod === 'iban') {
+          paymentInfo.iban = paymentDetails;
+        } else if (paymentMethod === 'paypal') {
+          paymentInfo.paypal_email = paymentDetails;
+        } else if (paymentMethod === 'cash') {
+          paymentInfo.notes = paymentDetails;
+        }
+
+        await supabase
+          .from('cleaners')
+          .update({
+            notification_preferences: {
+              email: true,
+              whatsapp: true,
+              payment_details: paymentInfo,
+            }
+          })
+          .eq('id', cleanerData.id);
+      }
+
+      toast.success('🎉 Benvenuto nel team! Account creato con successo.');
+      
+      // Auto redirect after success
+      setTimeout(() => {
+        navigate('/cleaner-dashboard');
+      }, 1500);
     } catch (error: any) {
-      console.error('Error creating account:', error);
-      toast.error(error.message || 'Errore durante la registrazione');
+      console.error('Signup error:', error);
+      toast.error(error.message || 'Errore durante la registrazione. Riprova.');
     } finally {
       setLoading(false);
     }

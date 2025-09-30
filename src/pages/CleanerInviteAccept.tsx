@@ -19,11 +19,17 @@ export default function CleanerInviteAccept() {
 
   const loadInvitation = async () => {
     try {
+      if (!invitationCode) {
+        setError('Codice invito mancante');
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('cleaner_invitations')
         .select(`
           *,
-          properties (
+          properties:property_id (
             nome,
             address,
             city
@@ -33,7 +39,10 @@ export default function CleanerInviteAccept() {
         .eq('status', 'pending')
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
 
       if (!data) {
         setError('Invito non trovato o scaduto');
@@ -46,10 +55,11 @@ export default function CleanerInviteAccept() {
         return;
       }
 
+      console.log('Invitation loaded:', data);
       setInvitation(data);
     } catch (err: any) {
       console.error('Error loading invitation:', err);
-      setError('Errore nel caricamento dell\'invito');
+      setError(err.message || 'Errore nel caricamento dell\'invito');
     } finally {
       setLoading(false);
     }
@@ -68,50 +78,78 @@ export default function CleanerInviteAccept() {
       }
 
       // Check if user already has a cleaner profile
-      const { data: existingCleaner } = await supabase
+      const { data: existingCleaner, error: cleanerCheckError } = await supabase
         .from('cleaners')
-        .select('id')
+        .select('id, name')
         .eq('user_id', user.id)
         .maybeSingle();
 
+      if (cleanerCheckError) {
+        console.error('Error checking cleaner:', cleanerCheckError);
+        throw new Error('Errore nel controllo del profilo');
+      }
+
       let cleanerId: string;
+      let isNewCleaner = false;
 
       if (existingCleaner) {
         // User is already a cleaner, just add new assignment
         cleanerId = existingCleaner.id;
+        toast.info(`Bentornato ${existingCleaner.name}! Aggiunta nuova proprietà al tuo profilo.`);
       } else {
         // Create cleaner profile from user's profile data
+        isNewCleaner = true;
         const { data: profile } = await supabase
           .from('profiles')
-          .select('*')
+          .select('first_name, last_name, phone')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
+
+        const cleanerName = profile && (profile.first_name || profile.last_name)
+          ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
+          : user.email?.split('@')[0] || 'Cleaner';
 
         const { data: newCleaner, error: cleanerError } = await supabase
           .from('cleaners')
           .insert({
             user_id: user.id,
             owner_id: invitation.host_id,
-            name: profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : user.email?.split('@')[0] || 'Cleaner',
+            name: cleanerName,
             email: user.email,
-            phone: profile?.phone,
+            phone: profile?.phone || invitation.phone,
           })
-          .select()
+          .select('id')
           .single();
 
-        if (cleanerError) throw cleanerError;
+        if (cleanerError) {
+          console.error('Error creating cleaner:', cleanerError);
+          throw new Error('Errore nella creazione del profilo: ' + cleanerError.message);
+        }
         cleanerId = newCleaner.id;
       }
 
       // Check if assignment already exists
       const { data: existingAssignment } = await supabase
         .from('cleaner_assignments')
-        .select('id')
+        .select('id, active')
         .eq('cleaner_id', cleanerId)
         .eq('property_id', invitation.property_id)
         .maybeSingle();
 
-      if (!existingAssignment) {
+      if (existingAssignment) {
+        if (!existingAssignment.active) {
+          // Reactivate existing assignment
+          const { error: reactivateError } = await supabase
+            .from('cleaner_assignments')
+            .update({ active: true })
+            .eq('id', existingAssignment.id);
+          
+          if (reactivateError) throw reactivateError;
+          toast.success('Assegnazione riattivata!');
+        } else {
+          toast.info('Sei già assegnato a questa proprietà');
+        }
+      } else {
         // Create new assignment
         const { error: assignmentError } = await supabase
           .from('cleaner_assignments')
@@ -121,11 +159,14 @@ export default function CleanerInviteAccept() {
             active: true,
           });
 
-        if (assignmentError) throw assignmentError;
+        if (assignmentError) {
+          console.error('Error creating assignment:', assignmentError);
+          throw new Error('Errore nell\'assegnazione: ' + assignmentError.message);
+        }
       }
 
       // Update invitation status
-      await supabase
+      const { error: updateError } = await supabase
         .from('cleaner_invitations')
         .update({
           status: 'accepted',
@@ -134,7 +175,17 @@ export default function CleanerInviteAccept() {
         })
         .eq('id', invitation.id);
 
-      toast.success('Invito accettato con successo!');
+      if (updateError) {
+        console.error('Error updating invitation:', updateError);
+        // Non bloccare il flusso per questo errore
+      }
+
+      if (isNewCleaner) {
+        toast.success('Benvenuto nel team! Profilo creato con successo.');
+      } else {
+        toast.success('Invito accettato! Nuova proprietà aggiunta.');
+      }
+      
       navigate('/cleaner-dashboard');
     } catch (error: any) {
       console.error('Error accepting invitation:', error);
@@ -189,12 +240,17 @@ export default function CleanerInviteAccept() {
           <div className="bg-muted/30 p-4 rounded-lg space-y-2">
             <div>
               <p className="text-sm text-muted-foreground">Proprietà</p>
-              <p className="font-semibold">{invitation.properties?.nome}</p>
+              <p className="font-semibold">
+                {invitation.properties?.nome || 'Proprietà'}
+              </p>
             </div>
             {invitation.properties?.address && (
               <div>
                 <p className="text-sm text-muted-foreground">Indirizzo</p>
-                <p className="text-sm">{invitation.properties.address}, {invitation.properties.city}</p>
+                <p className="text-sm">
+                  {invitation.properties.address}
+                  {invitation.properties.city && `, ${invitation.properties.city}`}
+                </p>
               </div>
             )}
           </div>
