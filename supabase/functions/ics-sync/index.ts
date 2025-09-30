@@ -181,8 +181,9 @@ serve(async (req) => {
       }
 
       const propertyId = icalUrl.ical_configs?.property_id;
-      if (!propertyId) {
-        throw new Error('Property ID not found for iCal configuration');
+      const hostId = icalUrl.ical_configs?.properties?.host_id;
+      if (!propertyId || !hostId) {
+        throw new Error('Property ID or Host ID not found for iCal configuration');
       }
 
       // Get existing blocks from this source to avoid duplicates
@@ -237,6 +238,7 @@ serve(async (req) => {
         
         const blockData = {
           property_id: propertyId,
+          host_id: hostId,
           start_date: startDate,
           end_date: endDate,
           reason: event.summary || 'Imported booking',

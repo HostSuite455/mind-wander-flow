@@ -20,13 +20,7 @@ const HostNavbar = () => {
     { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { path: "/dashboard/properties", label: "Proprietà", icon: Settings },
     { path: "/dashboard/calendar", label: "Calendario", icon: Calendar },
-    { path: "/dashboard/export", label: "Export", icon: Settings },
-    { path: "/host-agent-home", label: "iAgent Home", icon: Bot },
-    { path: "/host-agent-config", label: "Config Agent", icon: Settings },
-    { path: "/host-bookings", label: "Prenotazioni", icon: Calendar },
-    { path: "/host-ical-config", label: "iCal Config", icon: Settings },
     { path: "/host-unanswered-questions", label: "Domande", icon: HelpCircle },
-    { path: "/admin-users", label: "Admin Users", icon: User },
   ];
 
   const closeMenu = () => setIsMenuOpen(false);

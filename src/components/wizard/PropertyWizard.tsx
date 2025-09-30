@@ -100,19 +100,35 @@ export default function PropertyWizard() {
 
       if (propertyError) throw propertyError;
 
-      // Create iCal source
+      // Create iCal configuration (unified system)
       if (wizardData.icalUrl && property) {
-        const { error: icalError } = await supabase.from("ical_sources").insert({
-          property_id: property.id,
-          channel: wizardData.platform || "ical",
-          channel_type: wizardData.platform || "ical",
-          url: wizardData.icalUrl,
-          active: true,
-        });
+        // 1. Create ical_config
+        const { data: icalConfig, error: configError } = await supabase
+          .from("ical_configs")
+          .insert({
+            property_id: property.id,
+            config_type: "ota_direct",
+            is_active: true,
+          })
+          .select()
+          .single();
 
-        if (icalError) {
-          console.error("Error creating iCal source:", icalError);
-          // Non blocchiamo la creazione della proprietà per questo
+        if (configError) {
+          console.error("Error creating iCal config:", configError);
+        } else if (icalConfig) {
+          // 2. Create ical_url
+          const { error: urlError } = await supabase.from("ical_urls").insert({
+            ical_config_id: icalConfig.id,
+            url: wizardData.icalUrl,
+            ota_name: wizardData.platform || "iCal",
+            source: wizardData.platform || "ical",
+            is_active: true,
+            is_primary: true,
+          });
+
+          if (urlError) {
+            console.error("Error creating iCal URL:", urlError);
+          }
         }
       }
 

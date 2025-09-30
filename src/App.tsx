@@ -78,11 +78,11 @@ const App = () => (
                 <Route path="properties/:id/edit" element={<PropertyEditPage />} />
                 <Route path="calendar" element={<CalendarPage />} />
                 <Route path="calendar-pro" element={<Navigate to="/dashboard/calendar" replace />} />
-                <Route path="export" element={<ExportPage />} />
+                <Route path="export" element={<Navigate to="/dashboard/calendar" replace />} />
                 <Route path="host-agent-config" element={<HostAgentConfig />} />
-                <Route path="host-bookings" element={<HostBookings />} />
+                <Route path="host-bookings" element={<Navigate to="/dashboard/calendar" replace />} />
                 <Route path="host-unanswered-questions" element={<HostUnansweredQuestions />} />
-                <Route path="pulizie" element={<PuliziePage />} />
+                <Route path="pulizie" element={<Navigate to="/dashboard/calendar" replace />} />
                 <Route path="admin-users" element={<AdminUsers />} />
               </Route>
               
@@ -92,14 +92,11 @@ const App = () => (
               <Route path="/calendar" element={<Navigate to="/dashboard/calendar" replace />} />
               <Route path="/calendar-pro" element={<Navigate to="/dashboard/calendar" replace />} />
               <Route path="/calendario" element={<Navigate to="/dashboard/calendar" replace />} />
-              <Route path="/export" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-                <Route index element={<Export />} />
-              </Route>
+              <Route path="/export" element={<Navigate to="/dashboard/calendar" replace />} />
+              <Route path="/host-bookings" element={<Navigate to="/dashboard/calendar" replace />} />
+              <Route path="/pulizie" element={<Navigate to="/dashboard/calendar" replace />} />
               <Route path="/host-agent-config" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
                 <Route index element={<HostAgentConfig />} />
-              </Route>
-              <Route path="/host-bookings" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-                <Route index element={<HostBookings />} />
               </Route>
               <Route path="/host-unanswered-questions" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
                 <Route index element={<HostUnansweredQuestions />} />
@@ -118,8 +115,6 @@ const App = () => (
               <Route path="/cleaner-tasks" element={<CleanerGuard><CleanerTasksPage /></CleanerGuard>} />
               <Route path="/cleaner" element={<CleanerGuard><CleanerDashboard /></CleanerGuard>} />
               
-              {/* Additional Cleaning Routes */}
-              <Route path="/pulizie" element={<ProtectedRoute><PuliziePage /></ProtectedRoute>} />
               
               {/* Admin Routes */}
               <Route path="/admin-users" element={<ProtectedRoute><AdminUsers /></ProtectedRoute>} />

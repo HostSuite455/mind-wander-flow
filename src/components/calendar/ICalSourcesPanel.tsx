@@ -17,9 +17,10 @@ interface ICalSource {
 
 interface ICalSourcesPanelProps {
   propertyId: string;
+  onSynced?: () => void;
 }
 
-const ICalSourcesPanel: React.FC<ICalSourcesPanelProps> = ({ propertyId }) => {
+const ICalSourcesPanel: React.FC<ICalSourcesPanelProps> = ({ propertyId, onSynced }) => {
   const [sources, setSources] = useState<ICalSource[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState<string | null>(null);
@@ -69,8 +70,11 @@ const ICalSourcesPanel: React.FC<ICalSourcesPanelProps> = ({ propertyId }) => {
         },
         body: JSON.stringify({ ical_url_id: icalUrlId })
       });
-      toast({ title: "Sincronizzazione avviata" });
-      setTimeout(fetchSources, 2000);
+      toast({ title: "Sincronizzazione completata" });
+      setTimeout(() => {
+        fetchSources();
+        if (onSynced) onSynced();
+      }, 2000);
     } catch (error) {
       toast({ title: "Errore sincronizzazione", variant: "destructive" });
     } finally {
