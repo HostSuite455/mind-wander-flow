@@ -1429,6 +1429,39 @@ export type Database = {
           },
         ]
       }
+      subscriptions: {
+        Row: {
+          created_at: string | null
+          current_period_end: string | null
+          current_period_start: string | null
+          host_id: string
+          id: string
+          price_cents: number
+          subscription_tier: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
+          host_id: string
+          id?: string
+          price_cents?: number
+          subscription_tier?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
+          host_id?: string
+          id?: string
+          price_cents?: number
+          subscription_tier?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       task_checklists: {
         Row: {
           cleaning_task_id: string | null

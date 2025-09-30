@@ -2,268 +2,282 @@ import { useEffect, useState } from "react";
 import { Property } from "@/lib/properties";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Trash2, Calendar, Link as LinkIcon } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
-interface IcalSource {
-  id: string;
-  channel: string;
-  url: string;
-  active: boolean;
-  last_sync_at: string | null;
-  last_status: string | null;
-}
+import { Plus, Calendar, AlertCircle, RefreshCw, Trash2 } from "lucide-react";
+import { 
+  listIcalConfigs, 
+  listIcalUrls, 
+  createIcalConfig, 
+  deleteIcalConfig, 
+  deleteIcalUrl,
+  syncIcalUrl,
+  type IcalConfig,
+  type IcalUrl 
+} from "@/lib/supaIcal";
+import IcalUrlModal from "@/components/IcalUrlModal";
 
 interface Props {
   property: Property;
 }
 
-const PLATFORMS = [
-  { id: "airbnb", name: "Airbnb", color: "bg-[#FF5A5F]" },
-  { id: "booking", name: "Booking.com", color: "bg-[#003580]" },
-  { id: "vrbo", name: "VRBO", color: "bg-[#006AFF]" },
-  { id: "tripadvisor", name: "TripAdvisor", color: "bg-[#00AF87]" },
-  { id: "ical", name: "iCal Link", color: "bg-primary" },
-  { id: "pms", name: "PMS", color: "bg-secondary" },
-];
-
 export function PropertyEditSync({ property }: Props) {
-  const [icalSources, setIcalSources] = useState<IcalSource[]>([]);
+  const [configs, setConfigs] = useState<IcalConfig[]>([]);
+  const [urls, setUrls] = useState<IcalUrl[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [newSource, setNewSource] = useState({ channel: "", url: "" });
-  const [saving, setSaving] = useState(false);
+  const [showUrlModal, setShowUrlModal] = useState(false);
+  const [selectedConfig, setSelectedConfig] = useState<IcalConfig | null>(null);
+  const [editingUrl, setEditingUrl] = useState<IcalUrl | null>(null);
+  const [syncing, setSyncing] = useState<string | null>(null);
 
   useEffect(() => {
-    loadIcalSources();
+    loadData();
   }, [property.id]);
 
-  async function loadIcalSources() {
+  async function loadData() {
     try {
-      const { data, error } = await supabase
-        .from("ical_sources")
-        .select("*")
-        .eq("property_id", property.id)
-        .order("created_at", { ascending: false });
+      setLoading(true);
+      const [configsResult, urlsResult] = await Promise.all([
+        listIcalConfigs(property.id),
+        listIcalUrls(property.id)
+      ]);
 
-      if (error) throw error;
-      setIcalSources(data || []);
-    } catch (error) {
-      console.error("Error loading iCal sources:", error);
+      if (configsResult.error) throw configsResult.error;
+      if (urlsResult.error) throw urlsResult.error;
+
+      setConfigs(configsResult.data || []);
+      setUrls(urlsResult.data || []);
+    } catch (error: any) {
+      console.error('Error loading iCal data:', error);
+      toast.error('Errore nel caricamento delle configurazioni iCal');
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleAddSource() {
-    if (!newSource.channel || !newSource.url) {
-      toast.error("Compila tutti i campi");
-      return;
-    }
-
-    setSaving(true);
+  async function handleCreateOtaConfig() {
     try {
-      const { error } = await supabase.from("ical_sources").insert({
+      const { data, error } = await createIcalConfig({
         property_id: property.id,
-        channel: newSource.channel,
-        url: newSource.url,
-        active: true,
+        config_type: 'ota_direct',
       });
 
       if (error) throw error;
-
-      toast.success("Link iCal aggiunto con successo");
-      setShowAddDialog(false);
-      setNewSource({ channel: "", url: "" });
-      loadIcalSources();
-    } catch (error) {
-      console.error("Error adding iCal source:", error);
-      toast.error("Errore nell'aggiunta del link iCal");
-    } finally {
-      setSaving(false);
+      if (data) {
+        toast.success('Configurazione OTA creata');
+        await loadData();
+        setSelectedConfig(data);
+        setShowUrlModal(true);
+      }
+    } catch (error: any) {
+      console.error('Error creating OTA config:', error);
+      toast.error(error.message || 'Errore nella creazione della configurazione');
     }
   }
 
-  async function handleDeleteSource(id: string) {
+  async function handleDeleteConfig(configId: string) {
+    if (!confirm('Eliminare questa configurazione e tutti i suoi URL?')) return;
+    
     try {
-      const { error } = await supabase
-        .from("ical_sources")
-        .delete()
-        .eq("id", id);
-
+      const { error } = await deleteIcalConfig(configId);
       if (error) throw error;
-
-      toast.success("Link iCal eliminato");
-      loadIcalSources();
-    } catch (error) {
-      console.error("Error deleting iCal source:", error);
-      toast.error("Errore nell'eliminazione del link iCal");
+      
+      toast.success('Configurazione eliminata');
+      await loadData();
+    } catch (error: any) {
+      console.error('Error deleting config:', error);
+      toast.error('Errore nell\'eliminazione della configurazione');
     }
+  }
+
+  async function handleDeleteUrl(urlId: string) {
+    if (!confirm('Eliminare questo URL iCal?')) return;
+    
+    try {
+      const { error } = await deleteIcalUrl(urlId);
+      if (error) throw error;
+      
+      toast.success('URL eliminato');
+      await loadData();
+    } catch (error: any) {
+      console.error('Error deleting URL:', error);
+      toast.error('Errore nell\'eliminazione dell\'URL');
+    }
+  }
+
+  async function handleSyncUrl(urlId: string) {
+    try {
+      setSyncing(urlId);
+      const { error } = await syncIcalUrl(urlId);
+      if (error) throw error;
+      
+      toast.success('Sincronizzazione avviata');
+      setTimeout(() => loadData(), 2000);
+    } catch (error: any) {
+      console.error('Error syncing URL:', error);
+      toast.error('Errore nella sincronizzazione');
+    } finally {
+      setSyncing(null);
+    }
+  }
+
+  function handleUrlModalSuccess() {
+    setShowUrlModal(false);
+    setEditingUrl(null);
+    setSelectedConfig(null);
+    loadData();
   }
 
   if (loading) {
-    return <div className="animate-pulse">Caricamento...</div>;
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <p className="text-sm text-muted-foreground">Caricamento configurazioni...</p>
+        </CardContent>
+      </Card>
+    );
   }
+
+  const otaConfig = configs.find(c => c.config_type === 'ota_direct');
+  const otaUrls = urls.filter(u => otaConfig && u.ical_config_id === otaConfig.id);
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Piattaforme di Prenotazione</CardTitle>
-          <CardDescription>
-            Connetti le tue piattaforme di prenotazione tramite link iCal
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            {PLATFORMS.map((platform) => (
-              <button
-                key={platform.id}
-                onClick={() => {
-                  setNewSource({ ...newSource, channel: platform.name });
-                  setShowAddDialog(true);
-                }}
-                className={`${platform.color} text-white p-4 rounded-lg hover:opacity-90 transition-opacity text-center font-medium`}
-              >
-                {platform.name}
-              </button>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
+      {/* Configurazioni iCal */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Calendari Collegati</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Sincronizzazione Calendari
+              </CardTitle>
               <CardDescription>
-                Gestisci i tuoi link iCal per sincronizzare le prenotazioni
+                Gestisci le fonti iCal per sincronizzare prenotazioni e blocchi
               </CardDescription>
             </div>
-            <Button onClick={() => setShowAddDialog(true)} size="sm">
-              <Plus className="w-4 h-4 mr-2" />
-              Aggiungi Link iCal
-            </Button>
+            {!otaConfig ? (
+              <Button onClick={handleCreateOtaConfig}>
+                <Plus className="h-4 w-4 mr-2" />
+                Configura iCal
+              </Button>
+            ) : (
+              <Button onClick={() => {
+                setSelectedConfig(otaConfig);
+                setEditingUrl(null);
+                setShowUrlModal(true);
+              }}>
+                <Plus className="h-4 w-4 mr-2" />
+                Aggiungi URL
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
-          {icalSources.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Calendar className="w-16 h-16 mx-auto mb-4 opacity-20" />
-              <p>Nessun calendario collegato</p>
-              <p className="text-sm mt-2">
-                Aggiungi il tuo primo link iCal per sincronizzare le prenotazioni
+          {!otaConfig ? (
+            <div className="flex items-center gap-2 p-4 bg-muted rounded-lg">
+              <AlertCircle className="h-5 w-5 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">
+                Nessuna configurazione iCal. Clicca "Configura iCal" per iniziare.
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {icalSources.map((source) => (
-                <div
-                  key={source.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center gap-4 flex-1">
-                    <LinkIcon className="w-5 h-5 text-muted-foreground" />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium">{source.channel}</div>
-                      <div className="text-sm text-muted-foreground truncate">
-                        {source.url}
-                      </div>
-                    </div>
-                    <Badge variant={source.active ? "default" : "secondary"}>
-                      {source.active ? "Attivo" : "Inattivo"}
-                    </Badge>
-                    {source.last_sync_at && (
-                      <span className="text-xs text-muted-foreground">
-                        Ultima sincronizzazione:{" "}
-                        {new Date(source.last_sync_at).toLocaleDateString("it-IT")}
-                      </span>
-                    )}
-                  </div>
+            <div className="space-y-4">
+              {/* Info configurazione */}
+              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                <div>
+                  <p className="font-medium">OTA Direct</p>
+                  <p className="text-sm text-muted-foreground">
+                    {otaUrls.length} URL configurati
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant={otaConfig.is_active ? 'default' : 'secondary'}>
+                    {otaConfig.is_active ? 'Attivo' : 'Inattivo'}
+                  </Badge>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleDeleteSource(source.id)}
-                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => handleDeleteConfig(otaConfig.id)}
+                    className="text-destructive hover:text-destructive"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
-              ))}
+              </div>
+
+              {/* Lista URL con pulsante sync */}
+              {otaUrls.length === 0 ? (
+                <div className="flex items-center gap-2 p-4 border rounded-lg border-dashed">
+                  <AlertCircle className="h-5 w-5 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    Nessun URL configurato. Clicca "Aggiungi URL" per iniziare.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">URL configurati:</p>
+                  {otaUrls.map((url) => (
+                    <div key={url.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium">{url.source || 'iCal'}</p>
+                          {url.is_primary && (
+                            <Badge variant="outline" className="text-xs">Primary</Badge>
+                          )}
+                          <Badge variant={url.is_active ? 'default' : 'secondary'} className="text-xs">
+                            {url.is_active ? 'Attivo' : 'Inattivo'}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate mt-1">{url.url}</p>
+                        {url.last_sync_at && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Ultima sync: {new Date(url.last_sync_at).toLocaleString('it-IT')}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSyncUrl(url.id)}
+                          disabled={syncing === url.id}
+                        >
+                          <RefreshCw className={`h-4 w-4 ${syncing === url.id ? 'animate-spin' : ''}`} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteUrl(url.id)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Add iCal Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Aggiungi Link iCal</DialogTitle>
-            <DialogDescription>
-              Collega una piattaforma di prenotazione tramite il link iCal
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="channel">Piattaforma</Label>
-              <Select
-                value={newSource.channel}
-                onValueChange={(val) => setNewSource({ ...newSource, channel: val })}
-              >
-                <SelectTrigger id="channel">
-                  <SelectValue placeholder="Seleziona piattaforma" />
-                </SelectTrigger>
-                <SelectContent>
-                  {PLATFORMS.map((platform) => (
-                    <SelectItem key={platform.id} value={platform.name}>
-                      {platform.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="url">Link iCal</Label>
-              <Input
-                id="url"
-                type="url"
-                value={newSource.url}
-                onChange={(e) => setNewSource({ ...newSource, url: e.target.value })}
-                placeholder="https://..."
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
-              Annulla
-            </Button>
-            <Button onClick={handleAddSource} disabled={saving}>
-              {saving ? "Aggiunta..." : "Aggiungi"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Modal per aggiungere/modificare URL */}
+      {selectedConfig && (
+        <IcalUrlModal
+          isOpen={showUrlModal}
+          onClose={() => {
+            setShowUrlModal(false);
+            setEditingUrl(null);
+            setSelectedConfig(null);
+          }}
+          onSuccess={handleUrlModalSuccess}
+          icalUrl={editingUrl || undefined}
+          icalConfigId={selectedConfig.id}
+          mode={editingUrl ? 'edit' : 'create'}
+        />
+      )}
     </div>
   );
 }
