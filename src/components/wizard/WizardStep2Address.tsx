@@ -68,25 +68,30 @@ export default function WizardStep2Address({ onNext, onBack, initialData }: Prop
   const [imagePreview, setImagePreview] = useState<string>("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Simple geocoding simulation (in real app, use proper geocoding API)
+  // Real geocoding with Nominatim API
   useEffect(() => {
-    if (address && city && !cannotFindAddress) {
-      // Default Italian cities coordinates
-      const cityCoords: Record<string, [number, number]> = {
-        roma: [41.9028, 12.4964],
-        milano: [45.4642, 9.19],
-        firenze: [43.7696, 11.2558],
-        venezia: [45.4408, 12.3155],
-        napoli: [40.8518, 14.2681],
-        torino: [45.0703, 7.6869],
-        bologna: [44.4949, 11.3426],
-      };
-      const normalized = city.toLowerCase();
-      if (cityCoords[normalized]) {
-        setMapCenter(cityCoords[normalized]);
+    if (!address || !city || cannotFindAddress) return;
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        const query = `${address}, ${city}, ${country}`;
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`
+        );
+        const data = await response.json();
+        
+        if (data && data.length > 0) {
+          const lat = parseFloat(data[0].lat);
+          const lng = parseFloat(data[0].lon);
+          setMapCenter([lat, lng]);
+        }
+      } catch (error) {
+        console.error("Geocoding error:", error);
       }
-    }
-  }, [address, city, cannotFindAddress]);
+    }, 800); // Debounce geocoding requests
+
+    return () => clearTimeout(timeoutId);
+  }, [address, city, country, cannotFindAddress]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

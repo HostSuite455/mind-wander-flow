@@ -24,6 +24,10 @@ export type Property = {
   status?: "draft" | "active" | "inactive";
   timezone?: string;
   created_at?: string;
+  image_url?: string;
+  unit_number?: string;
+  description?: string;
+  default_turnover_duration_min?: number;
 };
 
 export type NewProperty = {

@@ -20,6 +20,7 @@ import CalendarPage from "@/pages/dashboard/CalendarPage";
 import CalendarioPage from "@/pages/CalendarioPage";
 import ExportPage from "@/pages/dashboard/ExportPage";
 import PropertyWizard from "@/components/wizard/PropertyWizard";
+import PropertyEditPage from "@/pages/PropertyEditPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import GuestGuard from "./components/GuestGuard";
 // Legacy imports for backward compatibility
@@ -71,6 +72,7 @@ const App = () => (
                 <Route path="overview" element={<DashboardOverview />} />
                 <Route path="properties" element={<Properties />} />
                 <Route path="properties/new" element={<PropertyWizard />} />
+                <Route path="properties/:id/edit" element={<PropertyEditPage />} />
                 <Route path="calendar" element={<CalendarPage />} />
                 <Route path="calendar-pro" element={<Navigate to="/dashboard/calendar" replace />} />
                 <Route path="export" element={<ExportPage />} />
