@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { StatusBadge } from "@/components/ui/Badges";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import PropertyDetailModal from "@/components/PropertyDetailModal";
-import CreatePropertyModal from "@/components/CreatePropertyModal";
+import PropertyWelcomeModal from "@/components/PropertyWelcomeModal";
 import { 
   Building, 
   RefreshCw, 
@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { createProperty, type NewProperty } from "@/lib/properties";
+
 
 import { useActiveProperty } from "@/hooks/useActiveProperty";
 
@@ -60,15 +60,8 @@ const Properties = () => {
   // Modal states
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [createForm, setCreateForm] = useState({
-    nome: "",
-    city: "",
-    guests: 2,
-    status: "active" as const
-  });
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -76,6 +69,13 @@ const Properties = () => {
   useEffect(() => {
     loadProperties();
   }, []);
+
+  // Show welcome modal if no properties exist
+  useEffect(() => {
+    if (!isLoading && properties.length === 0) {
+      setShowWelcomeModal(true);
+    }
+  }, [isLoading, properties.length]);
 
   // Check for success parameter and show modal
   useEffect(() => {
@@ -172,31 +172,6 @@ const Properties = () => {
   const closeModal = () => {
     setModalOpen(false);
     setSelectedPropertyId(null);
-  };
-
-  const handleCreateProperty = async (propertyData: NewProperty) => {
-    try {
-      setIsCreating(true);
-      await createProperty(propertyData);
-      
-      toast({
-        title: "Successo",
-        description: "Proprietà creata con successo",
-      });
-      
-      setIsCreateModalOpen(false);
-      setCreateForm({ nome: "", city: "", guests: 2, status: "active" as const });
-      loadProperties();
-    } catch (error) {
-      console.error('Error creating property:', error);
-      toast({
-        variant: "destructive",
-        title: "Errore",
-        description: "Errore nella creazione della proprietà",
-      });
-    } finally {
-      setIsCreating(false);
-    }
   };
 
   if (isLoading) {
@@ -479,15 +454,15 @@ const Properties = () => {
           propertyId={selectedPropertyId}
         />
       )}
-      
-      {/* Create Property Modal */}
-      <CreatePropertyModal
-        open={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onConfirm={() => handleCreateProperty(createForm)}
-        creating={isCreating}
-        form={createForm}
-        setForm={setCreateForm}
+
+      {/* Welcome Modal */}
+      <PropertyWelcomeModal
+        open={showWelcomeModal}
+        onClose={() => setShowWelcomeModal(false)}
+        onAddProperty={() => {
+          setShowWelcomeModal(false);
+          navigate("/dashboard/properties/new");
+        }}
       />
 
       {/* Success Modal */}

@@ -14,116 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      availability_blocks: {
-        Row: {
-          created_at: string | null
-          end_date: string
-          id: string
-          property_id: string
-          reason: string | null
-          source: string
-          start_date: string
-        }
-        Insert: {
-          created_at?: string | null
-          end_date: string
-          id?: string
-          property_id: string
-          reason?: string | null
-          source: string
-          start_date: string
-        }
-        Update: {
-          created_at?: string | null
-          end_date?: string
-          id?: string
-          property_id?: string
-          reason?: string | null
-          source?: string
-          start_date?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "availability_blocks_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      bookings: {
-        Row: {
-          adults_count: number | null
-          booking_reference: string | null
-          booking_status: string | null
-          channel: string | null
-          check_in: string
-          check_out: string
-          children_count: number | null
-          created_at: string | null
-          currency: string | null
-          external_booking_id: string
-          guest_email: string | null
-          guest_name: string | null
-          guest_phone: string | null
-          guests_count: number | null
-          host_id: string
-          id: string
-          last_sync_at: string | null
-          property_id: string
-          special_requests: string | null
-          total_price: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          adults_count?: number | null
-          booking_reference?: string | null
-          booking_status?: string | null
-          channel?: string | null
-          check_in: string
-          check_out: string
-          children_count?: number | null
-          created_at?: string | null
-          currency?: string | null
-          external_booking_id: string
-          guest_email?: string | null
-          guest_name?: string | null
-          guest_phone?: string | null
-          guests_count?: number | null
-          host_id: string
-          id?: string
-          last_sync_at?: string | null
-          property_id: string
-          special_requests?: string | null
-          total_price?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          adults_count?: number | null
-          booking_reference?: string | null
-          booking_status?: string | null
-          channel?: string | null
-          check_in?: string
-          check_out?: string
-          children_count?: number | null
-          created_at?: string | null
-          currency?: string | null
-          external_booking_id?: string
-          guest_email?: string | null
-          guest_name?: string | null
-          guest_phone?: string | null
-          guests_count?: number | null
-          host_id?: string
-          id?: string
-          last_sync_at?: string | null
-          property_id?: string
-          special_requests?: string | null
-          total_price?: number | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
       calendar_blocks: {
         Row: {
           created_at: string | null
@@ -170,80 +60,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      channel_accounts: {
-        Row: {
-          created_at: string | null
-          host_id: string
-          ics_export_token: string | null
-          ics_pull_url: string | null
-          id: string
-          kind: Database["public"]["Enums"]["channel_kind"]
-          last_sync_at: string | null
-          last_sync_status: string | null
-          name: string
-          property_id: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          host_id: string
-          ics_export_token?: string | null
-          ics_pull_url?: string | null
-          id?: string
-          kind?: Database["public"]["Enums"]["channel_kind"]
-          last_sync_at?: string | null
-          last_sync_status?: string | null
-          name: string
-          property_id?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          host_id?: string
-          ics_export_token?: string | null
-          ics_pull_url?: string | null
-          id?: string
-          kind?: Database["public"]["Enums"]["channel_kind"]
-          last_sync_at?: string | null
-          last_sync_status?: string | null
-          name?: string
-          property_id?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "channel_accounts_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      chats: {
-        Row: {
-          created_at: string
-          id: number
-          messages: Json | null
-          mode: string | null
-          title: string | null
-        }
-        Insert: {
-          created_at?: string
-          id?: number
-          messages?: Json | null
-          mode?: string | null
-          title?: string | null
-        }
-        Update: {
-          created_at?: string
-          id?: number
-          messages?: Json | null
-          mode?: string | null
-          title?: string | null
-        }
-        Relationships: []
       }
       cleaner_assignments: {
         Row: {
@@ -533,33 +349,39 @@ export type Database = {
         Row: {
           active: boolean
           channel: string
+          channel_type: string | null
           created_at: string | null
           id: string
           last_error: string | null
           last_status: string | null
           last_sync_at: string | null
+          platform_instructions: string | null
           property_id: string
           url: string
         }
         Insert: {
           active?: boolean
           channel: string
+          channel_type?: string | null
           created_at?: string | null
           id?: string
           last_error?: string | null
           last_status?: string | null
           last_sync_at?: string | null
+          platform_instructions?: string | null
           property_id: string
           url: string
         }
         Update: {
           active?: boolean
           channel?: string
+          channel_type?: string | null
           created_at?: string | null
           id?: string
           last_error?: string | null
           last_status?: string | null
           last_sync_at?: string | null
+          platform_instructions?: string | null
           property_id?: string
           url?: string
         }
@@ -680,167 +502,6 @@ export type Database = {
           },
         ]
       }
-      listings: {
-        Row: {
-          account_id: string | null
-          created_at: string | null
-          external_id: string | null
-          id: string
-          property_id: string
-        }
-        Insert: {
-          account_id?: string | null
-          created_at?: string | null
-          external_id?: string | null
-          id?: string
-          property_id: string
-        }
-        Update: {
-          account_id?: string | null
-          created_at?: string | null
-          external_id?: string | null
-          id?: string
-          property_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "listings_account_id_fkey"
-            columns: ["account_id"]
-            isOneToOne: false
-            referencedRelation: "channel_accounts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "listings_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      message_feedback: {
-        Row: {
-          category: string | null
-          confidence_score: number | null
-          created_at: string | null
-          guest_code: string
-          id: string
-          message_id: string
-          pattern: string[] | null
-          property_id: string
-          question: string
-          response: string
-          sub_category: string | null
-          was_helpful: boolean
-        }
-        Insert: {
-          category?: string | null
-          confidence_score?: number | null
-          created_at?: string | null
-          guest_code: string
-          id?: string
-          message_id: string
-          pattern?: string[] | null
-          property_id: string
-          question: string
-          response: string
-          sub_category?: string | null
-          was_helpful: boolean
-        }
-        Update: {
-          category?: string | null
-          confidence_score?: number | null
-          created_at?: string | null
-          guest_code?: string
-          id?: string
-          message_id?: string
-          pattern?: string[] | null
-          property_id?: string
-          question?: string
-          response?: string
-          sub_category?: string | null
-          was_helpful?: boolean
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fk_property"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "message_feedback_property_id_fkey"
-            columns: ["property_id"]
-            isOneToOne: false
-            referencedRelation: "properties"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      payouts: {
-        Row: {
-          amount_cents: number
-          cleaner_id: string
-          created_at: string | null
-          id: string
-          period_end: string
-          period_start: string
-          status: string
-          stripe_transfer_id: string | null
-        }
-        Insert: {
-          amount_cents: number
-          cleaner_id: string
-          created_at?: string | null
-          id?: string
-          period_end: string
-          period_start: string
-          status?: string
-          stripe_transfer_id?: string | null
-        }
-        Update: {
-          amount_cents?: number
-          cleaner_id?: string
-          created_at?: string | null
-          id?: string
-          period_end?: string
-          period_start?: string
-          status?: string
-          stripe_transfer_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "payouts_cleaner_id_fkey"
-            columns: ["cleaner_id"]
-            isOneToOne: false
-            referencedRelation: "cleaners"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      place_cache: {
-        Row: {
-          exists: boolean
-          name: string
-          official_name: string | null
-          types: string[] | null
-        }
-        Insert: {
-          exists: boolean
-          name: string
-          official_name?: string | null
-          types?: string[] | null
-        }
-        Update: {
-          exists?: boolean
-          name?: string
-          official_name?: string | null
-          types?: string[] | null
-        }
-        Relationships: []
-      }
       profiles: {
         Row: {
           created_at: string | null
@@ -892,17 +553,20 @@ export type Database = {
           created_at: string | null
           currency: string | null
           default_turnover_duration_min: number
+          description: string | null
           guests: number | null
           host_id: string
           ical_url: string | null
           ical_url_hash: string | null
           id: string
+          image_url: string | null
           lat: number | null
           lng: number | null
           max_guests: number | null
           nome: string
           size_sqm: number | null
           status: string | null
+          unit_number: string | null
           updated_at: string | null
           whatsapp_link: string | null
         }
@@ -923,17 +587,20 @@ export type Database = {
           created_at?: string | null
           currency?: string | null
           default_turnover_duration_min?: number
+          description?: string | null
           guests?: number | null
           host_id: string
           ical_url?: string | null
           ical_url_hash?: string | null
           id?: string
+          image_url?: string | null
           lat?: number | null
           lng?: number | null
           max_guests?: number | null
           nome?: string
           size_sqm?: number | null
           status?: string | null
+          unit_number?: string | null
           updated_at?: string | null
           whatsapp_link?: string | null
         }
@@ -954,17 +621,20 @@ export type Database = {
           created_at?: string | null
           currency?: string | null
           default_turnover_duration_min?: number
+          description?: string | null
           guests?: number | null
           host_id?: string
           ical_url?: string | null
           ical_url_hash?: string | null
           id?: string
+          image_url?: string | null
           lat?: number | null
           lng?: number | null
           max_guests?: number | null
           nome?: string
           size_sqm?: number | null
           status?: string | null
+          unit_number?: string | null
           updated_at?: string | null
           whatsapp_link?: string | null
         }
@@ -1111,118 +781,6 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      subscriptions: {
-        Row: {
-          created_at: string | null
-          currency: string | null
-          current_period_end: string | null
-          current_period_start: string | null
-          host_id: string
-          id: string
-          price_cents: number
-          status: string | null
-          subscription_tier: string
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          currency?: string | null
-          current_period_end?: string | null
-          current_period_start?: string | null
-          host_id: string
-          id?: string
-          price_cents: number
-          status?: string | null
-          subscription_tier: string
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          currency?: string | null
-          current_period_end?: string | null
-          current_period_start?: string | null
-          host_id?: string
-          id?: string
-          price_cents?: number
-          status?: string | null
-          subscription_tier?: string
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
-      sync_logs: {
-        Row: {
-          account_id: string | null
-          at: string | null
-          id: number
-          level: string
-          message: string
-        }
-        Insert: {
-          account_id?: string | null
-          at?: string | null
-          id?: number
-          level: string
-          message: string
-        }
-        Update: {
-          account_id?: string | null
-          at?: string | null
-          id?: number
-          level?: string
-          message?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "sync_logs_account_id_fkey"
-            columns: ["account_id"]
-            isOneToOne: false
-            referencedRelation: "channel_accounts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      task_accounting: {
-        Row: {
-          cleaner_earnings_cents: number
-          created_at: string | null
-          host_amount_cents: number
-          id: string
-          platform_fee_cleaner_cents: number
-          platform_fee_host_cents: number
-          status: string
-          task_id: string
-        }
-        Insert: {
-          cleaner_earnings_cents: number
-          created_at?: string | null
-          host_amount_cents: number
-          id?: string
-          platform_fee_cleaner_cents: number
-          platform_fee_host_cents: number
-          status?: string
-          task_id: string
-        }
-        Update: {
-          cleaner_earnings_cents?: number
-          created_at?: string | null
-          host_amount_cents?: number
-          id?: string
-          platform_fee_cleaner_cents?: number
-          platform_fee_host_cents?: number
-          status?: string
-          task_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "task_accounting_task_id_fkey"
-            columns: ["task_id"]
-            isOneToOne: true
-            referencedRelation: "cleaning_tasks"
             referencedColumns: ["id"]
           },
         ]

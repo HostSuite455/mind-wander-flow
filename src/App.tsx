@@ -16,12 +16,10 @@ import GuestCodeDemo from "./pages/guest-code-demo";
 import WelcomeBooklet from "./pages/welcome-booklet";
 import AdminUsers from "./pages/admin-users";
 import DashboardOverview from "@/pages/dashboard/DashboardOverview";
-import PropertiesList from "@/pages/dashboard/PropertiesList";
-
 import CalendarPage from "@/pages/dashboard/CalendarPage";
 import CalendarioPage from "@/pages/CalendarioPage";
 import ExportPage from "@/pages/dashboard/ExportPage";
-import PropertyWizard from "@/pages/dashboard/PropertyWizard";
+import PropertyWizard from "@/components/wizard/PropertyWizard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import GuestGuard from "./components/GuestGuard";
 // Legacy imports for backward compatibility
@@ -71,7 +69,7 @@ const App = () => (
               <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
                 <Route index element={<DashboardOverview />} />
                 <Route path="overview" element={<DashboardOverview />} />
-                <Route path="properties" element={<PropertiesList />} />
+                <Route path="properties" element={<Properties />} />
                 <Route path="properties/new" element={<PropertyWizard />} />
                 <Route path="calendar" element={<CalendarPage />} />
                 <Route path="calendar-pro" element={<Navigate to="/dashboard/calendar" replace />} />

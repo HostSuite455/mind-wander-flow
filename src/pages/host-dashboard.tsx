@@ -9,15 +9,13 @@ import { Badge } from "@/components/ui/badge";
 import { StatusBadge, SourceBadge } from "@/components/ui/Badges";
 import { EmptyState } from "@/components/ui/EmptyState";
 import PropertyDetailModal from "@/components/PropertyDetailModal";
-import CreatePropertyModal from "@/components/CreatePropertyModal";
 import PropertySwitch from "@/components/PropertySwitch";
 import KpiPillToggle from "@/components/KpiPillToggle";
 import KpiTrend from "@/components/KpiTrend";
 import { supabase } from "@/lib/supabase";
-import { createProperty, type NewProperty } from "@/lib/properties";
 import { useToast } from "@/hooks/use-toast";
 import { useActiveProperty } from "@/hooks/useActiveProperty";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { 
   LayoutDashboard, 
   Home, 
@@ -74,19 +72,9 @@ const HostDashboard = () => {
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
-  // New property creation modal state
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
-  const [createForm, setCreateForm] = useState({
-    nome: "",
-    city: "",
-    max_guests: undefined as number | undefined,
-    status: "active" as "active" | "inactive",
-    address: ""
-  });
-  
   // Global active property state
   const { id: activePropertyId, setId: setActivePropertyId } = useActiveProperty();
+  const navigate = useNavigate();
   
   // KPI scope state
   const [kpiScope, setKpiScope] = useState<'all' | 'active'>(() => 
@@ -199,79 +187,6 @@ const HostDashboard = () => {
 
   const retryLoad = () => {
     loadDashboardData();
-  };
-
-  // Property creation functions
-  const handleCreateProperty = async () => {
-    if (!createForm.nome.trim()) {
-      toast({
-        variant: "destructive",
-        title: "Errore",
-        description: "Il nome della proprietà è obbligatorio",
-      });
-      return;
-    }
-
-    setIsCreating(true);
-    try {
-      const { data: { user }, error: authErr } = await supabase.auth.getUser();
-      
-      if (authErr || !user) {
-        throw new Error("Utente non autenticato");
-      }
-
-      const { data, error } = await createProperty(createForm);
-      
-      if (error) {
-        console.error('Property creation error:', error);
-        
-        // Debug mode error display
-        const debugMode = localStorage.getItem('debug') === '1';
-        const errorMessage = debugMode 
-          ? `RLS error: ${error.message}` 
-          : error.message || "Errore nella creazione della proprietà";
-          
-        throw new Error(errorMessage);
-      }
-
-      if (data) {
-        // Optimistic update
-        setProperties(prev => [data, ...prev]);
-        
-        // Set as active property if it's the first one
-        if (properties.length === 0) {
-          setActivePropertyId(data.id);
-        }
-        
-        toast({
-          title: "Successo",
-          description: "Proprietà creata con successo",
-        });
-        
-        // Reset form and close modal
-        setCreateForm({
-          nome: "",
-          city: "",
-          max_guests: undefined,
-          status: "active",
-          address: ""
-        });
-        setIsCreateModalOpen(false);
-        
-        // Reload data to get updated stats
-        loadDashboardData();
-      }
-    } catch (error: any) {
-      console.error('Error creating property:', error);
-      
-      toast({
-        variant: "destructive",
-        title: "Errore",
-        description: error.message || "Errore nella creazione della proprietà",
-      });
-    } finally {
-      setIsCreating(false);
-    }
   };
 
   const handlePropertyChange = (propertyId: string | 'all') => {
@@ -733,15 +648,6 @@ const HostDashboard = () => {
         />
       )}
 
-      {/* Create Property Modal */}
-      <CreatePropertyModal
-        open={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onConfirm={handleCreateProperty}
-        creating={isCreating}
-        form={createForm}
-        setForm={setCreateForm}
-      />
     </>
   );
 };
