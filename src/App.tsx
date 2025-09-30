@@ -36,6 +36,8 @@ import PuliziePage from "./pages/PuliziePage";
 import CleanerTasksPage from "./pages/CleanerTasksPage";
 import CleanerLogin from "./pages/CleanerLogin";
 import CleanerGuard from "./components/cleaning/CleanerGuard";
+import CleanerInviteAccept from "./pages/CleanerInviteAccept";
+import CleanerDashboard from "./pages/CleanerDashboard";
 import NotFound from "./pages/NotFound";
 import AppErrorBoundary from "./components/AppErrorBoundary";
 
@@ -119,6 +121,9 @@ const App = () => (
 
               {/* Cleaner Portal Routes */}
               <Route path="/cleaner-login" element={<><Navigation /><CleanerLogin /></>} />
+              <Route path="/invite/cleaner/:invitationCode" element={<CleanerInviteAccept />} />
+              <Route path="/cleaner-dashboard" element={<CleanerGuard><CleanerDashboard /></CleanerGuard>} />
+              <Route path="/cleaner-tasks" element={<CleanerGuard><CleanerTasksPage /></CleanerGuard>} />
               <Route path="/cleaner" element={<CleanerGuard><CleanerTasksPage /></CleanerGuard>} />
               
               {/* Additional Cleaning Routes */}

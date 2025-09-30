@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Users, Plus, Mail, Phone, Star, Activity, UserPlus, MessageCircle } from "lucide-react";
+import InviteCleanerModal from "@/components/cleaning/InviteCleanerModal";
 
 interface Props {
   property: Property;
@@ -40,6 +41,7 @@ export function PropertyEditTeam({ property }: Props) {
   const [assignments, setAssignments] = useState<CleanerAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInviteDialog, setShowInviteDialog] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
   const [newCleaner, setNewCleaner] = useState({
     name: "",
     email: "",
@@ -248,13 +250,18 @@ export function PropertyEditTeam({ property }: Props) {
                 Invita e gestisci gli addetti per questa proprietà
               </CardDescription>
             </div>
-            <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
-              <DialogTrigger asChild>
-                <Button>
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  Invita Addetto
-                </Button>
-              </DialogTrigger>
+            <div className="flex gap-2">
+              <Button onClick={() => setShowInviteModal(true)}>
+                <UserPlus className="w-4 h-4 mr-2" />
+                Invita con Link
+              </Button>
+              <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Aggiungi Manuale
+                  </Button>
+                </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Invita Nuovo Addetto</DialogTitle>
@@ -318,6 +325,7 @@ export function PropertyEditTeam({ property }: Props) {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -396,6 +404,13 @@ export function PropertyEditTeam({ property }: Props) {
           )}
         </CardContent>
       </Card>
+
+      <InviteCleanerModal
+        open={showInviteModal}
+        onOpenChange={setShowInviteModal}
+        propertyId={property.id}
+        propertyName={property.nome}
+      />
     </div>
   );
 }

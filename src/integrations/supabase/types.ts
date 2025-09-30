@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      automatic_payment_logs: {
+        Row: {
+          amount_cents: number
+          cleaner_id: string
+          created_at: string | null
+          error_message: string | null
+          host_id: string
+          id: string
+          processed_at: string | null
+          status: string
+          stripe_payment_intent_id: string | null
+          task_id: string
+        }
+        Insert: {
+          amount_cents: number
+          cleaner_id: string
+          created_at?: string | null
+          error_message?: string | null
+          host_id: string
+          id?: string
+          processed_at?: string | null
+          status?: string
+          stripe_payment_intent_id?: string | null
+          task_id: string
+        }
+        Update: {
+          amount_cents?: number
+          cleaner_id?: string
+          created_at?: string | null
+          error_message?: string | null
+          host_id?: string
+          id?: string
+          processed_at?: string | null
+          status?: string
+          stripe_payment_intent_id?: string | null
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automatic_payment_logs_cleaner_id_fkey"
+            columns: ["cleaner_id"]
+            isOneToOne: false
+            referencedRelation: "cleaners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automatic_payment_logs_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "cleaning_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_blocks: {
         Row: {
           created_at: string | null
@@ -275,6 +329,66 @@ export type Database = {
           },
         ]
       }
+      cleaner_invitations: {
+        Row: {
+          accepted_at: string | null
+          cleaner_id: string | null
+          created_at: string | null
+          email: string | null
+          expires_at: string
+          host_id: string
+          id: string
+          invitation_code: string
+          phone: string | null
+          property_id: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          cleaner_id?: string | null
+          created_at?: string | null
+          email?: string | null
+          expires_at?: string
+          host_id: string
+          id?: string
+          invitation_code: string
+          phone?: string | null
+          property_id: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          cleaner_id?: string | null
+          created_at?: string | null
+          email?: string | null
+          expires_at?: string
+          host_id?: string
+          id?: string
+          invitation_code?: string
+          phone?: string | null
+          property_id?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cleaner_invitations_cleaner_id_fkey"
+            columns: ["cleaner_id"]
+            isOneToOne: false
+            referencedRelation: "cleaners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cleaner_invitations_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cleaner_payment_schedules: {
         Row: {
           auto_pay: boolean | null
@@ -477,6 +591,53 @@ export type Database = {
           },
         ]
       }
+      conversation_messages: {
+        Row: {
+          attachment_url: string | null
+          content: string
+          conversation_id: string
+          created_at: string | null
+          id: string
+          message_type: string
+          read_by_cleaner: boolean | null
+          read_by_host: boolean | null
+          sender_id: string
+          sender_type: string
+        }
+        Insert: {
+          attachment_url?: string | null
+          content: string
+          conversation_id: string
+          created_at?: string | null
+          id?: string
+          message_type?: string
+          read_by_cleaner?: boolean | null
+          read_by_host?: boolean | null
+          sender_id: string
+          sender_type: string
+        }
+        Update: {
+          attachment_url?: string | null
+          content?: string
+          conversation_id?: string
+          created_at?: string | null
+          id?: string
+          message_type?: string
+          read_by_cleaner?: boolean | null
+          read_by_host?: boolean | null
+          sender_id?: string
+          sender_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "host_cleaner_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       guest_codes: {
         Row: {
           check_in: string
@@ -511,6 +672,57 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "guest_codes_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      host_cleaner_conversations: {
+        Row: {
+          cleaner_id: string
+          created_at: string | null
+          flag_reason: string | null
+          flagged_at: string | null
+          flagged_for_support: boolean | null
+          host_id: string
+          id: string
+          last_message_at: string | null
+          property_id: string | null
+        }
+        Insert: {
+          cleaner_id: string
+          created_at?: string | null
+          flag_reason?: string | null
+          flagged_at?: string | null
+          flagged_for_support?: boolean | null
+          host_id: string
+          id?: string
+          last_message_at?: string | null
+          property_id?: string | null
+        }
+        Update: {
+          cleaner_id?: string
+          created_at?: string | null
+          flag_reason?: string | null
+          flagged_at?: string | null
+          flagged_for_support?: boolean | null
+          host_id?: string
+          id?: string
+          last_message_at?: string | null
+          property_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "host_cleaner_conversations_cleaner_id_fkey"
+            columns: ["cleaner_id"]
+            isOneToOne: false
+            referencedRelation: "cleaners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "host_cleaner_conversations_property_id_fkey"
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
@@ -841,6 +1053,62 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: true
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      manual_payment_batches: {
+        Row: {
+          cleaner_id: string
+          created_at: string | null
+          host_id: string
+          id: string
+          notes: string | null
+          payment_date: string | null
+          payment_method: string | null
+          period_end: string
+          period_start: string
+          status: string
+          task_count: number
+          total_amount_cents: number
+          updated_at: string | null
+        }
+        Insert: {
+          cleaner_id: string
+          created_at?: string | null
+          host_id: string
+          id?: string
+          notes?: string | null
+          payment_date?: string | null
+          payment_method?: string | null
+          period_end: string
+          period_start: string
+          status?: string
+          task_count: number
+          total_amount_cents: number
+          updated_at?: string | null
+        }
+        Update: {
+          cleaner_id?: string
+          created_at?: string | null
+          host_id?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string | null
+          payment_method?: string | null
+          period_end?: string
+          period_start?: string
+          status?: string
+          task_count?: number
+          total_amount_cents?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manual_payment_batches_cleaner_id_fkey"
+            columns: ["cleaner_id"]
+            isOneToOne: false
+            referencedRelation: "cleaners"
             referencedColumns: ["id"]
           },
         ]
@@ -1240,6 +1508,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_invitation_code: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_learning_stats: {
         Args: { p_property_id: string }
         Returns: {
