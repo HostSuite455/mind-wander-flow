@@ -106,7 +106,7 @@ export default function PropertyLocationMap({ city, provincia, address, onLocati
     if (location && onLocationFound) {
       onLocationFound(location);
     }
-  }, [location, onLocationFound]);
+  }, [location]); // Removed onLocationFound from dependencies to prevent infinite loop
 
   // Default to Rome if no location found
   const defaultCenter: [number, number] = [41.9028, 12.4964];

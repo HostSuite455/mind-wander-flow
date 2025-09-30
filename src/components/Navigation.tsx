@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, X, Home as HomeIcon, User, Users } from "lucide-react";
+import { Menu, X, Home as HomeIcon, User, Users, UserCheck } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useActiveProperty } from "@/hooks/useActiveProperty";
 import { supaSelect } from "@/lib/supaSafe";
@@ -85,6 +85,16 @@ const Navigation = () => {
             >
               Login Guest
             </Link>
+            <Link 
+              to="/cleaner-login" 
+              className={`transition-colors font-medium ${
+                isActive('/cleaner-login')
+                  ? 'text-hostsuite-primary font-semibold' 
+                  : 'text-hostsuite-text hover:text-hostsuite-primary'
+              }`}
+            >
+              Login Cleaner
+            </Link>
           </div>
 
 
@@ -112,6 +122,18 @@ const Navigation = () => {
               <Link to="/guest">
                 <Users className="w-4 h-4 mr-2" />
                 Accedi Guest
+              </Link>
+            </Button>
+            <Button 
+              asChild 
+              variant="outline"
+              size="sm"
+              className="border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-xl"
+              aria-label="Accedi Cleaner"
+            >
+              <Link to="/cleaner-login">
+                <UserCheck className="w-4 h-4 mr-2" />
+                Accedi Cleaner
               </Link>
             </Button>
           </div>
@@ -193,6 +215,18 @@ const Navigation = () => {
             >
               <Users className="w-4 h-4 inline mr-2" />
               Login Guest
+            </Link>
+            <Link 
+              to="/cleaner-login" 
+              className={`block px-4 py-2 transition-colors font-medium ${
+                isActive('/cleaner-login')
+                  ? 'text-hostsuite-primary bg-hostsuite-light/30 font-semibold' 
+                  : 'text-hostsuite-text hover:bg-hostsuite-light/20'
+              }`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <UserCheck className="w-4 h-4 inline mr-2" />
+              Login Cleaner
             </Link>
           </div>
         )}

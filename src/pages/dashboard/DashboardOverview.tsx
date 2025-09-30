@@ -3,7 +3,7 @@ import HostDashboard from "../host-dashboard";
 
 const DashboardOverview = () => {
   useEffect(() => {
-    document.title = "Dashboard Overview - HostSuite";
+    document.title = "Panoramica Dashboard - HostSuite";
   }, []);
 
   return <HostDashboard />;

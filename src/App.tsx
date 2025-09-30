@@ -20,7 +20,6 @@ import PropertiesList from "@/pages/dashboard/PropertiesList";
 
 import CalendarPage from "@/pages/dashboard/CalendarPage";
 import CalendarioPage from "@/pages/CalendarioPage";
-import ChannelsPage from "@/pages/dashboard/ChannelsPage";
 import ExportPage from "@/pages/dashboard/ExportPage";
 import PropertyWizard from "@/pages/dashboard/PropertyWizard";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -36,6 +35,7 @@ import HostBookings from "./pages/host-bookings";
 import HostUnansweredQuestions from "./pages/host-unanswered-questions";
 import PuliziePage from "./pages/PuliziePage";
 import CleanerTasksPage from "./pages/CleanerTasksPage";
+import CleanerLogin from "./pages/CleanerLogin";
 import CleanerGuard from "./components/cleaning/CleanerGuard";
 import NotFound from "./pages/NotFound";
 import AppErrorBoundary from "./components/AppErrorBoundary";
@@ -75,7 +75,6 @@ const App = () => (
                 <Route path="properties/new" element={<PropertyWizard />} />
                 <Route path="calendar" element={<CalendarPage />} />
                 <Route path="calendar-pro" element={<Navigate to="/dashboard/calendar" replace />} />
-                <Route path="channels" element={<ChannelsPage />} />
                 <Route path="export" element={<ExportPage />} />
                 <Route path="host-agent-config" element={<HostAgentConfig />} />
                 <Route path="host-bookings" element={<HostBookings />} />
@@ -112,16 +111,14 @@ const App = () => (
               <Route path="/host-unanswered-questions" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
                 <Route index element={<HostUnansweredQuestions />} />
               </Route>
-              <Route path="/channels" element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-                <Route index element={<ChannelsPage />} />
-              </Route>
               <Route path="/dashboard/properties/new" element={<ProtectedRoute><PropertyWizard /></ProtectedRoute>} />
               
               {/* Protected Guest Routes */}
               <Route path="/guest-dashboard" element={<GuestGuard><GuestDashboard /></GuestGuard>} />
               <Route path="/welcome-booklet" element={<WelcomeBooklet />} />
 
-              {/* Cleaner Portal Route */}
+              {/* Cleaner Portal Routes */}
+              <Route path="/cleaner-login" element={<><Navigation /><CleanerLogin /></>} />
               <Route path="/cleaner" element={<CleanerGuard><CleanerTasksPage /></CleanerGuard>} />
               
               {/* Additional Cleaning Routes */}

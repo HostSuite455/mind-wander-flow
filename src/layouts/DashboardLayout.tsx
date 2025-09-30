@@ -19,10 +19,9 @@ const DashboardLayout = () => {
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
 
   const navLinks = [
-    { path: "/dashboard", label: "Overview", icon: LayoutDashboard, exact: true },
+    { path: "/dashboard", label: "Panoramica", icon: LayoutDashboard, exact: true },
     { path: "/dashboard/properties", label: "Proprietà", icon: Building },
     { path: "/dashboard/calendar-pro", label: "Calendario", icon: Calendar },
-    { path: "/dashboard/channels", label: "Portali di prenotazione", icon: RefreshCw },
     { path: "/dashboard/pulizie", label: "Pulizie", icon: Sparkles },
     { path: "/dashboard/export", label: "Export", icon: Download },
     { path: "/dashboard/host-agent-home", label: "iAgent Home", icon: Bot },

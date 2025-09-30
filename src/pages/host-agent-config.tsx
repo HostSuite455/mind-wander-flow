@@ -32,7 +32,7 @@ const HostAgentConfig = () => {
                   <Label htmlFor="agentName">Nome Agent</Label>
                   <Input 
                     id="agentName" 
-                    placeholder="es. Sofia - Assistant Siena" 
+                    placeholder="es. Sofia - Assistant" 
                     disabled 
                   />
                 </div>
@@ -41,7 +41,7 @@ const HostAgentConfig = () => {
                   <Label htmlFor="propertySelect">Proprietà</Label>
                   <Input 
                     id="propertySelect" 
-                    value="Casa Siena Centro" 
+                    value="" 
                     disabled 
                   />
                 </div>

@@ -166,16 +166,21 @@ const HostDashboard = () => {
       const unansweredData = unansweredResult.data || [];
       setUnansweredQuestions(unansweredData);
 
-      const adr = propertiesData.length ? Math.round(70 + propertiesData.length * 5) : 0;
-      const occupancy = propertiesData.length ? Math.min(95, 50 + propertiesData.length * 3) : 0;
+      // Only show realistic data when we have actual published properties
+      const publishedProperties = propertiesData.filter(p => p.status !== 'draft');
+      const hasPublishedProperties = publishedProperties.length > 0;
+      
+      // Calculate realistic KPIs based on actual data
+      const adr = hasPublishedProperties ? 0 : 0; // Will be calculated from actual bookings
+      const occupancy = hasPublishedProperties ? 0 : 0; // Will be calculated from actual bookings
       
       // Calculate filtered stats based on KPI scope
       const filteredUnansweredCount = kpiScope === 'active' && activePropertyId !== 'all' 
-        ? Math.floor(unansweredData.length * 0.6) // Mock filtered data
+        ? unansweredData.filter(q => q.property_id === activePropertyId).length
         : unansweredData.length;
         
       const filteredIcalCount = kpiScope === 'active' && activePropertyId !== 'all'
-        ? Math.floor((icalResult.count || 0) * 0.4) // Mock filtered data
+        ? (icalResult.count || 0) // For now, show actual count - will need property-specific filtering
         : (icalResult.count || 0);
 
       setStats({
@@ -378,12 +383,12 @@ const HostDashboard = () => {
                 <nav className="text-sm breadcrumbs mb-4">
                   <span className="text-hostsuite-text">Dashboard</span>
                   <span className="mx-2 text-hostsuite-text">/</span>
-                  <span className="text-hostsuite-primary font-medium">Overview</span>
+                  <span className="text-hostsuite-primary font-medium">Panoramica</span>
                 </nav>
                 
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div className="flex items-center justify-between">
-                    <h1 className="text-3xl font-bold text-hostsuite-primary">Dashboard Overview</h1>
+                    <h1 className="text-3xl font-bold text-hostsuite-primary">Panoramica Dashboard</h1>
                     <PrimaryButton 
                       onClick={retryLoad}
                       disabled={isLoading}

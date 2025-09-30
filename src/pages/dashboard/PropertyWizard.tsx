@@ -1,405 +1,156 @@
-import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { 
-  ArrowLeft, 
-  ArrowRight, 
-  Home, 
+  Calendar, 
+  MapPin, 
   Users, 
-  Bed, 
-  Wifi, 
+  FileText, 
   Euro, 
-  Calendar,
-  CheckCircle,
-  MapPin,
-  Ruler,
-  Bath,
+  X, 
+  ChevronLeft, 
+  ChevronRight,
+  Edit3,
+  Clock,
+  Wifi,
   Car,
+  Utensils,
   Tv,
-  AirVent,
-  ChefHat,
-  ExternalLink,
-  Building,
-  Hotel,
-  Tent,
-  Ship,
-  TreePine,
-  Castle,
-  Plus,
-  Minus
-} from "lucide-react";
-import { logError, logInfo } from "@/lib/log";
-import PropertyLocationMap from '@/components/PropertyLocationMap';
+  Wind,
+  Waves,
+  Coffee,
+  Dumbbell,
+  Gamepad2,
+  Baby,
+  PawPrint,
+  Cigarette,
+  Shield
+} from 'lucide-react';
 
 interface PropertyData {
   id?: string;
-  nome: string;
-  city: string;
-  provincia: string;
-  address?: string;
-  lat?: number;
-  lng?: number;
-  size_sqm?: number;
-  max_guests?: number;
-  bedrooms?: number;
-  beds?: number;
-  bathrooms?: number;
-  amenities: Record<string, boolean>;
-  base_price?: number;
-  cleaning_fee?: number;
-  currency: string;
-  check_in_from?: string;
-  check_out_until?: string;
-}
-
-interface PropertyType {
-  id: string;
-  label: string;
-  icon: React.ComponentType<any>;
+  title: string;
   description: string;
+  address: string;
+  city: string;
+  country: string;
+  price_per_night: number;
+  max_guests: number;
+  bedrooms: number;
+  beds: number;
+  bathrooms: number;
+  amenities: string[];
+  platforms: string[];
+  ical_url?: string;
 }
 
-const PROPERTY_TYPES: PropertyType[] = [
-  { id: 'casa', label: 'Casa', icon: Home, description: 'Una casa completa' },
-  { id: 'appartamento', label: 'Appartamento', icon: Building, description: 'Un appartamento in condominio' },
-  { id: 'villa', label: 'Villa', icon: Castle, description: 'Una villa indipendente' },
-  { id: 'b&b', label: 'B&B', icon: Bed, description: 'Bed & Breakfast' },
-  { id: 'hotel', label: 'Hotel', icon: Hotel, description: 'Camera d\'hotel' },
-  { id: 'barca', label: 'Barca', icon: Ship, description: 'Una barca o yacht' },
-  { id: 'camping', label: 'Camping', icon: Tent, description: 'Tenda o camper' },
-  { id: 'baita', label: 'Baita', icon: TreePine, description: 'Casa di montagna' },
+const AMENITIES = {
+  wifi: { label: 'Wi-Fi', icon: Wifi },
+  parking: { label: 'Parcheggio', icon: Car },
+  kitchen: { label: 'Cucina', icon: Utensils },
+  tv: { label: 'TV', icon: Tv },
+  ac: { label: 'Aria condizionata', icon: Wind },
+  pool: { label: 'Piscina', icon: Waves },
+  breakfast: { label: 'Colazione', icon: Coffee },
+  gym: { label: 'Palestra', icon: Dumbbell },
+  games: { label: 'Giochi', icon: Gamepad2 },
+  baby_friendly: { label: 'Adatto ai bambini', icon: Baby },
+  pet_friendly: { label: 'Animali ammessi', icon: PawPrint },
+  smoking: { label: 'Fumo consentito', icon: Cigarette },
+  security: { label: 'Sicurezza', icon: Shield }
+};
+
+const PLATFORMS = [
+  { id: 'airbnb', name: 'Airbnb', color: 'bg-red-500', icalPlaceholder: 'https://www.airbnb.it/calendar/ical/...' },
+  { id: 'booking', name: 'Booking.com', color: 'bg-blue-600', icalPlaceholder: 'https://admin.booking.com/hotel/hoteladmin/ical/...' },
+  { id: 'vrbo', name: 'VRBO', color: 'bg-yellow-500', icalPlaceholder: 'https://www.vrbo.com/icalendar/...' },
+  { id: 'simple', name: 'Link iCal Semplice', color: 'bg-gray-600', icalPlaceholder: 'https://calendar.google.com/calendar/ical/...' }
 ];
-
-const PRIVACY_TYPES = [
-  {
-    id: 'entire_place',
-    title: 'Un alloggio intero',
-    description: 'Gli ospiti hanno l\'intero alloggio solo per loro.',
-    icon: Home
-  },
-  {
-    id: 'private_room',
-    title: 'Una stanza',
-    description: 'Gli ospiti hanno la loro stanza in una casa, più l\'accesso agli spazi condivisi.',
-    icon: Bed
-  },
-  {
-    id: 'shared_room',
-    title: 'Una stanza condivisa in un ostello',
-    description: 'Gli ospiti dormono in una stanza condivisa in un ostello gestito da un professionista con personale in loco 24 ore su 24.',
-    icon: Users
-  }
-];
-
-const AMENITIES = [
-  { key: 'wifi', label: 'Wi-Fi', icon: Wifi },
-  { key: 'tv', label: 'TV', icon: Tv },
-  { key: 'kitchen', label: 'Cucina', icon: ChefHat },
-  { key: 'washer', label: 'Lavatrice', icon: Ruler },
-  { key: 'parking_free', label: 'Parcheggio gratuito nella proprietà', icon: Car },
-  { key: 'parking_paid', label: 'Parcheggio a pagamento in loco', icon: Car },
-  { key: 'air_conditioning', label: 'Aria condizionata', icon: AirVent },
-  { key: 'workspace', label: 'Spazio di lavoro dedicato', icon: Users },
-];
-
-const CURRENCIES = [
-  { value: 'EUR', label: '€ Euro' },
-  { value: 'USD', label: '$ US Dollar' },
-  { value: 'GBP', label: '£ British Pound' },
-];
-
-interface CounterProps {
-  label: string;
-  value: number;
-  onChange: (value: number) => void;
-  min?: number;
-  max?: number;
-}
-
-const Counter: React.FC<CounterProps> = ({ label, value, onChange, min = 0, max = 16 }) => (
-  <div className="flex items-center justify-between py-4 border-b border-border">
-    <span className="font-medium">{label}</span>
-    <div className="flex items-center gap-4">
-      <Button
-        variant="outline"
-        size="icon"
-        className="h-8 w-8 rounded-full"
-        onClick={() => onChange(Math.max(min, value - 1))}
-        disabled={value <= min}
-      >
-        <Minus className="h-4 w-4" />
-      </Button>
-      <span className="w-8 text-center font-medium">{value}</span>
-      <Button
-        variant="outline"
-        size="icon"
-        className="h-8 w-8 rounded-full"
-        onClick={() => onChange(Math.min(max, value + 1))}
-        disabled={value >= max}
-      >
-        <Plus className="h-4 w-4" />
-      </Button>
-    </div>
-  </div>
-);
 
 export default function PropertyWizard() {
+  const navigate = useNavigate();
+  const { id } = useParams();
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const navigate = useNavigate();
-  const { toast } = useToast();
+  const totalSteps = 5;
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
+  const [selectedPlatform, setSelectedPlatform] = useState<string>('');
+  const [icalUrl, setIcalUrl] = useState('');
+  const [isIcalValid, setIsIcalValid] = useState(false);
 
   const [data, setData] = useState<PropertyData>({
-    nome: '',
-    city: '',
-    provincia: '',
+    title: '',
+    description: '',
     address: '',
-    lat: undefined,
-    lng: undefined,
-    size_sqm: undefined,
-    max_guests: 1,
+    city: '',
+    country: 'Italia',
+    price_per_night: 50,
+    max_guests: 2,
     bedrooms: 1,
     beds: 1,
     bathrooms: 1,
-    amenities: {},
-    base_price: undefined,
-    cleaning_fee: undefined,
-    currency: 'EUR',
-    check_in_from: '15:00',
-    check_out_until: '11:00',
+    amenities: [],
+    platforms: []
   });
 
-  const [selectedPropertyType, setSelectedPropertyType] = useState<string>('');
-  const [selectedPrivacyType, setSelectedPrivacyType] = useState<string>('');
+  const validateIcalUrl = (url: string) => {
+    const icalPattern = /^https?:\/\/.+\.(ics|ical)(\?.*)?$|^https?:\/\/.+\/ical\/.+$/i;
+    const isValid = icalPattern.test(url) && url.length > 10;
+    setIsIcalValid(isValid);
+    return isValid;
+  };
 
-  const totalSteps = 8;
+  const handleIcalChange = (value: string) => {
+    setIcalUrl(value);
+    validateIcalUrl(value);
+  };
+
+  const handlePlatformSelect = (platformId: string) => {
+    setSelectedPlatform(platformId);
+    setIcalUrl('');
+    setIsIcalValid(false);
+  };
+
+  const getSelectedPlatformData = () => {
+    return PLATFORMS.find(p => p.id === selectedPlatform);
+  };
 
   useEffect(() => {
-    loadDraft();
-  }, []);
-
-  const loadDraft = async () => {
-    setIsLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate('/host-login');
-        return;
-      }
-
-      // Check for existing draft
-      const { data: draft, error } = await supabase
-        .from('properties')
-        .select('*')
-        .eq('host_id', user.id)
-        .eq('status', 'draft')
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (error) {
-        logError("Failed to load draft", error, { component: "PropertyWizard" });
-      } else if (draft && draft.length > 0) {
-        const property = draft[0];
-        setData({
-          id: property.id,
-          nome: property.nome || '',
-          city: property.city || '',
-          provincia: property.country || '', // Usiamo il campo country come provincia
-          address: property.address || '',
-          lat: property.lat || undefined,
-          lng: property.lng || undefined,
-          size_sqm: property.size_sqm || undefined,
-          max_guests: property.max_guests || 1,
-          bedrooms: property.bedrooms || 1,
-          beds: property.beds || 1,
-          bathrooms: property.bathrooms || 1,
-          amenities: property.amenities && typeof property.amenities === 'object' ? property.amenities as Record<string, boolean> : {},
-          base_price: property.base_price || undefined,
-          cleaning_fee: property.cleaning_fee || undefined,
-          currency: property.currency || 'EUR',
-          check_in_from: property.check_in_from || '15:00',
-          check_out_until: property.check_out_until || '11:00',
-        });
-        
-        toast({
-          title: "Bozza caricata",
-          description: "Continua da dove avevi interrotto",
-        });
-      }
-    } catch (error) {
-      logError("Unexpected error loading draft", error, { component: "PropertyWizard" });
+    if (id) {
+      setIsLoading(true);
+      // Simulate loading existing property
+      setTimeout(() => {
+        setData(prev => ({ ...prev, id }));
+        setIsLoading(false);
+      }, 1000);
     }
-    setIsLoading(false);
-  };
+  }, [id]);
 
-  const saveDraft = async () => {
-    setIsSaving(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Utilizziamo country al posto di provincia per compatibilità con il database
-      const propertyData = {
-        host_id: user.id,
-        nome: data.nome || 'Proprietà senza nome',
-        city: data.city,
-        country: data.provincia, // Salviamo provincia nel campo country per compatibilità
-        address: data.address,
-        lat: data.lat,
-        lng: data.lng,
-        size_sqm: data.size_sqm,
-        max_guests: data.max_guests,
-        bedrooms: data.bedrooms,
-        beds: data.beds,
-        bathrooms: data.bathrooms,
-        amenities: data.amenities,
-        base_price: data.base_price,
-        cleaning_fee: data.cleaning_fee,
-        currency: data.currency,
-        check_in_from: data.check_in_from,
-        check_out_until: data.check_out_until,
-        status: 'draft',
-        updated_at: new Date().toISOString(),
-      };
-
-      let result;
-      if (data.id) {
-        // Update existing draft
-        result = await supabase
-          .from('properties')
-          .update(propertyData)
-          .eq('id', data.id)
-          .select()
-          .single();
-      } else {
-        // Create new draft
-        result = await supabase
-          .from('properties')
-          .insert(propertyData)
-          .select()
-          .single();
-      }
-
-      if (result.error) {
-        throw result.error;
-      }
-
-      if (result.data && !data.id) {
-        setData(prev => ({ ...prev, id: result.data.id }));
-      }
-
-      logInfo("Draft saved successfully", { component: "PropertyWizard", propertyId: result.data?.id });
-    } catch (error) {
-      logError("Failed to save draft", error, { component: "PropertyWizard" });
-      toast({
-        title: "Errore nel salvataggio",
-        description: "Non è stato possibile salvare la bozza",
-        variant: "destructive",
-      });
-    }
-    setIsSaving(false);
-  };
-
-  const createProperty = async () => {
-    if (!data.nome.trim() || !data.city.trim()) {
-      toast({
-        title: "Campi obbligatori",
-        description: "Nome e città sono obbligatori",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      if (!data.id) {
-        await saveDraft();
-      }
-
-      const { error } = await supabase
-        .from('properties')
-        .update({ status: 'active' })
-        .eq('id', data.id);
-
-      if (error) {
-        throw error;
-      }
-
-      toast({
-        title: "Proprietà creata!",
-        description: "La tua proprietà è stata creata con successo",
-      });
-
-      logInfo("Property created successfully", { component: "PropertyWizard", propertyId: data.id });
-      navigate(`/properties`);
-    } catch (error) {
-      logError("Failed to create property", error, { component: "PropertyWizard" });
-      toast({
-        title: "Errore nella creazione",
-        description: "Non è stato possibile creare la proprietà",
-        variant: "destructive",
-      });
-    }
-    setIsLoading(false);
-  };
-
-  const nextStep = () => {
+  const handleNext = () => {
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1);
-      saveDraft();
     }
   };
 
-  const prevStep = () => {
+  const handlePrevious = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
     }
   };
 
-  const goToStep = (step: number) => {
-    setCurrentStep(step);
-    saveDraft();
-  };
-
-  const updateData = (field: keyof PropertyData, value: any) => {
-    setData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleLocationFound = (location: { lat: number; lng: number; display_name?: string }) => {
-    setData(prev => ({ 
-      ...prev, 
-      lat: location.lat, 
-      lng: location.lng 
-    }));
-  };
-
-  const updateAmenity = (key: string, checked: boolean) => {
-    setData(prev => ({
-      ...prev,
-      amenities: { ...prev.amenities, [key]: checked }
-    }));
-  };
-
-  const canProceed = () => {
-    switch (currentStep) {
-      case 1:
-        return selectedPropertyType !== '';
-      case 2:
-        return selectedPrivacyType !== '';
-      case 3:
-        return data.city.trim() !== '' && data.address.trim() !== '';
-      case 4:
-        return data.max_guests > 0;
-      case 5:
-        return data.nome.trim() !== '';
-      default:
-        return true;
-    }
+  const handleSave = async () => {
+    setIsSaving(true);
+    // Simulate save
+    setTimeout(() => {
+      setIsSaving(false);
+      navigate('/properties');
+    }, 2000);
   };
 
   if (isLoading) {
@@ -407,398 +158,673 @@ export default function PropertyWizard() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p>Caricamento...</p>
+          <p>Caricamento proprietà...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="sticky top-0 z-50 bg-background border-b border-border">
-        <div className="container mx-auto max-w-6xl px-6 py-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
+        <div className="flex flex-col min-h-screen">
+        {/* Header */}
+        <div className="border-b border-gray-200 px-8 py-6">
           <div className="flex items-center justify-between">
-            <Link to="/properties" className="inline-flex items-center text-sm text-muted-foreground hover:text-primary">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Esci
-            </Link>
-            <div className="text-sm text-muted-foreground">
-              {currentStep} / {totalSteps}
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Nuova Proprietà</h1>
+              <p className="text-gray-600 mt-2">Passaggio {currentStep} di {totalSteps}</p>
             </div>
+            <button 
+              onClick={() => window.history.back()}
+              className="text-gray-400 hover:text-gray-600 text-2xl"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+        
+        {/* Draft Banner */}
+        {data.id && (
+          <div className="bg-amber-50 border-b border-amber-200">
+            <div className="px-8 py-3">
+              <div className="flex items-center gap-2 text-amber-800">
+                <Edit3 className="h-4 w-4" />
+                <span className="text-sm font-medium">
+                  Stai completando una bozza salvata
+                </span>
+                <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-100 ml-2">
+                  <Clock className="w-3 h-3 mr-1" />
+                  Bozza
+                </Badge>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Content */}
+        <div className="flex-1 px-8 py-6 overflow-y-auto">
+          {/* Step 1: Platforms */}
+          {currentStep === 1 && (
+            <div className="max-w-7xl mx-auto">
+              <div className="text-center mb-8">
+                <h1 className="text-4xl font-bold mb-4">Nuovo proprietà</h1>
+                <p className="text-muted-foreground">Passaggio 1 di 5</p>
+              </div>
+              
+              {/* Two Column Layout */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Left Column - Platform Selection */}
+                <div className="space-y-6">
+                  <Card>
+                    <CardContent className="p-6">
+                      <h2 className="text-xl font-semibold mb-4">Piattaforme Supportate</h2>
+                      <p className="text-sm text-muted-foreground mb-6">
+                        Seleziona la piattaforma da cui vuoi sincronizzare il calendario
+                      </p>
+                      
+                      <div className="space-y-3">
+                        {PLATFORMS.map((platform) => (
+                          <button
+                            key={platform.id}
+                            onClick={() => handlePlatformSelect(platform.id)}
+                            className={`w-full p-4 rounded-lg border-2 transition-all duration-200 text-left ${
+                              selectedPlatform === platform.id
+                                ? 'border-teal-500 bg-teal-50'
+                                : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div className={`w-8 h-8 ${platform.color} rounded flex items-center justify-center text-white text-sm font-bold`}>
+                                {platform.name.charAt(0)}
+                              </div>
+                              <span className="font-medium text-gray-900">{platform.name}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* iCal URL Input - Shows only when platform is selected */}
+                  {selectedPlatform && (
+                    <Card>
+                      <CardContent className="p-6">
+                        <h3 className="text-lg font-semibold mb-3">
+                          Link iCal - {getSelectedPlatformData()?.name}
+                        </h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Inserisci il link iCal per sincronizzare automaticamente le prenotazioni
+                        </p>
+                        
+                        <div className="space-y-3">
+                          <Input
+                            type="url"
+                            value={icalUrl}
+                            onChange={(e) => handleIcalChange(e.target.value)}
+                            placeholder={getSelectedPlatformData()?.icalPlaceholder}
+                            className={`${
+                              icalUrl && !isIcalValid ? 'border-red-300' : ''
+                            }`}
+                          />
+                          
+                          {icalUrl && !isIcalValid && (
+                            <p className="text-red-600 text-sm">
+                              Inserisci un URL iCal valido (deve terminare con .ics o contenere /ical/)
+                            </p>
+                          )}
+                          
+                          {isIcalValid && (
+                            <p className="text-green-600 text-sm flex items-center">
+                              <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                              URL iCal valido
+                            </p>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+                
+                {/* Right Column - Calendar Information */}
+                <div className="space-y-6">
+                  <Card className="bg-gradient-to-br from-teal-50 to-blue-50 border-teal-200">
+                    <CardContent className="p-6">
+                      <div className="flex items-start space-x-4">
+                        <div className="w-12 h-12 bg-teal-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                          <Calendar className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-teal-900 mb-2">Calendario delle prenotazioni</h3>
+                          <p className="text-sm text-teal-700 leading-relaxed">
+                            Sincronizza automaticamente le prenotazioni dai tuoi canali di vendita. 
+                            Il sistema aggiornerà in tempo reale la disponibilità e previene le doppie prenotazioni.
+                          </p>
+                          <div className="mt-4 space-y-2">
+                            <div className="flex items-center text-xs text-teal-600">
+                              <div className="w-1.5 h-1.5 bg-teal-500 rounded-full mr-2"></div>
+                              Sincronizzazione automatica ogni 15 minuti
+                            </div>
+                            <div className="flex items-center text-xs text-teal-600">
+                              <div className="w-1.5 h-1.5 bg-teal-500 rounded-full mr-2"></div>
+                              Prevenzione doppie prenotazioni
+                            </div>
+                            <div className="flex items-center text-xs text-teal-600">
+                              <div className="w-1.5 h-1.5 bg-teal-500 rounded-full mr-2"></div>
+                              Supporto per tutti i principali OTA
+                            </div>
+                          </div>
+                          
+                          {selectedPlatform && (
+                            <div className="mt-6 p-4 bg-white rounded-lg border border-teal-200">
+                              <h4 className="font-medium text-teal-800 mb-2">
+                                Come trovare il link iCal su {getSelectedPlatformData()?.name}:
+                              </h4>
+                              <div className="text-sm text-teal-700">
+                                {selectedPlatform === 'airbnb' && (
+                                  <ol className="list-decimal list-inside space-y-1">
+                                    <li>Vai su Airbnb Host Dashboard</li>
+                                    <li>Seleziona "Calendario" → "Disponibilità"</li>
+                                    <li>Clicca su "Esporta calendario"</li>
+                                    <li>Copia il link iCal generato</li>
+                                  </ol>
+                                )}
+                                {selectedPlatform === 'booking' && (
+                                  <ol className="list-decimal list-inside space-y-1">
+                                    <li>Accedi al tuo Extranet Booking.com</li>
+                                    <li>Vai su "Calendario" → "Sincronizzazione"</li>
+                                    <li>Genera il link di esportazione iCal</li>
+                                    <li>Copia il link fornito</li>
+                                  </ol>
+                                )}
+                                {selectedPlatform === 'vrbo' && (
+                                  <ol className="list-decimal list-inside space-y-1">
+                                    <li>Accedi al tuo account VRBO</li>
+                                    <li>Vai su "Calendario" → "Sincronizza calendari"</li>
+                                    <li>Seleziona "Esporta calendario"</li>
+                                    <li>Copia il link iCal</li>
+                                  </ol>
+                                )}
+                                {selectedPlatform === 'simple' && (
+                                  <div>
+                                    <p>Inserisci qualsiasi link iCal valido da:</p>
+                                    <ul className="list-disc list-inside mt-2 space-y-1">
+                                      <li>Google Calendar</li>
+                                      <li>Outlook Calendar</li>
+                                      <li>Altri servizi di calendario</li>
+                                      <li>Sistemi di gestione proprietà</li>
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  
+                  {data.platforms.length > 0 && (
+                    <Card>
+                      <CardContent className="p-6">
+                        <h3 className="font-semibold mb-3">Piattaforme selezionate</h3>
+                        <div className="space-y-2">
+                          {data.platforms.map((platformId) => {
+                            const platform = PLATFORMS.find(p => p.id === platformId);
+                            return platform ? (
+                              <div key={platformId} className="flex items-center space-x-3 p-2 bg-gray-50 rounded">
+                                <div className={`w-6 h-6 ${platform.color} rounded flex items-center justify-center text-white text-xs font-bold`}>
+                                  {platform.name.charAt(0)}
+                                </div>
+                                <span className="text-sm">{platform.name}</span>
+                              </div>
+                            ) : null;
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: Location */}
+          {currentStep === 2 && (
+            <div className="max-w-6xl mx-auto space-y-8">
+              <div className="text-center">
+                <h1 className="text-4xl font-bold mb-4">Dove si trova la tua proprietà?</h1>
+                <p className="text-muted-foreground">Inserisci l'indirizzo completo della proprietà per configurare i servizi di pulizia e i pagamenti.</p>
+              </div>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Left Column - Address Form */}
+                <div className="space-y-6">
+                  <Card>
+                    <CardContent className="p-6">
+                      <h3 className="text-xl font-semibold mb-4">Informazioni sulla posizione</h3>
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="address">Indirizzo completo</Label>
+                          <Input
+                            id="address"
+                            value={data.address}
+                            onChange={(e) => setData({...data, address: e.target.value})}
+                            placeholder="Via Roma 123"
+                            className="mt-1"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="city">Città</Label>
+                            <Input
+                              id="city"
+                              value={data.city}
+                              onChange={(e) => setData({...data, city: e.target.value})}
+                              placeholder="Milano"
+                              className="mt-1"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="country">Paese</Label>
+                            <Input
+                              id="country"
+                              value={data.country}
+                              onChange={(e) => setData({...data, country: e.target.value})}
+                              placeholder="Italia"
+                              className="mt-1"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Explanatory Information Cards */}
+                  <div className="space-y-4">
+                    <Card className="border-blue-200 bg-blue-50">
+                      <CardContent className="p-4">
+                        <div className="flex items-start space-x-3">
+                          <MapPin className="w-5 h-5 text-blue-600 mt-0.5" />
+                          <div>
+                            <h4 className="font-semibold text-blue-900 mb-1">Servizi di pulizia</h4>
+                            <p className="text-sm text-blue-800">
+                              Utilizziamo l'indirizzo della proprietà per far sapere agli addetti alle pulizie dove devono andare e per programmare i progetti al momento giusto in base al fuso orario della proprietà.
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-green-200 bg-green-50">
+                      <CardContent className="p-4">
+                        <div className="flex items-start space-x-3">
+                          <Euro className="w-5 h-5 text-green-600 mt-0.5" />
+                          <div>
+                            <h4 className="font-semibold text-green-900 mb-1">Pagamenti personalizzati</h4>
+                            <p className="text-sm text-green-800">
+                              Se paghi i tuoi addetti alle pulizie tramite la nostra piattaforma, invieremo i pagamenti nella valuta che scegli per ogni proprietà.
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-purple-200 bg-purple-50">
+                      <CardContent className="p-4">
+                        <div className="flex items-start space-x-3">
+                          <div className="w-5 h-5 bg-purple-600 rounded mt-0.5"></div>
+                          <div>
+                            <h4 className="font-semibold text-purple-900 mb-1">Identificazione rapida</h4>
+                            <p className="text-sm text-purple-800">
+                              Per identificare rapidamente ogni proprietà, si utilizza un colore specifico per ciascuna di esse nel calendario e negli elenchi dei progetti.
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-orange-200 bg-orange-50">
+                      <CardContent className="p-4">
+                        <div className="flex items-start space-x-3">
+                          <Users className="w-5 h-5 text-orange-600 mt-0.5" />
+                          <div>
+                            <h4 className="font-semibold text-orange-900 mb-1">Gruppi di proprietà</h4>
+                            <p className="text-sm text-orange-800">
+                              I gruppi di proprietà sono utili per visualizzare insieme le proprietà collegate, ad esempio in base alla zona.
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+
+                {/* Right Column - Interactive Map */}
+                <div className="space-y-6">
+                  <Card>
+                    <CardContent className="p-6">
+                      <h3 className="text-xl font-semibold mb-4">Posizione sulla mappa</h3>
+                      <div className="bg-gray-100 rounded-lg h-80 flex items-center justify-center relative overflow-hidden">
+                        {data.address || data.city ? (
+                          <iframe
+                            src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dOWTgHz-y-2b8s&q=${encodeURIComponent(`${data.address} ${data.city} ${data.country}`)}`}
+                            width="100%"
+                            height="100%"
+                            style={{ border: 0 }}
+                            allowFullScreen
+                            loading="lazy"
+                            referrerPolicy="no-referrer-when-downgrade"
+                            className="rounded-lg"
+                          />
+                        ) : (
+                          <div className="text-center text-gray-500">
+                            <MapPin className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+                            <p className="text-sm">La mappa apparirà qui quando inserisci l'indirizzo</p>
+                          </div>
+                        )}
+                      </div>
+                      {data.address && (
+                        <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                          <p className="text-sm text-gray-600">
+                            <MapPin className="w-4 h-4 inline mr-1" />
+                            {data.address}, {data.city}, {data.country}
+                          </p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-indigo-200 bg-indigo-50">
+                    <CardContent className="p-4">
+                      <h4 className="font-semibold text-indigo-900 mb-2">Perché abbiamo bisogno di queste informazioni?</h4>
+                      <ul className="text-sm text-indigo-800 space-y-1">
+                        <li>• Coordinamento efficace del personale di pulizia</li>
+                        <li>• Gestione automatica dei fusi orari</li>
+                        <li>• Pagamenti nella valuta locale appropriata</li>
+                        <li>• Organizzazione geografica delle proprietà</li>
+                      </ul>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Details */}
+          {currentStep === 3 && (
+            <div className="max-w-4xl mx-auto">
+              <div className="text-center mb-8">
+                <h1 className="text-4xl font-bold mb-4">Condividi alcune informazioni di base</h1>
+                <p className="text-muted-foreground">Descrivi il tuo spazio per gli ospiti.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-8">
+                <div className="space-y-6">
+                  <div>
+                    <Label>Ospiti</Label>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setData({...data, max_guests: Math.max(1, data.max_guests - 1)})}
+                        disabled={data.max_guests <= 1}
+                      >
+                        -
+                      </Button>
+                      <span className="w-12 text-center">{data.max_guests}</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setData({...data, max_guests: data.max_guests + 1})}
+                      >
+                        +
+                      </Button>
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Camere da letto</Label>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setData({...data, bedrooms: Math.max(1, data.bedrooms - 1)})}
+                        disabled={data.bedrooms <= 1}
+                      >
+                        -
+                      </Button>
+                      <span className="w-12 text-center">{data.bedrooms}</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setData({...data, bedrooms: data.bedrooms + 1})}
+                      >
+                        +
+                      </Button>
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Letti</Label>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setData({...data, beds: Math.max(1, data.beds - 1)})}
+                        disabled={data.beds <= 1}
+                      >
+                        -
+                      </Button>
+                      <span className="w-12 text-center">{data.beds}</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setData({...data, beds: data.beds + 1})}
+                      >
+                        +
+                      </Button>
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Bagni</Label>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setData({...data, bathrooms: Math.max(1, data.bathrooms - 1)})}
+                        disabled={data.bathrooms <= 1}
+                      >
+                        -
+                      </Button>
+                      <span className="w-12 text-center">{data.bathrooms}</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setData({...data, bathrooms: data.bathrooms + 1})}
+                      >
+                        +
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <Label>Servizi</Label>
+                  <div className="grid grid-cols-2 gap-3 mt-2">
+                    {Object.entries(AMENITIES).map(([key, amenity]) => {
+                      const IconComponent = amenity.icon;
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => {
+                            const newAmenities = data.amenities.includes(key)
+                              ? data.amenities.filter(a => a !== key)
+                              : [...data.amenities, key];
+                            setData({...data, amenities: newAmenities});
+                          }}
+                          className={`p-3 rounded-lg border-2 transition-all ${
+                            data.amenities.includes(key)
+                              ? 'border-teal-500 bg-teal-50'
+                              : 'border-gray-200 hover:border-gray-300 bg-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <IconComponent className="h-5 w-5" />
+                            <span className="text-sm">{amenity.label}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 4: Description */}
+          {currentStep === 4 && (
+            <div className="max-w-2xl mx-auto space-y-8">
+              <div className="text-center">
+                <h1 className="text-4xl font-bold mb-4">Crea il tuo titolo</h1>
+                <p className="text-muted-foreground">Descrivi brevemente il tuo spazio per attirare gli ospiti giusti.</p>
+              </div>
+              <div className="space-y-6">
+                <div>
+                  <Label htmlFor="title">Titolo</Label>
+                  <Input
+                    id="title"
+                    value={data.title}
+                    onChange={(e) => setData({...data, title: e.target.value})}
+                    placeholder="Appartamento moderno nel centro di Milano"
+                    maxLength={50}
+                  />
+                  <p className="text-sm text-muted-foreground mt-1">{data.title.length}/50 caratteri</p>
+                </div>
+                <div>
+                  <Label htmlFor="description">Descrizione</Label>
+                  <Textarea
+                    id="description"
+                    value={data.description}
+                    onChange={(e) => setData({...data, description: e.target.value})}
+                    placeholder="Descrivi il tuo spazio, cosa lo rende speciale e cosa possono aspettarsi gli ospiti..."
+                    rows={6}
+                    maxLength={500}
+                  />
+                  <p className="text-sm text-muted-foreground mt-1">{data.description.length}/500 caratteri</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 5: Pricing */}
+          {currentStep === 5 && (
+            <div className="max-w-2xl mx-auto space-y-8">
+              <div className="text-center">
+                <h1 className="text-4xl font-bold mb-4">Imposta il tuo prezzo</h1>
+                <p className="text-muted-foreground">Puoi sempre modificarlo in seguito.</p>
+              </div>
+              <div className="space-y-6">
+                <div>
+                  <Label htmlFor="price">Prezzo per notte (€)</Label>
+                  <div className="relative mt-2">
+                    <Euro className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="price"
+                      type="number"
+                      value={data.price_per_night}
+                      onChange={(e) => setData({...data, price_per_night: parseInt(e.target.value) || 0})}
+                      className="pl-10"
+                      min="1"
+                    />
+                  </div>
+                </div>
+                <Card>
+                  <CardContent className="p-6">
+                    <h3 className="font-semibold mb-4">Anteprima guadagni</h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span>€{data.price_per_night} x 1 notte</span>
+                        <span>€{data.price_per_night}</span>
+                      </div>
+                      <div className="flex justify-between text-sm text-muted-foreground">
+                        <span>Commissione servizio (3%)</span>
+                        <span>-€{Math.round(data.price_per_night * 0.03)}</span>
+                      </div>
+                      <hr />
+                      <div className="flex justify-between font-semibold">
+                        <span>Guadagno netto</span>
+                        <span>€{data.price_per_night - Math.round(data.price_per_night * 0.03)}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="border-t border-gray-200 px-8 py-6">
+          <div className="flex justify-between">
+            <Button
+              variant="outline"
+              onClick={handlePrevious}
+              disabled={currentStep === 1}
+              className="flex items-center"
+            >
+              <ChevronLeft className="w-4 h-4 mr-2" />
+              Indietro
+            </Button>
+            {currentStep === totalSteps ? (
+              <Button onClick={handleSave} className="flex items-center">
+                Salva Proprietà
+              </Button>
+            ) : (
+              <Button 
+                onClick={() => {
+                  if (currentStep === 1) {
+                    // Validate Step 1 before proceeding
+                    if (!selectedPlatform || !isIcalValid) {
+                      alert('Seleziona una piattaforma e inserisci un URL iCal valido per continuare');
+                      return;
+                    }
+                    // Save the data
+                    setData(prev => ({
+                      ...prev,
+                      platforms: [selectedPlatform],
+                      ical_url: icalUrl
+                    }));
+                  }
+                  handleNext();
+                }}
+                disabled={currentStep === 1 && (!selectedPlatform || !isIcalValid)}
+                className="flex items-center"
+              >
+                Avanti
+                <ChevronRight className="w-4 h-4 ml-2" />
+              </Button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="container mx-auto max-w-2xl px-6 py-12">
-        <div className="space-y-8">
-          {/* Step 1: Property Type */}
-          {currentStep === 1 && (
-            <div className="text-center space-y-8">
-              <div>
-                <h1 className="text-4xl font-bold mb-4">Quale di queste opzioni descrive meglio il tuo alloggio?</h1>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {PROPERTY_TYPES.map((type) => {
-                  const Icon = type.icon;
-                  return (
-                    <button
-                      key={type.id}
-                      onClick={() => setSelectedPropertyType(type.id)}
-                      className={`p-6 rounded-lg border-2 transition-all hover:border-primary/50 text-left ${
-                        selectedPropertyType === type.id
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border'
-                      }`}
-                    >
-                      <Icon className="h-8 w-8 mb-3" />
-                      <h3 className="font-semibold mb-1">{type.label}</h3>
-                      <p className="text-sm text-muted-foreground">{type.description}</p>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Step 2: Privacy Type */}
-          {currentStep === 2 && (
-            <div className="text-center space-y-8">
-              <div>
-                <h1 className="text-4xl font-bold mb-4">A che tipo di alloggio avranno accesso gli ospiti?</h1>
-              </div>
-              
-              <div className="space-y-4">
-                {PRIVACY_TYPES.map((type) => {
-                  const Icon = type.icon;
-                  return (
-                    <button
-                      key={type.id}
-                      onClick={() => setSelectedPrivacyType(type.id)}
-                      className={`w-full p-6 rounded-lg border-2 transition-all hover:border-primary/50 text-left ${
-                        selectedPrivacyType === type.id
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border'
-                      }`}
-                    >
-                      <div className="flex items-start gap-4">
-                        <Icon className="h-8 w-8 mt-1 flex-shrink-0" />
-                        <div>
-                          <h3 className="font-semibold mb-2">{type.title}</h3>
-                          <p className="text-sm text-muted-foreground">{type.description}</p>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Location */}
-          {currentStep === 3 && (
-            <div className="text-center space-y-8">
-              <div>
-                <h1 className="text-4xl font-bold mb-4">Dove si trova il tuo alloggio?</h1>
-                <p className="text-muted-foreground">Il tuo indirizzo viene condiviso con gli ospiti solo dopo che hanno effettuato una prenotazione.</p>
-              </div>
-              
-               <div className="space-y-6 max-w-md mx-auto">
-                 <div>
-                   <Input
-                     value={data.city}
-                     onChange={(e) => updateData('city', e.target.value)}
-                     placeholder="Città"
-                     className="text-lg py-4"
-                     required
-                   />
-                 </div>
-                 <div>
-                   <Input
-                     value={data.provincia}
-                     onChange={(e) => updateData('provincia', e.target.value)}
-                     placeholder="Provincia"
-                     className="text-lg py-4"
-                   />
-                 </div>
-                 <div>
-                   <Input
-                     value={data.address}
-                     onChange={(e) => updateData('address', e.target.value)}
-                     placeholder="Indirizzo"
-                     className="text-lg py-4"
-                     required
-                   />
-                 </div>
-               </div>
-
-               {/* Mappa */}
-               <div className="max-w-2xl mx-auto mt-8">
-                 <PropertyLocationMap
-                   city={data.city}
-                   provincia={data.provincia}
-                   address={data.address || ''}
-                   onLocationFound={handleLocationFound}
-                 />
-               </div>
-            </div>
-          )}
-
-          {/* Step 4: Capacity */}
-          {currentStep === 4 && (
-            <div className="text-center space-y-8">
-              <div>
-                <h1 className="text-4xl font-bold mb-4">Condividi alcune informazioni di base sul tuo alloggio</h1>
-                <p className="text-muted-foreground">Potrai aggiungere ulteriori dettagli in seguito, come i tipi di letto.</p>
-              </div>
-              
-              <div className="bg-card p-8 rounded-lg border max-w-md mx-auto">
-                <Counter
-                  label="Ospiti"
-                  value={data.max_guests || 1}
-                  onChange={(value) => updateData('max_guests', value)}
-                  min={1}
-                />
-                <Counter
-                  label="Camere da letto"
-                  value={data.bedrooms || 1}
-                  onChange={(value) => updateData('bedrooms', value)}
-                  min={0}
-                />
-                <Counter
-                  label="Letti"
-                  value={data.beds || 1}
-                  onChange={(value) => updateData('beds', value)}
-                  min={1}
-                />
-                <div className="flex items-center justify-between py-4">
-                  <span className="font-medium">Bagni</span>
-                  <div className="flex items-center gap-4">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8 rounded-full"
-                      onClick={() => updateData('bathrooms', Math.max(0.5, (data.bathrooms || 1) - 0.5))}
-                      disabled={(data.bathrooms || 1) <= 0.5}
-                    >
-                      <Minus className="h-4 w-4" />
-                    </Button>
-                    <span className="w-8 text-center font-medium">{data.bathrooms || 1}</span>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8 rounded-full"
-                      onClick={() => updateData('bathrooms', Math.min(16, (data.bathrooms || 1) + 0.5))}
-                      disabled={(data.bathrooms || 1) >= 16}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 5: Property Name */}
-          {currentStep === 5 && (
-            <div className="text-center space-y-8">
-              <div>
-                <h1 className="text-4xl font-bold mb-4">Ora, dicci il nome del tuo alloggio</h1>
-                <p className="text-muted-foreground">I nomi brevi sono più efficaci. Non preoccuparti, puoi sempre cambiarlo in seguito.</p>
-              </div>
-              
-              <div className="max-w-md mx-auto">
-                <Input
-                  value={data.nome}
-                  onChange={(e) => updateData('nome', e.target.value)}
-                  placeholder="es. Appartamento luminoso nel centro storico"
-                  className="text-lg py-4"
-                />
-                <p className="text-sm text-muted-foreground mt-2">{data.nome.length}/50</p>
-              </div>
-            </div>
-          )}
-
-          {/* Step 6: Amenities */}
-          {currentStep === 6 && (
-            <div className="text-center space-y-8">
-              <div>
-                <h1 className="text-4xl font-bold mb-4">Fai conoscere agli utenti tutti i servizi del tuo alloggio</h1>
-                <p className="text-muted-foreground">Potrai aggiungerne degli altri dopo la pubblicazione dell'annuncio.</p>
-              </div>
-              
-              <div>
-                <h3 className="text-xl font-semibold mb-6 text-left">I servizi più richiesti dagli ospiti:</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {AMENITIES.map((amenity) => {
-                    const Icon = amenity.icon;
-                    const isSelected = data.amenities[amenity.key] || false;
-                    return (
-                      <button
-                        key={amenity.key}
-                        onClick={() => updateAmenity(amenity.key, !isSelected)}
-                        className={`p-4 rounded-lg border-2 transition-all hover:border-primary/50 text-left ${
-                          isSelected
-                            ? 'border-primary bg-primary/5'
-                            : 'border-border'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Icon className="h-6 w-6" />
-                          <span className="font-medium">{amenity.label}</span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 7: Pricing */}
-          {currentStep === 7 && (
-            <div className="text-center space-y-8">
-              <div>
-                <h1 className="text-4xl font-bold mb-4">Ora, imposta il tuo prezzo</h1>
-                <p className="text-muted-foreground">Puoi cambiarlo in qualsiasi momento.</p>
-              </div>
-              
-              <div className="bg-card p-8 rounded-lg border max-w-md mx-auto space-y-6">
-                <div>
-                  <Label className="text-lg font-medium">Prezzo base per notte</Label>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="text-2xl">€</span>
-                    <Input
-                      type="number"
-                      value={data.base_price || ''}
-                      onChange={(e) => updateData('base_price', parseFloat(e.target.value) || undefined)}
-                      placeholder="0"
-                      className="text-2xl py-4"
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <Label className="text-lg font-medium">Costo di pulizia (opzionale)</Label>
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="text-xl">€</span>
-                    <Input
-                      type="number"
-                      value={data.cleaning_fee || ''}
-                      onChange={(e) => updateData('cleaning_fee', parseFloat(e.target.value) || undefined)}
-                      placeholder="0"
-                      className="text-xl py-3"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 8: Review */}
-          {currentStep === 8 && (
-            <div className="text-center space-y-8">
-              <div>
-                <h1 className="text-4xl font-bold mb-4">Controlla il tuo annuncio</h1>
-                <p className="text-muted-foreground">Ecco come apparirà agli ospiti. Assicurati che tutto sia come lo desideri.</p>
-              </div>
-
-              <div className="bg-card p-8 rounded-lg border text-left space-y-6">
-                <div>
-                  <h3 className="text-xl font-bold mb-2">{data.nome || 'Nome proprietà'}</h3>
-                  <p className="text-muted-foreground">{selectedPropertyType} • {data.city}, {data.provincia}</p>
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>{data.max_guests} ospiti</div>
-                  <div>{data.bedrooms} camere</div>
-                  <div>{data.beds} letti</div>
-                  <div>{data.bathrooms} bagni</div>
-                </div>
-
-                <div>
-                  <h4 className="font-semibold mb-2">Servizi:</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {Object.entries(data.amenities)
-                      .filter(([_, selected]) => selected)
-                      .map(([key, _]) => {
-                        const amenity = AMENITIES.find(a => a.key === key);
-                        return amenity ? (
-                          <span key={key} className="px-3 py-1 bg-muted rounded-full text-sm">
-                            {amenity.label}
-                          </span>
-                        ) : null;
-                      })}
-                  </div>
-                </div>
-
-                {data.base_price && (
-                  <div>
-                    <h4 className="font-semibold mb-2">Prezzo:</h4>
-                    <div className="text-xl font-bold">€{data.base_price} a notte</div>
-                    {data.cleaning_fee && (
-                      <div className="text-sm text-muted-foreground">+ €{data.cleaning_fee} costo di pulizia</div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Navigation */}
-        <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border">
-          <div className="container mx-auto max-w-2xl px-6 py-4">
-            <div className="flex justify-between items-center">
-              <Button
-                variant="ghost"
-                onClick={prevStep}
-                disabled={currentStep === 1}
-                className="text-muted-foreground"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Indietro
-              </Button>
-
-              {currentStep === totalSteps ? (
-                <Button
-                  onClick={createProperty}
-                  disabled={isLoading || !canProceed()}
-                  size="lg"
-                  className="min-w-[140px]"
-                >
-                  {isLoading ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  ) : (
-                    'Pubblica annuncio'
-                  )}
-                </Button>
-              ) : (
-                <Button
-                  onClick={nextStep}
-                  disabled={!canProceed()}
-                  size="lg"
-                  className="min-w-[100px]"
-                >
-                  Avanti
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              )}
-            </div>
+      {/* Auto-save indicator */}
+      {isSaving && (
+        <div className="fixed bottom-4 right-4 bg-primary text-primary-foreground px-4 py-2 rounded-lg shadow-lg">
+          <div className="flex items-center gap-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            Salvataggio in corso...
           </div>
         </div>
-
-        {/* Auto-save indicator */}
-        {isSaving && (
-          <div className="fixed top-20 right-4 bg-muted text-muted-foreground px-4 py-2 rounded-lg shadow-lg border">
-            <div className="flex items-center gap-2 text-sm">
-              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current"></div>
-              Salvataggio automatico...
-            </div>
-          </div>
-        )}
+      )}
       </div>
     </div>
   );

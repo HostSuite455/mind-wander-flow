@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bot, Calendar, TrendingUp, Home as HomeIcon, Building2, Users, LogIn } from "lucide-react";
+import { Bot, Calendar, TrendingUp, Home as HomeIcon, Building2, Users, LogIn, UserCheck } from "lucide-react";
 import { Link } from "react-router-dom";
 import sienaDayImage from "@/assets/siena-day.png";
 import { useHeroTime } from "@/hooks/useHeroTime";
@@ -16,7 +16,7 @@ const HeroImage = () => {
     const other = new Image();
     other.src = mode === "night" ? "/hero/italy-day.png" : "/hero/italy-night.png";
   }, [mode]);
-  return <img src={src} alt="Italia al centro del mondo - illustrazione hero" className="w-full h-auto rounded-2xl shadow-xl transition-opacity duration-500" width="600" height="400" loading="eager" fetchPriority="high" />;
+  return <img src={src} alt="Italia al centro del mondo - illustrazione hero" className="w-full h-auto rounded-2xl shadow-xl transition-opacity duration-500" width="600" height="400" loading="eager" fetchpriority="high" />;
 };
 const Home = () => {
   return <div className="min-h-screen bg-background">
@@ -44,6 +44,12 @@ const Home = () => {
                   <Link to="/guest">
                     <Users className="w-5 h-5 mr-2" />
                     Accedi come Ospite
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="lg" className="border-blue-500 text-blue-600 hover:bg-blue-500 hover:text-white transition-all duration-300" aria-label="Accedi come Cleaner - Gestisci le pulizie">
+                  <Link to="/cleaner-login">
+                    <UserCheck className="w-5 h-5 mr-2" />
+                    Accedi Cleaner
                   </Link>
                 </Button>
               </div>

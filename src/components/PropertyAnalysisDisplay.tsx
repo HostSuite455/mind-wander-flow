@@ -54,7 +54,7 @@ const PropertyAnalysisDisplay = ({ analysis }: PropertyAnalysisDisplayProps) => 
           </p>
         </div>
 
-        {/* Property Overview */}
+        {/* Panoramica Proprietà */}
         <div className="mb-8 p-6 bg-gradient-to-r from-hostsuite-primary/10 to-hostsuite-secondary/10 rounded-lg border border-hostsuite-primary/20">
           <div className="grid md:grid-cols-4 gap-4 text-center">
             <div>

@@ -199,12 +199,17 @@ export default function CleanerTasksPage(){
                   onClick={() => setStatus(t.id, 'done')}
                   disabled={t.status === 'done'}
                 >
-                  {t.status === 'done' ? 'Completato' : t.completion_photo_url ? 'Completa' : 'Aggiungi foto e completa'}
+                  {t.status === 'done' 
+                    ? 'Completato' 
+                    : t.completion_photo_url 
+                      ? 'Completa' 
+                      : 'Aggiungi foto e completa'
+                  }
                 </Button>
               </div>
             </CardContent>
           </Card>
-        )}
+        ))}
         
         {!tasks.length && (
           <Card>

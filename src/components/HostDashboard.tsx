@@ -30,38 +30,9 @@ const HostDashboard = ({ onAnalysisGenerated }: HostDashboardProps) => {
 
     // Simula analisi AI
     setTimeout(() => {
-      const mockAnalysis = {
-        propertyName,
-        location,
-        propertyType,
-        guests: parseInt(guests),
-        description,
-        pricing: {
-          suggestedRate: "€85/notte",
-          weeklyDiscount: "15%",
-          monthlyDiscount: "25%",
-          seasonalAdjustment: "+20% estate, -10% inverno"
-        },
-        optimization: {
-          occupancyRate: "85%",
-          avgDailyRate: "€75",
-          revenuePotential: "€2,850/mese",
-          improvements: [
-            "Aggiorna foto della proprietà",
-            "Migliora descrizione con parole chiave locali",
-            "Implementa check-in automatico",
-            "Aggiungi amenities premium"
-          ]
-        },
-        automation: {
-          autoCheckin: "Disponibile",
-          guestCommunication: "Template AI personalizzati",
-          cleaningSchedule: "Automatica tra prenotazioni",
-          priceOptimization: "Dynamic pricing attivo"
-        }
-      };
+      // Mock analysis rimosso
       
-      onAnalysisGenerated(mockAnalysis);
+      // Mock analysis call rimossa
       toast({
         title: "Analisi Completata!",
         description: "La tua proprietà è stata analizzata con successo.",
@@ -102,7 +73,7 @@ const HostDashboard = ({ onAnalysisGenerated }: HostDashboardProps) => {
                     <Label htmlFor="propertyName">Nome Proprietà</Label>
                     <Input
                       id="propertyName"
-                      placeholder="Casa Vacanze Siena"
+                      placeholder="Nome della proprietà"
                       value={propertyName}
                       onChange={(e) => setPropertyName(e.target.value)}
                       required
@@ -112,7 +83,7 @@ const HostDashboard = ({ onAnalysisGenerated }: HostDashboardProps) => {
                     <Label htmlFor="location">Località</Label>
                     <Input
                       id="location"
-                      placeholder="Siena, Toscana"
+                      placeholder="Città, Regione"
                       value={location}
                       onChange={(e) => setLocation(e.target.value)}
                       required

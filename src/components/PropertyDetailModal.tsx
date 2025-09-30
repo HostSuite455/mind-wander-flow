@@ -209,7 +209,7 @@ const PropertyDetailModal = ({ open, onClose, propertyId }: PropertyDetailModalP
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-hostsuite-primary">
                 <Home className="w-5 h-5" />
-                Overview
+                Panoramica
               </CardTitle>
             </CardHeader>
             <CardContent>

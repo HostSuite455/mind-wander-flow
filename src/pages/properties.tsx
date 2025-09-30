@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/ui/Badges";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import PropertyDetailModal from "@/components/PropertyDetailModal";
 import CreatePropertyModal from "@/components/CreatePropertyModal";
 import { 
@@ -22,7 +23,10 @@ import {
   Users,
   Calendar,
   Plus,
-  Info
+  Info,
+  Edit3,
+  Clock,
+  CheckCircle2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -46,6 +50,7 @@ const Properties = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { id: activePropertyId } = useActiveProperty();
+  const [searchParams, setSearchParams] = useSearchParams();
   
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -57,6 +62,7 @@ const Properties = () => {
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [createForm, setCreateForm] = useState({
     nome: "",
     city: "",
@@ -70,6 +76,18 @@ const Properties = () => {
   useEffect(() => {
     loadProperties();
   }, []);
+
+  // Check for success parameter and show modal
+  useEffect(() => {
+    const success = searchParams.get('success');
+    if (success === 'true') {
+      setShowSuccessModal(true);
+      // Remove the success parameter from URL
+      const newSearchParams = new URLSearchParams(searchParams);
+      newSearchParams.delete('success');
+      setSearchParams(newSearchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const loadProperties = async () => {
     try {
@@ -101,12 +119,20 @@ const Properties = () => {
   const filteredProperties = useMemo(() => {
     const term = (searchTerm ?? '').toLowerCase();
     
+    // Check if there are any draft properties
+    const hasDraftProperties = properties.some(prop => prop.status === 'draft');
+    
     let filtered = properties.filter(prop => {
       const name = (prop.nome || prop.name || '').toLowerCase();
       const city = (prop.city || '').toLowerCase();
       const matchesSearch = name.includes(term) || city.includes(term);
       const matchesCity = selectedCity === 'all' || prop.city === selectedCity;
       const matchesStatus = statusFilter === 'all' || prop.status === statusFilter;
+      
+      // If there are draft properties, only show drafts
+      if (hasDraftProperties) {
+        return matchesSearch && matchesCity && matchesStatus && prop.status === 'draft';
+      }
       
       return matchesSearch && matchesCity && matchesStatus;
     });
@@ -118,6 +144,9 @@ const Properties = () => {
 
     return filtered;
   }, [properties, searchTerm, selectedCity, statusFilter, activePropertyId]);
+
+  // Check if we have draft properties to hide the count
+  const hasDraftProperties = properties.some(prop => prop.status === 'draft');
 
   const uniqueCities = useMemo(() => {
     const cities = properties
@@ -325,7 +354,9 @@ const Properties = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
-                  <span>Proprietà ({filteredProperties.length})</span>
+                  <span>
+                    {hasDraftProperties ? "Bozza Attiva" : `Proprietà (${filteredProperties.length})`}
+                  </span>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -342,59 +373,95 @@ const Properties = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredProperties.map((property) => (
-                        <TableRow key={property.id}>
-                          <TableCell className="font-medium">
-                            <div className="flex items-center gap-2">
-                              <Building className="w-4 h-4 text-hostsuite-primary" />
-                              {property.nome || property.name || 'Senza nome'}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {property.city ? (
-                              <div className="flex items-center gap-1">
-                                <MapPin className="w-3 h-3 text-hostsuite-text/50" />
-                                {property.city}
+                      {filteredProperties.map((property) => {
+                        const isDraft = property.status === 'draft';
+                        
+                        return (
+                          <TableRow key={property.id} className={isDraft ? 'bg-amber-50/50 border-amber-200' : ''}>
+                            <TableCell className="font-medium">
+                              <div className="flex items-center gap-2">
+                                {isDraft ? (
+                                  <Edit3 className="w-4 h-4 text-amber-600" />
+                                ) : (
+                                  <Building className="w-4 h-4 text-hostsuite-primary" />
+                                )}
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    {property.nome || property.name || 'Senza nome'}
+                                    {isDraft && (
+                                      <Badge variant="outline" className="text-amber-700 border-amber-300 bg-amber-50">
+                                        <Clock className="w-3 h-3 mr-1" />
+                                        Bozza
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {isDraft && (
+                                    <p className="text-xs text-amber-600 mt-1">
+                                      Completa il wizard per pubblicare la proprietà
+                                    </p>
+                                  )}
+                                </div>
                               </div>
-                            ) : (
-                              <span className="text-hostsuite-text/50">—</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {property.status ? (
-                              <StatusBadge status={property.status as any} />
-                            ) : (
-                              <Badge variant="secondary">Non definito</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {property.guests ? (
-                              <div className="flex items-center gap-1">
-                                <Users className="w-3 h-3 text-hostsuite-text/50" />
-                                {property.guests}
+                            </TableCell>
+                            <TableCell>
+                              {property.city ? (
+                                <div className="flex items-center gap-1">
+                                  <MapPin className="w-3 h-3 text-hostsuite-text/50" />
+                                  {property.city}
+                                </div>
+                              ) : (
+                                <span className="text-hostsuite-text/50">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {property.status ? (
+                                <StatusBadge status={property.status as any} />
+                              ) : (
+                                <Badge variant="secondary">Non definito</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {property.guests ? (
+                                <div className="flex items-center gap-1">
+                                  <Users className="w-3 h-3 text-hostsuite-text/50" />
+                                  {property.guests}
+                                </div>
+                              ) : (
+                                <span className="text-hostsuite-text/50">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-1 text-hostsuite-text/60">
+                                <Calendar className="w-3 h-3" />
+                                {formatDate(property.created_at)}
                               </div>
-                            ) : (
-                              <span className="text-hostsuite-text/50">—</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1 text-hostsuite-text/60">
-                              <Calendar className="w-3 h-3" />
-                              {formatDate(property.created_at)}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <PrimaryButton
-                              size="sm"
-                              onClick={() => openModal(property.id)}
-                              aria-label={`Visualizza dettagli di ${property.nome || property.name || 'Proprietà'}`}
-                            >
-                              <Eye className="w-4 h-4 mr-1" />
-                              Dettagli
-                            </PrimaryButton>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center gap-2 justify-end">
+                                {isDraft ? (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => navigate(`/dashboard/properties/new?draft=${property.id}`)}
+                                    className="bg-amber-600 hover:bg-amber-700 text-white"
+                                  >
+                                    <CheckCircle2 className="w-4 h-4 mr-1" />
+                                    Completa Wizard
+                                  </Button>
+                                ) : (
+                                  <PrimaryButton
+                                    size="sm"
+                                    onClick={() => openModal(property.id)}
+                                    aria-label={`Visualizza dettagli di ${property.nome || property.name || 'Proprietà'}`}
+                                  >
+                                    <Eye className="w-4 h-4 mr-1" />
+                                    Dettagli
+                                  </PrimaryButton>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
@@ -422,6 +489,57 @@ const Properties = () => {
         form={createForm}
         setForm={setCreateForm}
       />
+
+      {/* Success Modal */}
+      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center">
+              <div className="flex flex-col items-center space-y-4">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                  <svg
+                    className="w-8 h-8 text-green-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Fantastico! Hai impostato la tua proprietà!
+                </h3>
+                <p className="text-sm text-gray-600 text-center">
+                  La tua proprietà è già pronta e online a ricevere addebiti dai visitatori.
+                </p>
+                <div className="flex space-x-3 mt-4">
+                  <button
+                    onClick={() => setShowSuccessModal(false)}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                  >
+                    Visualizza altre proprietà
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowSuccessModal(false);
+                      navigate('/dashboard');
+                    }}
+                    className="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition-colors"
+                  >
+                    Torna alla dashboard
+                  </button>
+                </div>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

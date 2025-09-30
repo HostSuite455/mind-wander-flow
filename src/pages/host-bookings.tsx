@@ -5,34 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, Filter, Search, Users, MapPin } from "lucide-react";
 
 // Dummy booking data
-const bookings = [
-  {
-    id: "1",
-    guestName: "Marco Rossi",
-    property: "Casa Siena Centro",
-    checkIn: "2024-03-15",
-    checkOut: "2024-03-18",
-    guests: 2,
-    status: "confirmed"
-  },
-  {
-    id: "2", 
-    guestName: "Anna Verdi",
-    property: "Appartamento Roma",
-    checkIn: "2024-03-20",
-    checkOut: "2024-03-25",
-    guests: 4,
-    status: "pending"
-  },
-  {
-    id: "3",
-    guestName: "Luigi Bianchi",
-    property: "Villa Toscana",
-    checkIn: "2024-03-22",
-    checkOut: "2024-03-29",
-    guests: 6,
-    status: "cancelled"
-  }
+const bookings: any[] = [
+  // I dati delle prenotazioni verranno caricati dinamicamente dal database
 ];
 
 const getStatusBadge = (status: string) => {
