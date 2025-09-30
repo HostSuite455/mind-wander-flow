@@ -13,6 +13,7 @@ const CalendarProPage: React.FC = () => {
   const [authResolved, setAuthResolved] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [selectedPropertyId, setSelectedPropertyId] = useState<string | null>(null);
+  const [currentDate, setCurrentDate] = useState<Date>(new Date());
   
   // Usa dati reali dal feed iCal solo dopo auth
   const { properties, bookings, blocks, isLoading, error, refetch, rangeStart, rangeEnd } = useCalendarData(
@@ -107,7 +108,10 @@ const CalendarProPage: React.FC = () => {
           }))}
           bookings={bookings}
           blocks={blocks}
-          onRefresh={refetch}
+          currentDate={currentDate}
+          onDateChange={setCurrentDate}
+          selectedPropertyId={selectedPropertyId}
+          onPropertyChange={setSelectedPropertyId}
         />
       )}
     </div>

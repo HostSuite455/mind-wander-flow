@@ -16,7 +16,7 @@ const HeroImage = () => {
     const other = new Image();
     other.src = mode === "night" ? "/hero/italy-day.png" : "/hero/italy-night.png";
   }, [mode]);
-  return <img src={src} alt="Italia al centro del mondo - illustrazione hero" className="w-full h-auto rounded-2xl shadow-xl transition-opacity duration-500" width="600" height="400" loading="eager" fetchpriority="high" />;
+  return <img src={src} alt="Italia al centro del mondo - illustrazione hero" className="w-full h-auto rounded-2xl shadow-xl transition-opacity duration-500" width="600" height="400" loading="eager" fetchPriority="high" />;
 };
 const Home = () => {
   return <div className="min-h-screen bg-background">

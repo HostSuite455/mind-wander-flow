@@ -233,7 +233,7 @@ export default function CleanerTasksPage(){
             </p>
             <PhotoUpload
               taskId={showPhotoUpload}
-              onPhotoUploaded={handlePhotoUploaded}
+              onPhotoUploaded={(photoUrl) => handlePhotoUploaded(showPhotoUpload, photoUrl)}
               onCancel={() => setShowPhotoUpload(null)}
             />
           </div>

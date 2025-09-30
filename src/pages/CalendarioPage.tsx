@@ -285,6 +285,9 @@ export default function CalendarioPage() {
           }))}
           blocks={filteredBlocks.map(block => ({
             ...block,
+            reason: block.reason || block.block_type || 'blocked',
+            source: 'manual',
+            is_active: true,
             created_at: block.created_at || new Date().toISOString(),
             updated_at: block.updated_at || new Date().toISOString()
           }))}

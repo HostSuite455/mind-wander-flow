@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 interface PhotoUploadProps {
   taskId: string;
   onPhotoUploaded: (photoUrl: string) => void;
+  onCancel?: () => void;
   existingPhotoUrl?: string;
   disabled?: boolean;
 }
