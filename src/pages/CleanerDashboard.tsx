@@ -80,15 +80,33 @@ export default function CleanerDashboard() {
         .gte('scheduled_start', new Date().toISOString());
 
       // Get earnings from task_accounting
-      const { data: earningsData } = await supabase
-        .from('task_accounting')
-        .select('cleaner_earnings_cents')
-        .in('task_id', (completedData || []).map((t: any) => t.id));
+      let totalEarnings = 0;
+      const completedTaskIds = (completedData || []).map((t: any) => t.id);
+      
+      if (completedTaskIds.length > 0) {
+        try {
+          const { data: earningsData, error: earningsError } = await supabase
+            .from('task_accounting')
+            .select('cleaner_earnings_cents')
+            .in('task_id', completedTaskIds);
 
-      const totalEarnings = earningsData?.reduce(
-        (sum, item) => sum + (item.cleaner_earnings_cents || 0),
-        0
-      ) || 0;
+          if (earningsError) {
+            // Handle missing table or other errors gracefully
+            if (earningsError.code === '42P01' || earningsError.code === 'PGRST204') {
+              console.warn('task_accounting table not found, defaulting earnings to 0');
+            } else {
+              console.error('Error loading accounting:', earningsError);
+            }
+          } else if (earningsData) {
+            totalEarnings = earningsData.reduce(
+              (sum, item) => sum + (item.cleaner_earnings_cents || 0),
+              0
+            );
+          }
+        } catch (err) {
+          console.warn('Failed to load earnings:', err);
+        }
+      }
 
       setStats({
         completedTasks: completedData?.length || 0,

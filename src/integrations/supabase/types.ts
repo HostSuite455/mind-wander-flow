@@ -1549,6 +1549,10 @@ export type Database = {
         Args: { p_email: string; p_owner_id: string; p_phone: string }
         Returns: boolean
       }
+      cleaner_can_view_property: {
+        Args: { prop_id: string }
+        Returns: boolean
+      }
       generate_invitation_code: {
         Args: Record<PropertyKey, never>
         Returns: string
