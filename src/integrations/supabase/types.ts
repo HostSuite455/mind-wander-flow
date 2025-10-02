@@ -73,6 +73,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           end_date: string
+          external_id: string | null
           host_id: string
           id: string
           is_active: boolean | null
@@ -85,6 +86,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           end_date: string
+          external_id?: string | null
           host_id: string
           id?: string
           is_active?: boolean | null
@@ -97,6 +99,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           end_date?: string
+          external_id?: string | null
           host_id?: string
           id?: string
           is_active?: boolean | null

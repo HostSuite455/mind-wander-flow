@@ -275,6 +275,7 @@ export function PropertyEditSync({ property }: Props) {
           onSuccess={handleUrlModalSuccess}
           icalUrl={editingUrl || undefined}
           icalConfigId={selectedConfig.id}
+          configType={selectedConfig.config_type}
           mode={editingUrl ? 'edit' : 'create'}
         />
       )}

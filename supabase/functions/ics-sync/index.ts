@@ -186,27 +186,31 @@ serve(async (req) => {
         throw new Error('Property ID or Host ID not found for iCal configuration');
       }
 
-      // Get existing blocks from this source to avoid duplicates
+      // Get existing blocks from this source to detect duplicates and updates
       const { data: existingBlocks } = await supabase
         .from('calendar_blocks')
-        .select('id, start_date, end_date, source, external_id')
+        .select('id, start_date, end_date, source, external_id, reason, is_active')
         .eq('property_id', propertyId)
         .eq('source', `ical_${icalUrl.source}`);
-
-      const existingBlocksMap = new Map();
-      existingBlocks?.forEach(block => {
-        const key = `${block.start_date}_${block.end_date}_${block.external_id}`;
-        existingBlocksMap.set(key, block);
-      });
 
       let createdCount = 0;
       let updatedCount = 0;
       let skippedCount = 0;
+      const sampleEvents = [];
       
-      // Process events and create/update calendar blocks
+      // Process events with robust deduplication via upsert
       for (const event of events) {
+        // Log first 3 events for debugging
+        if (sampleEvents.length < 3) {
+          sampleEvents.push({
+            startDate: event.start,
+            endDate: event.end,
+            summary: event.summary,
+            uid: event.uid
+          });
+        }
+
         if (!event.start || !event.end) {
-          console.log('[iCal Sync] Skipping event without start/end date:', event.uid);
           skippedCount++;
           continue;
         }
@@ -217,26 +221,31 @@ serve(async (req) => {
         
         // Skip if dates are invalid
         if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
-          console.log('[iCal Sync] Skipping event with invalid date format:', { startDate, endDate, uid: event.uid });
           skippedCount++;
           continue;
         }
 
-        // Import events from last 90 days + all future events
+        // Import events from last 90 days + ALL future events (no upper limit)
         const endDateObj = new Date(endDate);
         const ninetyDaysAgo = new Date();
         ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
         
         if (endDateObj < ninetyDaysAgo) {
-          console.log('[iCal Sync] Skipping old event (>90 days):', { endDate, uid: event.uid });
           skippedCount++;
           continue;
         }
-        
-        console.log('[iCal Sync] Processing event:', { startDate, endDate, summary: event.summary, uid: event.uid });
 
-        const blockKey = `${startDate}_${endDate}_${event.uid}`;
-        const existingBlock = existingBlocksMap.get(blockKey);
+        // Generate external_id: use event.uid if available, otherwise create hash
+        let externalId = event.uid;
+        if (!externalId) {
+          const hashInput = `${startDate}_${endDate}_${event.summary || 'block'}`;
+          externalId = `hash_${hashInput.replace(/[^a-zA-Z0-9]/g, '_')}`;
+        }
+
+        // Check if existed before upsert to count properly
+        const existed = existingBlocks?.some(
+          (block: any) => block.external_id === externalId
+        );
         
         const blockData = {
           property_id: propertyId,
@@ -245,45 +254,32 @@ serve(async (req) => {
           end_date: endDate,
           reason: event.summary || 'Imported booking',
           source: `ical_${icalUrl.source}`,
-          external_id: event.uid,
+          external_id: externalId,
           is_active: true,
-          created_by: null // System created
+          created_by: null
         };
 
-        if (existingBlock) {
-          // Update existing block only if something changed
-          const needsUpdate = 
-            existingBlock.reason !== blockData.reason ||
-            !existingBlock.is_active;
-            
-          if (needsUpdate) {
-            const { error: updateError } = await supabase
-              .from('calendar_blocks')
-              .update({
-                reason: blockData.reason,
-                is_active: true
-              })
-              .eq('id', existingBlock.id);
-              
-            if (updateError) {
-              console.error('[iCal Sync] Error updating block:', updateError);
-            } else {
-              updatedCount++;
-            }
-          }
+        // Use upsert for automatic deduplication via unique index
+        const { error: upsertError } = await supabase
+          .from('calendar_blocks')
+          .upsert(blockData, {
+            onConflict: 'property_id,source,external_id',
+            ignoreDuplicates: false
+          });
+
+        if (upsertError) {
+          console.error('[iCal Sync] Error upserting block:', upsertError);
+          skippedCount++;
         } else {
-          // Create new block
-          const { error: insertError } = await supabase
-            .from('calendar_blocks')
-            .insert([blockData]);
-            
-          if (insertError) {
-            console.error('[iCal Sync] Error creating block:', insertError);
+          if (existed) {
+            updatedCount++;
           } else {
             createdCount++;
           }
         }
       }
+
+      console.log('[iCal Sync] Sample events processed:', JSON.stringify(sampleEvents, null, 2));
 
       // Update sync status to 'success'
       const syncUpdate = {
@@ -303,7 +299,7 @@ serve(async (req) => {
           .eq('id', account_id);
       }
 
-      console.log(`[iCal Sync] Sync completed: processed ${events.length}, created ${createdCount}, updated ${updatedCount}, skipped ${skippedCount}`);
+      console.log(`[iCal Sync] Sync completed: total parsed ${events.length}, created ${createdCount}, updated ${updatedCount}, skipped ${skippedCount}`);
       
       return new Response(JSON.stringify({ 
         success: true, 

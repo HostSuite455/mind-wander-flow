@@ -14,6 +14,7 @@ interface IcalUrlModalProps {
   onSuccess: () => void;
   icalUrl?: IcalUrl | null;
   icalConfigId: string;
+  configType?: string;
   mode: 'create' | 'edit';
 }
 
@@ -32,6 +33,7 @@ export default function IcalUrlModal({
   onSuccess, 
   icalUrl, 
   icalConfigId,
+  configType,
   mode 
 }: IcalUrlModalProps) {
   const [url, setUrl] = useState('');
@@ -178,19 +180,22 @@ export default function IcalUrlModal({
             />
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <Label htmlFor="is_primary">Principale</Label>
-              <p className="text-xs text-muted-foreground">
-                Il calendario principale viene utilizzato per la sincronizzazione automatica
-              </p>
+          {/* Hide "Principale" option for channel managers - they only have one URL */}
+          {configType !== 'channel_manager' && (
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <Label htmlFor="is_primary">Principale</Label>
+                <p className="text-xs text-muted-foreground">
+                  Il calendario principale viene utilizzato per la sincronizzazione automatica
+                </p>
+              </div>
+              <Switch
+                id="is_primary"
+                checked={isPrimary}
+                onCheckedChange={setIsPrimary}
+              />
             </div>
-            <Switch
-              id="is_primary"
-              checked={isPrimary}
-              onCheckedChange={setIsPrimary}
-            />
-          </div>
+          )}
 
           <div className="flex justify-end gap-2 pt-4">
             <Button 
