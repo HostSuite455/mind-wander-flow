@@ -3,6 +3,7 @@ export interface CalendarEvent {
   uid?: string;
   start: string;
   end?: string;
+  duration?: string; // ISO 8601 duration format (e.g., P1D, PT2H30M)
   summary?: string;
   description?: string;
   status?: string;
@@ -52,6 +53,9 @@ export function parseICS(icsData: string): CalendarEvent[] {
           break;
         case 'DTEND':
           currentEvent.end = parseDate(value, property);
+          break;
+        case 'DURATION':
+          currentEvent.duration = value; // Store raw ISO 8601 duration
           break;
         case 'SUMMARY':
           currentEvent.summary = unescapeText(value);
@@ -126,4 +130,36 @@ function unescapeText(text: string): string {
     .replace(/\\\\/g, '\\')
     .replace(/\\;/g, ';')
     .replace(/\\,/g, ',');
+}
+
+// Parse ISO 8601 duration to days (used for calculating end date)
+// Supports formats like: P1D, P7D, PT2H, PT90M, P1DT12H30M
+export function parseDuration(duration: string): number {
+  if (!duration || !duration.startsWith('P')) return 1; // Default 1 day
+  
+  let days = 0;
+  let hours = 0;
+  let minutes = 0;
+  
+  // Extract days: P(\d+)D
+  const dayMatch = duration.match(/P(\d+)D/);
+  if (dayMatch) days = parseInt(dayMatch[1]);
+  
+  // Extract time component after T
+  const timeMatch = duration.match(/T(.+)/);
+  if (timeMatch) {
+    const timePart = timeMatch[1];
+    
+    // Extract hours: (\d+)H
+    const hourMatch = timePart.match(/(\d+)H/);
+    if (hourMatch) hours = parseInt(hourMatch[1]);
+    
+    // Extract minutes: (\d+)M
+    const minMatch = timePart.match(/(\d+)M/);
+    if (minMatch) minutes = parseInt(minMatch[1]);
+  }
+  
+  // Convert everything to days (rounding up partial days)
+  const totalDays = days + (hours / 24) + (minutes / 1440);
+  return Math.max(1, Math.ceil(totalDays)); // Minimum 1 day
 }

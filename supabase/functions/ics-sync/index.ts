@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { parseICS } from "./ics-parser.ts";
+import { parseICS, parseDuration } from "./ics-parser.ts";
 
 const supabase = createClient(
   Deno.env.get("SB_URL")!,
@@ -196,7 +196,10 @@ serve(async (req) => {
       let createdCount = 0;
       let updatedCount = 0;
       let skippedCount = 0;
+      const skipReasons: Record<string, number> = {};
       const sampleEvents = [];
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Start of today
       
       // Process events with robust deduplication via upsert
       for (const event of events) {
@@ -205,33 +208,59 @@ serve(async (req) => {
           sampleEvents.push({
             startDate: event.start,
             endDate: event.end,
+            duration: event.duration,
             summary: event.summary,
+            status: event.status,
             uid: event.uid
           });
         }
 
-        if (!event.start || !event.end) {
+        // Must have start date
+        if (!event.start) {
           skippedCount++;
+          skipReasons['missing_start_date'] = (skipReasons['missing_start_date'] || 0) + 1;
           continue;
         }
 
         // Convert iCal date format to ISO date
         const startDate = event.start.includes('T') ? event.start.split('T')[0] : event.start;
-        const endDate = event.end.includes('T') ? event.end.split('T')[0] : event.end;
         
-        // Skip if dates are invalid
+        // Calculate end date: use DTEND if available, else calculate from DURATION, else default +1 day
+        let endDate: string;
+        if (event.end) {
+          endDate = event.end.includes('T') ? event.end.split('T')[0] : event.end;
+        } else if (event.duration) {
+          // Calculate end from start + duration
+          const durationDays = parseDuration(event.duration);
+          const startDateObj = new Date(startDate);
+          startDateObj.setDate(startDateObj.getDate() + durationDays);
+          endDate = startDateObj.toISOString().split('T')[0];
+        } else {
+          // Default: end = start + 1 day
+          const startDateObj = new Date(startDate);
+          startDateObj.setDate(startDateObj.getDate() + 1);
+          endDate = startDateObj.toISOString().split('T')[0];
+        }
+        
+        // Skip if dates are invalid format
         if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
           skippedCount++;
+          skipReasons['invalid_date_format'] = (skipReasons['invalid_date_format'] || 0) + 1;
           continue;
         }
 
-        // Import events from last 90 days + ALL future events (no upper limit)
-        const endDateObj = new Date(endDate);
-        const ninetyDaysAgo = new Date();
-        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-        
-        if (endDateObj < ninetyDaysAgo) {
+        // Skip if end < start (data inconsistency)
+        if (endDate < startDate) {
           skippedCount++;
+          skipReasons['end_before_start'] = (skipReasons['end_before_start'] || 0) + 1;
+          continue;
+        }
+
+        // FILTER: Import only future/active events (end_date >= today)
+        const endDateObj = new Date(endDate);
+        if (endDateObj < today) {
+          skippedCount++;
+          skipReasons['past_event'] = (skipReasons['past_event'] || 0) + 1;
           continue;
         }
 
@@ -247,6 +276,9 @@ serve(async (req) => {
           (block: any) => block.external_id === externalId
         );
         
+        // Map STATUS:CANCELLED to is_active = false
+        const isActive = event.status?.toUpperCase() !== 'CANCELLED';
+        
         const blockData = {
           property_id: propertyId,
           host_id: hostId,
@@ -255,11 +287,11 @@ serve(async (req) => {
           reason: event.summary || 'Imported booking',
           source: `ical_${icalUrl.source}`,
           external_id: externalId,
-          is_active: true,
+          is_active: isActive,
           created_by: null
         };
 
-        // Use upsert for automatic deduplication via unique index
+        // Use upsert for automatic deduplication via unique index (now works with full index)
         const { error: upsertError } = await supabase
           .from('calendar_blocks')
           .upsert(blockData, {
@@ -270,6 +302,7 @@ serve(async (req) => {
         if (upsertError) {
           console.error('[iCal Sync] Error upserting block:', upsertError);
           skippedCount++;
+          skipReasons['upsert_error'] = (skipReasons['upsert_error'] || 0) + 1;
         } else {
           if (existed) {
             updatedCount++;
@@ -280,6 +313,7 @@ serve(async (req) => {
       }
 
       console.log('[iCal Sync] Sample events processed:', JSON.stringify(sampleEvents, null, 2));
+      console.log('[iCal Sync] Skip reasons breakdown:', JSON.stringify(skipReasons, null, 2));
 
       // Update sync status to 'success'
       const syncUpdate = {
@@ -307,7 +341,8 @@ serve(async (req) => {
         created: createdCount,
         updated: updatedCount,
         skipped: skippedCount,
-        message: `Sync completato: ${createdCount} nuovi eventi, ${updatedCount} aggiornati${skippedCount > 0 ? `, ${skippedCount} saltati` : ''}` 
+        skipReasons,
+        message: `Sync completato: ${createdCount} nuovi eventi, ${updatedCount} aggiornati${skippedCount > 0 ? `, ${skippedCount} saltati (${skipReasons.past_event || 0} passati)` : ''}` 
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
