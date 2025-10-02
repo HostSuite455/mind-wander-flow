@@ -243,13 +243,25 @@ const CalendarProPage: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Calendario Avanzato</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Calendario</h1>
         <div className="text-sm text-gray-500">
           {properties.length} proprietà • {bookings.length + blocks.length} eventi
         </div>
       </div>
 
-      {/* iCal Sources Panel */}
+      {/* Calendar as main protagonist */}
+      {[...filteredBookings, ...filteredBlocks].length === 0 && selectedPropertyId && (
+        <div className="text-sm text-gray-600">
+          {activeChannels.length > 0 
+            ? 'Nessun evento per i canali selezionati.'
+            : 'Nessun evento nel periodo. Sincronizza i tuoi link iCal per vedere le prenotazioni.'
+          }
+        </div>
+      )}
+      
+      {calendarContainer}
+
+      {/* iCal Sources Panel - below calendar */}
       {selectedPropertyId && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2">
@@ -267,17 +279,6 @@ const CalendarProPage: React.FC = () => {
           </div>
         </div>
       )}
-      
-      {[...filteredBookings, ...filteredBlocks].length === 0 && selectedPropertyId && (
-        <div className="mb-2 text-sm text-gray-600">
-          {activeChannels.length > 0 
-            ? 'Nessun evento per i canali selezionati.'
-            : 'Nessun evento nel periodo. Trascina col mouse per creare un blocco.'
-          }
-        </div>
-      )}
-      
-      {calendarContainer}
     </div>
   );
 };

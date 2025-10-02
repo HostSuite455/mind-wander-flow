@@ -39,7 +39,6 @@ export default function IcalUrlModal({
   const [url, setUrl] = useState('');
   const [source, setSource] = useState('');
   const [isActive, setIsActive] = useState(true);
-  const [isPrimary, setIsPrimary] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Initialize form when modal opens or icalUrl changes
@@ -49,13 +48,11 @@ export default function IcalUrlModal({
         setUrl(icalUrl.url || '');
         setSource(icalUrl.source || '');
         setIsActive(icalUrl.is_active ?? true);
-        setIsPrimary(icalUrl.is_primary ?? false);
       } else {
         // Reset form for create mode
         setUrl('');
         setSource('');
         setIsActive(true);
-        setIsPrimary(false);
       }
     }
   }, [isOpen, mode, icalUrl]);
@@ -97,14 +94,14 @@ export default function IcalUrlModal({
           source,
           ota_name: source,
           is_active: isActive,
-          is_primary: isPrimary
+          is_primary: false // Always false, no longer user-configurable
         });
       } else if (icalUrl) {
         result = await updateIcalUrl(icalUrl.id, {
           url,
           source,
           is_active: isActive,
-          is_primary: isPrimary
+          is_primary: false // Always false, no longer user-configurable
         });
       }
 
@@ -179,23 +176,6 @@ export default function IcalUrlModal({
               onCheckedChange={setIsActive}
             />
           </div>
-
-          {/* Hide "Principale" option for channel managers - they only have one URL */}
-          {configType !== 'channel_manager' && (
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <Label htmlFor="is_primary">Principale</Label>
-                <p className="text-xs text-muted-foreground">
-                  Il calendario principale viene utilizzato per la sincronizzazione automatica
-                </p>
-              </div>
-              <Switch
-                id="is_primary"
-                checked={isPrimary}
-                onCheckedChange={setIsPrimary}
-              />
-            </div>
-          )}
 
           <div className="flex justify-end gap-2 pt-4">
             <Button 
