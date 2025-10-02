@@ -201,6 +201,75 @@ serve(async (req) => {
       const today = new Date();
       today.setHours(0, 0, 0, 0); // Start of today
       
+      // Helper function for robust upsert with fallback
+      const doSafeUpsert = async (blockData: any) => {
+        try {
+          // Attempt standard upsert
+          const { error: upsertError } = await supabase
+            .from('calendar_blocks')
+            .upsert(blockData, {
+              onConflict: 'property_id,source,external_id',
+              ignoreDuplicates: false
+            });
+
+          if (!upsertError) {
+            return { success: true, method: 'upsert' };
+          }
+
+          // If 42P10 (no matching constraint) or 23505 (unique violation), try fallback
+          if (upsertError.code === '42P10' || upsertError.code === '23505') {
+            console.log(`[iCal Sync] Upsert failed with ${upsertError.code}, trying fallback for external_id: ${blockData.external_id}`);
+            
+            // Check if record exists
+            const { data: existing } = await supabase
+              .from('calendar_blocks')
+              .select('id')
+              .eq('property_id', blockData.property_id)
+              .eq('source', blockData.source)
+              .eq('external_id', blockData.external_id)
+              .maybeSingle();
+
+            if (existing) {
+              // UPDATE existing record
+              const { error: updateError } = await supabase
+                .from('calendar_blocks')
+                .update({
+                  start_date: blockData.start_date,
+                  end_date: blockData.end_date,
+                  reason: blockData.reason,
+                  is_active: blockData.is_active
+                })
+                .eq('id', existing.id);
+
+              if (updateError) {
+                console.error('[iCal Sync] Fallback UPDATE failed:', updateError);
+                return { success: false, error: updateError, method: 'fallback_update' };
+              }
+              return { success: true, method: 'fallback_update', existed: true };
+            } else {
+              // INSERT new record
+              const { error: insertError } = await supabase
+                .from('calendar_blocks')
+                .insert(blockData);
+
+              if (insertError) {
+                console.error('[iCal Sync] Fallback INSERT failed:', insertError);
+                return { success: false, error: insertError, method: 'fallback_insert' };
+              }
+              return { success: true, method: 'fallback_insert', existed: false };
+            }
+          }
+
+          // Other errors
+          console.error('[iCal Sync] Upsert error:', upsertError);
+          return { success: false, error: upsertError, method: 'upsert' };
+
+        } catch (err) {
+          console.error('[iCal Sync] doSafeUpsert exception:', err);
+          return { success: false, error: err, method: 'exception' };
+        }
+      };
+      
       // Process events with robust deduplication via upsert
       for (const event of events) {
         // Log first 3 events for debugging
@@ -279,32 +348,35 @@ serve(async (req) => {
         // Map STATUS:CANCELLED to is_active = false
         const isActive = event.status?.toUpperCase() !== 'CANCELLED';
         
+        // Normalize source to lowercase for consistency
+        const normalizedSource = `ical_${icalUrl.source}`.toLowerCase().trim();
+        
         const blockData = {
           property_id: propertyId,
           host_id: hostId,
           start_date: startDate,
           end_date: endDate,
           reason: event.summary || 'Imported booking',
-          source: `ical_${icalUrl.source}`,
-          external_id: externalId,
+          source: normalizedSource,
+          external_id: externalId.trim(),
           is_active: isActive,
           created_by: null
         };
 
-        // Use upsert for automatic deduplication via unique index (now works with full index)
-        const { error: upsertError } = await supabase
-          .from('calendar_blocks')
-          .upsert(blockData, {
-            onConflict: 'property_id,source,external_id',
-            ignoreDuplicates: false
-          });
+        // Use safe upsert with fallback mechanism
+        const result = await doSafeUpsert(blockData);
 
-        if (upsertError) {
-          console.error('[iCal Sync] Error upserting block:', upsertError);
+        if (!result.success) {
           skippedCount++;
-          skipReasons['upsert_error'] = (skipReasons['upsert_error'] || 0) + 1;
+          const errorCode = result.error?.code || 'unknown';
+          skipReasons[`upsert_${errorCode}`] = (skipReasons[`upsert_${errorCode}`] || 0) + 1;
         } else {
-          if (existed) {
+          // Track which method worked
+          if (result.method.includes('fallback')) {
+            skipReasons[`${result.method}_used`] = (skipReasons[`${result.method}_used`] || 0) + 1;
+          }
+          
+          if (result.existed || existed) {
             updatedCount++;
           } else {
             createdCount++;
