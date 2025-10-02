@@ -222,16 +222,18 @@ serve(async (req) => {
           continue;
         }
 
-        // Skip past events (older than 7 days)
-        const startDateObj = new Date(startDate);
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        // Import events from last 90 days + all future events
+        const endDateObj = new Date(endDate);
+        const ninetyDaysAgo = new Date();
+        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
         
-        if (startDateObj < sevenDaysAgo) {
-          console.log('[iCal Sync] Skipping past event:', { startDate, uid: event.uid });
+        if (endDateObj < ninetyDaysAgo) {
+          console.log('[iCal Sync] Skipping old event (>90 days):', { endDate, uid: event.uid });
           skippedCount++;
           continue;
         }
+        
+        console.log('[iCal Sync] Processing event:', { startDate, endDate, summary: event.summary, uid: event.uid });
 
         const blockKey = `${startDate}_${endDate}_${event.uid}`;
         const existingBlock = existingBlocksMap.get(blockKey);

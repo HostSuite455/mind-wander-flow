@@ -158,85 +158,10 @@ export function useCalendarData(
 
             const allEvents = [...allBookings, ...calendarBlocks];
 
-            // Try to load iCal data if available
-            try {
-              console.log('🔍 useCalendarData: searching for iCal URLs for properties:', propertyIds)
-              
-              // Get ical_configs for these properties
-              const { data: icalConfigsData } = await supabase
-                .from('ical_configs')
-                .select('id, property_id')
-                .in('property_id', propertyIds)
-                .eq('is_active', true);
-
-              const configIds = (icalConfigsData || []).map(c => c.id);
-              
-              if (configIds.length > 0) {
-                const { data: icalUrls, error: icalError } = await supabase
-                  .from('ical_urls')
-                  .select('id, url, source, ota_name, is_active, ical_config_id')
-                  .in('ical_config_id', configIds)
-                  .eq('is_active', true);
-
-                console.log('📡 useCalendarData: iCal query result:', { icalUrls, icalError })
-
-                if (icalError) {
-                  console.warn('⚠️ Error querying iCal URLs:', icalError)
-                }
-
-                if (icalUrls && icalUrls.length > 0) {
-                  console.log('📡 useCalendarData: found iCal URLs:', icalUrls.length)
-                  
-                  for (const icalUrl of icalUrls) {
-                    try {
-                      console.log('🌐 Fetching iCal from:', icalUrl.url)
-                      const response = await fetch(icalUrl.url, { mode: 'cors' })
-                      if (response.ok) {
-                        const icalText = await response.text()
-                        const icalEvents = parseAndEnrichICS(icalText)
-                        
-                        // Get property_id for this ical_url
-                        const config = icalConfigsData?.find(c => c.id === icalUrl.ical_config_id);
-                        const propertyIdForUrl = config?.property_id;
-
-                        // Convert iCal events to calendar blocks format
-                        const icalBlocks = icalEvents
-                          .filter(event => {
-                            const eventStart = new Date(event.start || '')
-                            const eventEnd = new Date(event.end || '')
-                            return eventStart >= stableRange.start && eventEnd <= stableRange.end
-                          })
-                          .map(event => ({
-                            id: `ical-${event.uid}`,
-                            property_id: propertyIdForUrl,
-                            check_in: event.start?.split('T')[0] || '',
-                            check_out: event.end?.split('T')[0] || '',
-                            guest_name: event.guestName || event.summary || 'iCal Block',
-                            booking_status: 'imported',
-                            reason: event.summary || 'iCal Block',
-                            source: `ical_${icalUrl.source || icalUrl.ota_name}`,
-                            ota_name: icalUrl.ota_name,
-                            channel: event.channel || icalUrl.ota_name,
-                            isBlock: true,
-                            sourceIcon: '📅'
-                          }))
-                        
-                        allEvents.push(...icalBlocks)
-                        console.log(`📅 useCalendarData: loaded ${icalBlocks.length} iCal events from ${icalUrl.source || icalUrl.ota_name}`)
-                      } else {
-                        console.warn(`⚠️ Failed to fetch iCal from ${icalUrl.url}: ${response.status}`)
-                      }
-                    } catch (icalError) {
-                      console.warn(`⚠️ Failed to load iCal from ${icalUrl.url}:`, icalError)
-                    }
-                  }
-                } else {
-                  console.log('📡 useCalendarData: no iCal URLs found for properties:', propertyIds)
-                }
-              }
-            } catch (icalError) {
-              console.warn('⚠️ Error loading iCal data:', icalError)
-            }
+            // iCal data is now managed server-side via calendar_blocks table
+            // All iCal events are imported by ics-sync edge function and stored in calendar_blocks
+            // This eliminates CORS issues and improves performance
+            console.log('📅 useCalendarData: iCal events loaded from calendar_blocks table');
 
             console.log('📅 useCalendarData: loaded events:', {
               bookings: bookingsData?.length || 0,

@@ -524,6 +524,7 @@ export type Database = {
           actual_start: string | null
           assigned_cleaner_id: string | null
           billable_min: number | null
+          calendar_block_id: string | null
           created_at: string | null
           duration_min: number
           id: string
@@ -540,6 +541,7 @@ export type Database = {
           actual_start?: string | null
           assigned_cleaner_id?: string | null
           billable_min?: number | null
+          calendar_block_id?: string | null
           created_at?: string | null
           duration_min?: number
           id?: string
@@ -556,6 +558,7 @@ export type Database = {
           actual_start?: string | null
           assigned_cleaner_id?: string | null
           billable_min?: number | null
+          calendar_block_id?: string | null
           created_at?: string | null
           duration_min?: number
           id?: string
@@ -573,6 +576,13 @@ export type Database = {
             columns: ["assigned_cleaner_id"]
             isOneToOne: false
             referencedRelation: "cleaners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cleaning_tasks_calendar_block_id_fkey"
+            columns: ["calendar_block_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_blocks"
             referencedColumns: ["id"]
           },
           {
