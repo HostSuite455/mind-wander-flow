@@ -68,6 +68,77 @@ export type Database = {
           },
         ]
       }
+      bookings: {
+        Row: {
+          adults_count: number | null
+          booking_reference: string | null
+          channel: string | null
+          check_in: string
+          check_out: string
+          children_count: number | null
+          created_at: string | null
+          external_booking_id: string | null
+          guest_email: string | null
+          guest_name: string
+          guest_phone: string | null
+          guests_count: number | null
+          id: string
+          property_id: string
+          special_requests: string | null
+          status: string | null
+          total_amount: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          adults_count?: number | null
+          booking_reference?: string | null
+          channel?: string | null
+          check_in: string
+          check_out: string
+          children_count?: number | null
+          created_at?: string | null
+          external_booking_id?: string | null
+          guest_email?: string | null
+          guest_name: string
+          guest_phone?: string | null
+          guests_count?: number | null
+          id?: string
+          property_id: string
+          special_requests?: string | null
+          status?: string | null
+          total_amount?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          adults_count?: number | null
+          booking_reference?: string | null
+          channel?: string | null
+          check_in?: string
+          check_out?: string
+          children_count?: number | null
+          created_at?: string | null
+          external_booking_id?: string | null
+          guest_email?: string | null
+          guest_name?: string
+          guest_phone?: string | null
+          guests_count?: number | null
+          id?: string
+          property_id?: string
+          special_requests?: string | null
+          status?: string | null
+          total_amount?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       calendar_blocks: {
         Row: {
           created_at: string | null

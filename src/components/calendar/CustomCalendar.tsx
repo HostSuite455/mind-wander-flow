@@ -286,12 +286,34 @@ const CalendarGrid: React.FC<{
   
   // Group blocks by their span for rendering
   const blockSpans = blocks
-    .filter(block => block.start_date && block.end_date && block.is_active)
+    .filter(block => {
+      const isValid = block.start_date && block.end_date && block.is_active;
+      if (!isValid) {
+        console.log('🚫 Block filtered out:', { 
+          id: block.id, 
+          has_dates: !!block.start_date && !!block.end_date,
+          is_active: block.is_active,
+          guest_name: block.guest_name,
+          source: block.source
+        });
+      }
+      return isValid;
+    })
     .map(block => {
       const startDate = parseISO(block.start_date);
       const endDate = parseISO(block.end_date);
+      console.log('✅ Block span created:', {
+        id: block.id,
+        guest_name: block.guest_name,
+        total_guests: block.total_guests,
+        startDate: format(startDate, 'dd/MM/yyyy'),
+        endDate: format(endDate, 'dd/MM/yyyy'),
+        source: block.source
+      });
       return { block, startDate, endDate };
     });
+  
+  console.log(`📊 CalendarGrid: ${blockSpans.length} blocks ready to render`);
   
   return (
     <div className="calendar-grid">
