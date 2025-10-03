@@ -128,6 +128,7 @@ const CalendarCell: React.FC<{
   });
 
   const dayBlocks = blocks.filter(block => {
+    if (!block.start_date || !block.end_date) return false;
     const startDate = parseISO(block.start_date);
     const endDate = parseISO(block.end_date);
     return isWithinInterval(date, { start: startDate, end: endDate });

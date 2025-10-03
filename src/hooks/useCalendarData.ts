@@ -142,6 +142,8 @@ export function useCalendarData(
               property_id: block.property_id,
               check_in: block.start_date,
               check_out: block.end_date,
+              start_date: block.start_date,
+              end_date: block.end_date,
               guest_name: block.reason || 'Blocked',
               booking_status: block.source?.startsWith('ical_') ? 'imported' : 'blocked',
               source: block.source || 'manual',
