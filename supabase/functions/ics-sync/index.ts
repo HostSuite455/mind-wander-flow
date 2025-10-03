@@ -237,7 +237,9 @@ serve(async (req) => {
                   start_date: blockData.start_date,
                   end_date: blockData.end_date,
                   reason: blockData.reason,
-                  is_active: blockData.is_active
+                  is_active: blockData.is_active,
+                  guest_name: blockData.guest_name,
+                  total_guests: blockData.total_guests
                 })
                 .eq('id', existing.id);
 
@@ -351,6 +353,33 @@ serve(async (req) => {
         // Normalize source to lowercase for consistency
         const normalizedSource = `ical_${icalUrl.source}`.toLowerCase().trim();
         
+        // Extract guest_name and total_guests from SUMMARY
+        // Patterns: "Name Surname (2 guests)" or "Name Surname (2)" or just "Name Surname"
+        let guestName: string | null = null;
+        let totalGuests: number | null = null;
+        
+        if (event.summary) {
+          const summary = event.summary.trim();
+          // Try to extract "(X guests)" or "(X)" pattern
+          const guestsMatch = summary.match(/\((\d+)\s*(?:guests?|ospiti?)?\)/i);
+          if (guestsMatch) {
+            totalGuests = parseInt(guestsMatch[1], 10);
+            // Remove the guests part to get the name
+            guestName = summary.replace(/\s*\(\d+\s*(?:guests?|ospiti?)?\)\s*/i, '').trim();
+          } else {
+            // No guest count found, use whole summary as name
+            guestName = summary;
+          }
+          
+          // Clean up common prefixes from channel managers
+          guestName = guestName.replace(/^(Airbnb|Booking\.com|VRBO|HomeAway|Smoobu):\s*/i, '').trim();
+          
+          // If name is too generic or empty, set to null
+          if (!guestName || guestName.toLowerCase() === 'not available' || guestName.toLowerCase() === 'blocked') {
+            guestName = null;
+          }
+        }
+        
         const blockData = {
           property_id: propertyId,
           host_id: hostId,
@@ -360,7 +389,9 @@ serve(async (req) => {
           source: normalizedSource,
           external_id: externalId.trim(),
           is_active: isActive,
-          created_by: null
+          created_by: null,
+          guest_name: guestName,
+          total_guests: totalGuests
         };
 
         // Use safe upsert with fallback mechanism

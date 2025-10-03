@@ -21,7 +21,10 @@ import {
   ChevronRight, 
   Home,
   Eye,
-  EyeOff
+  EyeOff,
+  Plane,
+  Building2,
+  Users
 } from 'lucide-react';
 
 // Types
@@ -49,6 +52,8 @@ interface CalendarBlock {
   reason: string;
   source: string;
   is_active: boolean;
+  guest_name?: string | null;
+  total_guests?: number | null;
 }
 
 export interface CustomCalendarProps {
@@ -81,6 +86,22 @@ const getBlockColor = (reason: string): string => {
   }
 };
 
+const getSourceColor = (source: string): string => {
+  const lowerSource = source.toLowerCase();
+  if (lowerSource.includes('airbnb')) return 'bg-pink-500';
+  if (lowerSource.includes('booking')) return 'bg-blue-600';
+  if (lowerSource.includes('vrbo') || lowerSource.includes('homeaway')) return 'bg-cyan-500';
+  if (lowerSource.includes('smoobu')) return 'bg-purple-600';
+  return 'bg-gray-600';
+};
+
+const getSourceIcon = (source: string) => {
+  const lowerSource = source.toLowerCase();
+  if (lowerSource.includes('airbnb')) return Plane;
+  if (lowerSource.includes('booking')) return Building2;
+  return CalendarIcon;
+};
+
 // Components
 const BookingBlock: React.FC<{
   booking: Booking;
@@ -98,6 +119,59 @@ const BookingBlock: React.FC<{
   </div>
 );
 
+// Smoobu-style booking/block component with half-cell positioning
+const SmoobuStyleBlock: React.FC<{
+  block: CalendarBlock;
+  startDate: Date;
+  endDate: Date;
+  weekStart: Date;
+  weekEnd: Date;
+}> = ({ block, startDate, endDate, weekStart, weekEnd }) => {
+  const SourceIcon = getSourceIcon(block.source);
+  
+  // Calculate which days this block spans in this week
+  const visibleStart = startDate < weekStart ? weekStart : startDate;
+  const visibleEnd = endDate > weekEnd ? weekEnd : endDate;
+  
+  // Calculate grid column positioning (1-indexed)
+  const gridStart = Math.floor((visibleStart.getTime() - weekStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const gridEnd = Math.floor((visibleEnd.getTime() - weekStart.getTime()) / (1000 * 60 * 60 * 24)) + 2;
+  
+  const isStartVisible = startDate >= weekStart;
+  const isEndVisible = endDate <= weekEnd;
+  
+  return (
+    <div
+      className={`
+        absolute flex items-center px-2 py-1 text-white text-xs font-medium
+        ${getSourceColor(block.source)}
+        ${isStartVisible && isEndVisible ? 'rounded-lg inset-x-[12.5%]' : ''}
+        ${isStartVisible && !isEndVisible ? 'rounded-l-lg left-[12.5%] right-0' : ''}
+        ${!isStartVisible && isEndVisible ? 'rounded-r-lg left-0 right-[12.5%]' : ''}
+        ${!isStartVisible && !isEndVisible ? 'left-0 right-0' : ''}
+        hover:opacity-90 transition-opacity cursor-pointer shadow-md pointer-events-auto
+      `}
+      style={{
+        gridColumn: `${gridStart} / ${gridEnd}`,
+        top: '50%',
+        transform: 'translateY(-50%)',
+        height: '32px',
+        zIndex: 10
+      }}
+      title={`${block.guest_name || block.reason}${block.total_guests ? ` (${block.total_guests} ospiti)` : ''} - ${block.source}`}
+    >
+      <SourceIcon className="w-3 h-3 mr-1.5 flex-shrink-0" />
+      <span className="truncate flex-1">{block.guest_name || block.reason}</span>
+      {block.total_guests && (
+        <span className="ml-1.5 flex items-center flex-shrink-0">
+          <Users className="w-3 h-3 mr-0.5" />
+          {block.total_guests}
+        </span>
+      )}
+    </div>
+  );
+};
+
 const CalendarBlock: React.FC<{
   block: CalendarBlock;
 }> = ({ block }) => (
@@ -109,7 +183,8 @@ const CalendarBlock: React.FC<{
     `}
     title={`${block.reason} - ${block.source}`}
   >
-    {block.reason}
+    {block.guest_name || block.reason}
+    {block.total_guests && ` (${block.total_guests})`}
   </div>
 );
 
@@ -203,6 +278,20 @@ const CalendarGrid: React.FC<{
   properties: Property[];
 }> = ({ weeks, bookings, blocks, currentDate, properties }) => {
   const weekDays = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(currentDate);
+  
+  // Flatten all dates for grid calculation
+  const allDates = weeks.flat();
+  
+  // Group blocks by their span for rendering
+  const blockSpans = blocks
+    .filter(block => block.start_date && block.end_date && block.is_active)
+    .map(block => {
+      const startDate = parseISO(block.start_date);
+      const endDate = parseISO(block.end_date);
+      return { block, startDate, endDate };
+    });
   
   return (
     <div className="calendar-grid">
@@ -215,22 +304,56 @@ const CalendarGrid: React.FC<{
         ))}
       </div>
       
-      {/* Calendar Body */}
+      {/* Calendar Body with relative positioning for absolute blocks */}
       <div className="space-y-1">
-        {weeks.map((week, weekIndex) => (
-          <div key={weekIndex} className="grid grid-cols-7 gap-1">
-            {week.map(date => (
-              <CalendarCell
-                key={date.toISOString()}
-                date={date}
-                bookings={bookings}
-                blocks={blocks}
-                currentDate={currentDate}
-                properties={properties}
-              />
-            ))}
-          </div>
-        ))}
+        {weeks.map((week, weekIndex) => {
+          const weekStart = week[0];
+          const weekEnd = week[week.length - 1];
+          
+          // Find blocks that span across this week
+          const weekBlocks = blockSpans.filter(({ startDate, endDate }) => {
+            return !(endDate < weekStart || startDate > addDays(weekEnd, 1));
+          });
+          
+          return (
+            <div key={weekIndex} className="relative">
+              {/* Grid layout for cells */}
+              <div className="grid grid-cols-7 gap-1 relative" style={{ minHeight: '120px' }}>
+                {week.map(date => {
+                  const isCurrentMonth = isSameMonth(date, currentDate);
+                  const isTodayDate = isToday(date);
+                  
+                  return (
+                    <div
+                      key={date.toISOString()}
+                      className={`
+                        relative p-2 border border-gray-200 rounded-lg transition-all duration-200
+                        ${!isCurrentMonth ? 'bg-gray-50 text-gray-400' : 'bg-white hover:bg-gray-50'} 
+                        ${isTodayDate ? 'bg-blue-50 border-blue-300 ring-1 ring-blue-200' : ''}
+                      `}
+                    >
+                      <div className={`text-sm font-medium ${isTodayDate ? 'text-blue-600' : ''}`}>
+                        {format(date, 'd')}
+                      </div>
+                    </div>
+                  );
+                })}
+                
+                {/* Smoobu-style blocks overlay */}
+                {weekBlocks.map(({ block, startDate, endDate }) => (
+                  <SmoobuStyleBlock
+                    key={block.id}
+                    block={block}
+                    startDate={startDate}
+                    endDate={endDate}
+                    weekStart={weekStart}
+                    weekEnd={weekEnd}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -74,6 +74,7 @@ export type Database = {
           created_by: string | null
           end_date: string
           external_id: string | null
+          guest_name: string | null
           host_id: string
           id: string
           is_active: boolean | null
@@ -81,12 +82,14 @@ export type Database = {
           reason: string | null
           source: string | null
           start_date: string
+          total_guests: number | null
         }
         Insert: {
           created_at?: string | null
           created_by?: string | null
           end_date: string
           external_id?: string | null
+          guest_name?: string | null
           host_id: string
           id?: string
           is_active?: boolean | null
@@ -94,12 +97,14 @@ export type Database = {
           reason?: string | null
           source?: string | null
           start_date: string
+          total_guests?: number | null
         }
         Update: {
           created_at?: string | null
           created_by?: string | null
           end_date?: string
           external_id?: string | null
+          guest_name?: string | null
           host_id?: string
           id?: string
           is_active?: boolean | null
@@ -107,6 +112,7 @@ export type Database = {
           reason?: string | null
           source?: string | null
           start_date?: string
+          total_guests?: number | null
         }
         Relationships: [
           {
