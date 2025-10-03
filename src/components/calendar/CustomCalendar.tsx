@@ -287,12 +287,14 @@ const CalendarGrid: React.FC<{
   // Group blocks by their span for rendering
   const blockSpans = blocks
     .filter(block => {
-      const isValid = block.start_date && block.end_date && block.is_active;
+      const isActive = block.is_active !== false;
+      const isValid = !!block.start_date && !!block.end_date && isActive;
       if (!isValid) {
-        console.log('🚫 Block filtered out:', { 
-          id: block.id, 
+        console.log('🚫 Block filtered out:', {
+          id: block.id,
           has_dates: !!block.start_date && !!block.end_date,
           is_active: block.is_active,
+          is_active_check: isActive,
           guest_name: block.guest_name,
           source: block.source
         });

@@ -28,10 +28,14 @@ export interface CalendarBooking {
   last_sync_at?: string;
   property?: { nome: string };
   isBlock?: boolean;
+  is_active?: boolean;
   source?: string;
   sourceIcon?: string;
   reason?: string;
   ota_name?: string;
+  start_date?: string;
+  end_date?: string;
+  total_guests?: number;
 }
 
 export function useCalendarData(
@@ -105,21 +109,24 @@ export function useCalendarData(
         const propertyIds = targetPropertyId ? [targetPropertyId] : fetchedProperties.map(p => p.id);
         
         if (propertyIds.length > 0) {
-          // Fetch regular bookings
+          // Fetch regular bookings (using overlap logic)
+          const rangeStartISO = stableRange.start.toISOString().split('T')[0];
+          const rangeEndISO = stableRange.end.toISOString().split('T')[0];
+          
           const { data: bookingsData, error: bookingsError } = await supabase
             .from('bookings')
             .select('*')
             .in('property_id', propertyIds)
-            .gte('check_in', stableRange.start.toISOString().split('T')[0])
-            .lte('check_out', stableRange.end.toISOString().split('T')[0]);
+            .lte('check_in', rangeEndISO)
+            .gte('check_out', rangeStartISO);
 
-          // Fetch calendar blocks
+          // Fetch calendar blocks (using overlap logic)
           const { data: calendarBlocksData, error: calendarBlocksError } = await supabase
             .from('calendar_blocks')
             .select('*')
             .in('property_id', propertyIds)
-            .gte('start_date', stableRange.start.toISOString().split('T')[0])
-            .lte('end_date', stableRange.end.toISOString().split('T')[0]);
+            .lte('start_date', rangeEndISO)
+            .gte('end_date', rangeStartISO);
 
           if (bookingsError) {
             console.error('❌ Error fetching bookings:', bookingsError);
@@ -146,6 +153,7 @@ export function useCalendarData(
               end_date: block.end_date,
               guest_name: block.guest_name || block.reason || 'Blocked',
               total_guests: block.total_guests,
+              is_active: block.is_active ?? true,
               booking_status: block.source?.startsWith('ical_') ? 'imported' : 'blocked',
               source: block.source || 'manual',
               reason: block.reason,
