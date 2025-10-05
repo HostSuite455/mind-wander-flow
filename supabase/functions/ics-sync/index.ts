@@ -374,9 +374,11 @@ serve(async (req) => {
           // Clean up common prefixes from channel managers
           guestName = guestName.replace(/^(Airbnb|Booking\.com|VRBO|HomeAway|Smoobu):\s*/i, '').trim();
           
-          // If name is too generic or empty, set to null
+          // If name is too generic or empty, use fallback
           if (!guestName || guestName.toLowerCase() === 'not available' || guestName.toLowerCase() === 'blocked') {
-            guestName = null;
+            // Calculate nights for fallback
+            const nights = Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24));
+            guestName = `Prenotazione ${nights} nott${nights === 1 ? 'e' : 'i'}`;
           }
         }
         

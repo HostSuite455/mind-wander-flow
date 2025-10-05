@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import PhotoUpload from '@/components/cleaning/PhotoUpload'
+import { CleanerTaskWorkflow } from '@/components/cleaning/CleanerTaskWorkflow'
 
 export default function CleanerTasksPage(){
   const [tasks, setTasks] = useState<any[]>([])
@@ -197,28 +198,16 @@ export default function CleanerTasksPage(){
                 </div>
               </div>
               
-              <div className="flex gap-2">
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  onClick={() => setStatus(t.id, 'in_progress')}
-                  disabled={t.status === 'done' || t.status === 'in_progress'}
-                >
-                  {t.status === 'in_progress' ? 'In corso...' : 'Inizia'}
-                </Button>
-                <Button 
-                  size="sm"
-                  onClick={() => setStatus(t.id, 'done')}
-                  disabled={t.status === 'done'}
-                >
-                  {t.status === 'done' 
-                    ? 'Completato' 
-                    : t.completion_photo_url 
-                      ? 'Completa' 
-                      : 'Aggiungi foto e completa'
-                  }
-                </Button>
-              </div>
+              <CleanerTaskWorkflow 
+                task={{
+                  id: t.id,
+                  status: t.status,
+                  started_at: t.started_at,
+                  property_id: t.property_id,
+                  duration_min: t.duration_min
+                }}
+                onTaskUpdate={loadTasks}
+              />
             </CardContent>
           </Card>
         ))}

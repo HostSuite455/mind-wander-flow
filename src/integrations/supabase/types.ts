@@ -600,53 +600,68 @@ export type Database = {
       }
       cleaning_tasks: {
         Row: {
+          actual_duration_min: number | null
           actual_end: string | null
           actual_start: string | null
           assigned_cleaner_id: string | null
           billable_min: number | null
           calendar_block_id: string | null
+          completed_at: string | null
           created_at: string | null
           duration_min: number
           id: string
+          issues_notes: string | null
           notes: string | null
+          photos_json: Json | null
           property_id: string
           reservation_id: string | null
           scheduled_end: string
           scheduled_start: string
+          started_at: string | null
           status: string
           type: string
         }
         Insert: {
+          actual_duration_min?: number | null
           actual_end?: string | null
           actual_start?: string | null
           assigned_cleaner_id?: string | null
           billable_min?: number | null
           calendar_block_id?: string | null
+          completed_at?: string | null
           created_at?: string | null
           duration_min?: number
           id?: string
+          issues_notes?: string | null
           notes?: string | null
+          photos_json?: Json | null
           property_id: string
           reservation_id?: string | null
           scheduled_end: string
           scheduled_start: string
+          started_at?: string | null
           status?: string
           type: string
         }
         Update: {
+          actual_duration_min?: number | null
           actual_end?: string | null
           actual_start?: string | null
           assigned_cleaner_id?: string | null
           billable_min?: number | null
           calendar_block_id?: string | null
+          completed_at?: string | null
           created_at?: string | null
           duration_min?: number
           id?: string
+          issues_notes?: string | null
           notes?: string | null
+          photos_json?: Json | null
           property_id?: string
           reservation_id?: string | null
           scheduled_end?: string
           scheduled_start?: string
+          started_at?: string | null
           status?: string
           type?: string
         }
@@ -816,6 +831,47 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      host_notifications: {
+        Row: {
+          created_at: string | null
+          host_id: string
+          id: string
+          message: string
+          read: boolean | null
+          task_id: string | null
+          title: string
+          type: string
+        }
+        Insert: {
+          created_at?: string | null
+          host_id: string
+          id?: string
+          message: string
+          read?: boolean | null
+          task_id?: string | null
+          title: string
+          type: string
+        }
+        Update: {
+          created_at?: string | null
+          host_id?: string
+          id?: string
+          message?: string
+          read?: boolean | null
+          task_id?: string | null
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "host_notifications_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "cleaning_tasks"
             referencedColumns: ["id"]
           },
         ]
@@ -1471,6 +1527,41 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "property_ai_data_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_photo_requirements: {
+        Row: {
+          created_at: string | null
+          display_order: number | null
+          id: string
+          is_required: boolean | null
+          property_id: string
+          room_name: string
+        }
+        Insert: {
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          is_required?: boolean | null
+          property_id: string
+          room_name: string
+        }
+        Update: {
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          is_required?: boolean | null
+          property_id?: string
+          room_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_photo_requirements_property_id_fkey"
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"

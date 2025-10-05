@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, X, LayoutDashboard, Bot, Calendar, MessageSquare, Settings, HelpCircle, LogOut, User, RefreshCw } from "lucide-react";
+import { Menu, X, LayoutDashboard, Bot, Calendar, MessageSquare, Settings, HelpCircle, LogOut, User, RefreshCw, Bell } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -10,6 +10,7 @@ import logoImage from "@/assets/logo.png";
 const HostNavbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -30,6 +31,10 @@ const HostNavbar = () => {
     const getInitialSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        loadUnreadCount();
+      }
     };
 
     getInitialSession();
@@ -38,11 +43,49 @@ const HostNavbar = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setUser(session?.user ?? null);
+        if (session?.user) {
+          loadUnreadCount();
+        }
       }
     );
 
     return () => subscription.unsubscribe();
   }, []);
+  
+  // Subscribe to notification changes
+  useEffect(() => {
+    if (!user?.id) return;
+    
+    const channel = supabase
+      .channel('notifications')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'host_notifications',
+        filter: `host_id=eq.${user.id}`
+      }, () => {
+        loadUnreadCount();
+        toast({
+          title: "Nuova notifica",
+          description: "Hai una nuova notifica dal team di pulizia",
+        });
+      })
+      .subscribe();
+    
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id]);
+  
+  async function loadUnreadCount() {
+    if (!user?.id) return;
+    
+    const { count } = await supabase
+      .from('host_notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('host_id', user.id)
+      .eq('read', false);
+    
+    setUnreadCount(count || 0);
+  }
 
   const handleSignOut = async () => {
     try {
@@ -96,6 +139,16 @@ const HostNavbar = () => {
             {/* User Menu */}
             {user && (
               <div className="flex items-center gap-2">
+                {/* Notification Bell */}
+                <Button variant="ghost" size="icon" className="relative">
+                  <Bell className="h-5 w-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </Button>
+                
                 <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-hostsuite-primary/10">
                   <User className="w-4 h-4 text-hostsuite-primary" />
                   <span className="text-sm text-hostsuite-primary font-medium">

@@ -133,6 +133,19 @@ export default function PropertyWizard() {
       }
 
       // Success!
+      // Create default photo requirements for the property
+      if (property) {
+        const defaultRooms = ['Camera', 'Bagno', 'Cucina', 'Soggiorno'];
+        await supabase.from('property_photo_requirements').insert(
+          defaultRooms.map((room, i) => ({
+            property_id: property.id,
+            room_name: room,
+            is_required: true,
+            display_order: i
+          }))
+        );
+      }
+
       toast({
         title: "La tua proprietà è stata salvata!",
         description: "Ora è possibile aggiungere addetti!",

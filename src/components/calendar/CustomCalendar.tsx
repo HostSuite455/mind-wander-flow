@@ -26,6 +26,7 @@ import {
   Building2,
   Users
 } from 'lucide-react';
+import { BookingDetailsPopover } from './BookingDetailsPopover';
 
 // Types
 interface Property {
@@ -342,7 +343,7 @@ const CalendarGrid: React.FC<{
           return (
             <div key={weekIndex} className="relative">
               {/* Grid layout for cells */}
-              <div className="grid grid-cols-7 gap-1 relative" style={{ minHeight: '120px' }}>
+              <div className="grid grid-cols-7 gap-2 relative" style={{ minHeight: '120px' }}>
                 {week.map(date => {
                   const isCurrentMonth = isSameMonth(date, currentDate);
                   const isTodayDate = isToday(date);
@@ -363,16 +364,32 @@ const CalendarGrid: React.FC<{
                   );
                 })}
                 
-                {/* Smoobu-style blocks overlay */}
+                {/* Smoobu-style blocks overlay with popover */}
                 {weekBlocks.map(({ block, startDate, endDate }) => (
-                  <SmoobuStyleBlock
+                  <BookingDetailsPopover
                     key={block.id}
-                    block={block}
-                    startDate={startDate}
-                    endDate={endDate}
-                    weekStart={weekStart}
-                    weekEnd={weekEnd}
-                  />
+                    booking={{
+                      id: block.id,
+                      guest_name: block.guest_name,
+                      total_guests: block.total_guests,
+                      start_date: block.start_date || '',
+                      end_date: block.end_date || '',
+                      source: block.source || 'manual',
+                      reason: block.reason
+                    }}
+                    property={{ nome: properties[0]?.name || 'Proprietà', address: properties[0]?.address || '' }}
+                    isHost={true}
+                    onEdit={() => console.log('Edit booking', block.id)}
+                    onCancel={() => console.log('Cancel booking', block.id)}
+                  >
+                    <SmoobuStyleBlock
+                      block={block}
+                      startDate={startDate}
+                      endDate={endDate}
+                      weekStart={weekStart}
+                      weekEnd={weekEnd}
+                    />
+                  </BookingDetailsPopover>
                 ))}
               </div>
             </div>
