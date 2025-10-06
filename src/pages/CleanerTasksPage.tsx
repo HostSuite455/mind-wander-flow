@@ -28,9 +28,15 @@ export default function CleanerTasksPage(){
           status, 
           type,
           duration_min,
+          started_at,
+          completed_at,
+          actual_duration_min,
+          photos_json,
+          issues_notes,
           notes,
           completion_photo_url,
-          properties(nome), 
+          property_id,
+          properties(nome, id), 
           reservations(guest_count, guest_name, check_in, check_out)
         `)
         .order('scheduled_start')

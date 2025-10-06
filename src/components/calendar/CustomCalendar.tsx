@@ -146,23 +146,25 @@ const SmoobuStyleBlock: React.FC<{
       className={`
         absolute flex items-center px-2 py-1 text-white text-xs font-medium
         ${getSourceColor(block.source)}
-        ${isStartVisible && isEndVisible ? 'rounded-lg inset-x-[12.5%]' : ''}
-        ${isStartVisible && !isEndVisible ? 'rounded-l-lg left-[12.5%] right-0' : ''}
-        ${!isStartVisible && isEndVisible ? 'rounded-r-lg left-0 right-[12.5%]' : ''}
-        ${!isStartVisible && !isEndVisible ? 'left-0 right-0' : ''}
+        ${isStartVisible && isEndVisible ? 'rounded-lg' : ''}
+        ${isStartVisible && !isEndVisible ? 'rounded-l-lg' : ''}
+        ${!isStartVisible && isEndVisible ? 'rounded-r-lg' : ''}
+        ${!isStartVisible && !isEndVisible ? '' : ''}
         hover:opacity-90 transition-opacity cursor-pointer shadow-md pointer-events-auto
       `}
       style={{
         gridColumn: `${gridStart} / ${gridEnd}`,
+        left: isStartVisible ? '50%' : '0',
+        right: isEndVisible ? '50%' : '0',
         top: '50%',
         transform: 'translateY(-50%)',
-        height: '32px',
+        height: '36px',
         zIndex: 10
       }}
       title={`${block.guest_name || block.reason}${block.total_guests ? ` (${block.total_guests} ospiti)` : ''} - ${block.source}`}
     >
       <SourceIcon className="w-3 h-3 mr-1.5 flex-shrink-0" />
-      <span className="truncate flex-1">{block.guest_name || block.reason}</span>
+      <span className="flex-1 text-[11px] leading-tight overflow-hidden">{block.guest_name || block.reason}</span>
       {block.total_guests && (
         <span className="ml-1.5 flex items-center flex-shrink-0">
           <Users className="w-3 h-3 mr-0.5" />
@@ -377,7 +379,7 @@ const CalendarGrid: React.FC<{
                       source: block.source || 'manual',
                       reason: block.reason
                     }}
-                    property={{ nome: properties[0]?.name || 'Proprietà', address: properties[0]?.address || '' }}
+                    property={{ name: properties[0]?.name || 'Proprietà', address: properties[0]?.address || '' }}
                     isHost={true}
                     onEdit={() => console.log('Edit booking', block.id)}
                     onCancel={() => console.log('Cancel booking', block.id)}

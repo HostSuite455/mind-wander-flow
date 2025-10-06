@@ -16,7 +16,7 @@ interface BookingDetailsPopoverProps {
     reason?: string;
   };
   property: {
-    nome: string;
+    name: string;
     address?: string;
   };
   isHost: boolean;
@@ -63,7 +63,7 @@ export function BookingDetailsPopover({
               <h3 className="font-semibold text-lg">
                 {booking.guest_name || 'Ospite non specificato'}
               </h3>
-              <p className="text-sm text-muted-foreground">{property.nome}</p>
+              <p className="text-sm text-muted-foreground">{property.name}</p>
             </div>
             <Badge 
               className={`${sourceInfo.color} text-white border-0`}
