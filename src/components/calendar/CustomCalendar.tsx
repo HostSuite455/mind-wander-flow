@@ -135,9 +135,9 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
 
   // Render a single booking/block bar positioned across days
   const renderEventBar = (event: BookingOrBlock, monthStart: Date, monthEnd: Date) => {
-    // IMPORTANT: In hotel logic, check-in date means property is occupied FROM previous night
-    // So check-in Oct 16 = rectangle starts from middle of Oct 15
-    const eventStart = addDays(parseISO(event.start_date), -1); // Shift back by 1 day
+    // Hotel logic: check-in Oct 9 → bar starts from 50% of Oct 9
+    // check-out Oct 11 → bar ends at 50% of Oct 11
+    const eventStart = parseISO(event.start_date);
     const eventEnd = parseISO(event.end_date);
     
     // Calculate boundaries for this month
@@ -171,7 +171,7 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
           key={`${event.id}-${startRow}`}
           booking={{
             id: event.id,
-            guest_name: event.guest_name || 'Ospite',
+            guest_name: event.guest_name || event.reason || 'Ospite',
             total_guests: event.total_guests,
             start_date: event.start_date,
             end_date: event.end_date,
@@ -221,19 +221,19 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
     return (
       <BookingDetailsPopover
         key={event.id}
-        booking={{
-          id: event.id,
-          guest_name: event.guest_name || 'Ospite',
-          total_guests: event.total_guests,
-          start_date: event.start_date,
-          end_date: event.end_date,
-          source: event.source || 'manual',
-          reason: event.reason
-        }}
-        property={{ 
-          name: properties.find(p => p.id === event.property_id)?.name || 'Proprietà', 
-          address: properties.find(p => p.id === event.property_id)?.address || '' 
-        }}
+          booking={{
+            id: event.id,
+            guest_name: event.guest_name || event.reason || 'Ospite',
+            total_guests: event.total_guests,
+            start_date: event.start_date,
+            end_date: event.end_date,
+            source: event.source || 'manual',
+            reason: event.reason
+          }}
+          property={{ 
+            name: properties.find(p => p.id === event.property_id)?.name || 'Proprietà', 
+            address: properties.find(p => p.id === event.property_id)?.address || '' 
+          }}
         isHost={true}
         onEdit={() => console.log('Edit', event.id)}
         onCancel={() => console.log('Cancel', event.id)}
