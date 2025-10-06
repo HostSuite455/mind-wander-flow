@@ -188,16 +188,16 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
         >
           <div
             className={`
-              absolute h-7 flex items-center px-2 text-white text-[10px] font-medium
+              h-7 flex items-center px-2 text-white text-[10px] font-medium
               ${getSourceColor(event.source)}
               rounded-l-full hover:opacity-90 transition-opacity cursor-pointer shadow-sm
             `}
             style={{
               gridRow: startRow + 2,
               gridColumn: `${startCol + 1} / 8`,
-              top: '24px',
-              left: eventStart >= calendarStart ? '50%' : '0',
-              right: '0',
+              alignSelf: 'center',
+              marginLeft: eventStart >= calendarStart ? '50%' : '0',
+              marginRight: '0',
               zIndex: 10
             }}
           >
@@ -240,7 +240,7 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
       >
         <div
           className={`
-            absolute h-7 flex items-center px-2 text-white text-[10px] font-medium
+            h-7 flex items-center px-2 text-white text-[10px] font-medium
             ${getSourceColor(event.source)}
             ${isStartVisible && isEndVisible ? 'rounded-full' : ''}
             ${isStartVisible && !isEndVisible ? 'rounded-l-full' : ''}
@@ -250,9 +250,9 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
           style={{
             gridRow: startRow + 2,
             gridColumn: `${startCol + 1} / ${endCol + 2}`,
-            top: '24px',
-            left: isStartVisible ? '50%' : '0',
-            right: isEndVisible ? '50%' : '0',
+            alignSelf: 'center',
+            marginLeft: isStartVisible ? '50%' : '0',
+            marginRight: isEndVisible ? '50%' : '0',
             zIndex: 10
           }}
         >
