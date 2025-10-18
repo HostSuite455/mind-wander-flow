@@ -51,10 +51,14 @@ export function useCalendarData(
   const selectedPropertyId = isOldSignature ? null : (userIdOrParams as any)?.selectedPropertyId
   
   const stableRange = useMemo(() => {
+    const now = new Date();
+    const sixMonthsAgo = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+    const sixMonthsAhead = new Date(now.getTime() + 180 * 24 * 60 * 60 * 1000);
+    
     if (isOldSignature) {
-      return { start: new Date(), end: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) }
+      return { start: sixMonthsAgo, end: sixMonthsAhead }
     }
-    return (userIdOrParams as any)?.range || { start: new Date(), end: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) }
+    return (userIdOrParams as any)?.range || { start: sixMonthsAgo, end: sixMonthsAhead }
   }, [isOldSignature, (userIdOrParams as any)?.range?.start?.getTime(), (userIdOrParams as any)?.range?.end?.getTime()])
 
   const [loading, setLoading] = useState(true)

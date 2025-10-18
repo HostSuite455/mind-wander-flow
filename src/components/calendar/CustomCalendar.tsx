@@ -134,19 +134,20 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
   };
 
   // Render a single booking/block bar positioned across days
+  // Smoobu logic: check-in Oct 9 → bar starts from 50% of Oct 9 cell
+  // check-out Oct 11 → bar ends at 50% of Oct 11 cell
   const renderEventBar = (event: BookingOrBlock, monthStart: Date, monthEnd: Date) => {
-    // Hotel logic: check-in Oct 9 → bar starts from 50% of Oct 9
-    // check-out Oct 11 → bar ends at 50% of Oct 11
     const eventStart = parseISO(event.start_date);
     const eventEnd = parseISO(event.end_date);
     
-    // Calculate boundaries for this month
+    // Calculate boundaries for this month's calendar grid
     const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
     const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
     
     // Skip if event doesn't overlap with this month's view
     if (eventEnd < calendarStart || eventStart > calendarEnd) return null;
 
+    // Clip event to visible range
     const visibleStart = eventStart < calendarStart ? calendarStart : eventStart;
     const visibleEnd = eventEnd > calendarEnd ? calendarEnd : eventEnd;
 
@@ -160,80 +161,48 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
     const endRow = Math.floor(endDayIndex / 7);
     const endCol = endDayIndex % 7;
 
-    // For now, only render single-row events (multi-row would need separate handling)
-    if (startRow !== endRow) {
-      // Render first segment ending at end of week
-      const firstSegmentEnd = (startRow + 1) * 7 - 1;
-      const SourceIcon = getSourceIcon(event.source);
+    // Generate segments for multi-week bookings (continuous rendering)
+    const segments = [];
+    for (let row = startRow; row <= endRow; row++) {
+      const isFirstRow = row === startRow;
+      const isLastRow = row === endRow;
       
-      return (
-        <BookingDetailsPopover
-          key={`${event.id}-${startRow}`}
-          booking={{
-            id: event.id,
-            guest_name: event.guest_name || event.reason || 'Ospite',
-            total_guests: event.total_guests,
-            start_date: event.start_date,
-            end_date: event.end_date,
-            source: event.source || 'manual',
-            reason: event.reason
-          }}
-          property={{ 
-            name: properties.find(p => p.id === event.property_id)?.name || 'Proprietà', 
-            address: properties.find(p => p.id === event.property_id)?.address || '' 
-          }}
-          isHost={true}
-          onEdit={() => console.log('Edit', event.id)}
-          onCancel={() => console.log('Cancel', event.id)}
-        >
-          <div
-            className={`
-              absolute h-7 flex items-center px-2 text-white text-[10px] font-medium
-              ${getSourceColor(event.source)}
-              rounded-l-full hover:opacity-90 transition-opacity cursor-pointer shadow-sm
-            `}
-            style={{
-              gridRow: startRow + 2,
-              gridColumn: `${startCol + 1} / 8`,
-              top: '24px',
-              left: eventStart >= calendarStart ? '50%' : '0',
-              right: '0',
-              zIndex: 10
-            }}
-          >
-            <SourceIcon className="w-3 h-3 mr-1 flex-shrink-0" />
-            <span className="truncate">{event.guest_name || event.reason}</span>
-            {event.total_guests && (
-              <span className="ml-1 flex items-center">
-                <Users className="w-3 h-3 mr-0.5" />
-                {event.total_guests}
-              </span>
-            )}
-          </div>
-        </BookingDetailsPopover>
-      );
+      const segmentStartCol = isFirstRow ? startCol : 0;
+      const segmentEndCol = isLastRow ? endCol : 6;
+      
+      // Smoobu positioning: start at 50% of check-in cell, end at 50% of check-out cell
+      const leftOffset = isFirstRow && (eventStart >= calendarStart) ? '50%' : '0';
+      const rightOffset = isLastRow && (eventEnd <= calendarEnd) ? '50%' : '0';
+      
+      segments.push({
+        row,
+        startCol: segmentStartCol,
+        endCol: segmentEndCol,
+        leftOffset,
+        rightOffset,
+        isFirst: isFirstRow,
+        isLast: isLastRow
+      });
     }
 
     const SourceIcon = getSourceIcon(event.source);
-    const isStartVisible = eventStart >= calendarStart;
-    const isEndVisible = eventEnd <= calendarEnd;
 
-    return (
+    return segments.map((seg, idx) => (
       <BookingDetailsPopover
-        key={event.id}
-          booking={{
-            id: event.id,
-            guest_name: event.guest_name || event.reason || 'Ospite',
-            total_guests: event.total_guests,
-            start_date: event.start_date,
-            end_date: event.end_date,
-            source: event.source || 'manual',
-            reason: event.reason
-          }}
-          property={{ 
-            name: properties.find(p => p.id === event.property_id)?.name || 'Proprietà', 
-            address: properties.find(p => p.id === event.property_id)?.address || '' 
-          }}
+        key={`${event.id}-seg${idx}`}
+        booking={{
+          id: event.id,
+          guest_name: event.guest_name || event.reason || 'Ospite',
+          total_guests: event.total_guests,
+          start_date: event.start_date,
+          end_date: event.end_date,
+          source: event.source || 'manual',
+          reason: event.reason
+        }}
+        property={{ 
+          name: properties.find(p => p.id === event.property_id)?.name || 'Proprietà', 
+          address: properties.find(p => p.id === event.property_id)?.address || '' 
+        }}
         isHost={true}
         onEdit={() => console.log('Edit', event.id)}
         onCancel={() => console.log('Cancel', event.id)}
@@ -242,31 +211,34 @@ const CustomCalendar: React.FC<CustomCalendarProps> = ({
           className={`
             absolute h-7 flex items-center px-2 text-white text-[10px] font-medium
             ${getSourceColor(event.source)}
-            ${isStartVisible && isEndVisible ? 'rounded-full' : ''}
-            ${isStartVisible && !isEndVisible ? 'rounded-l-full' : ''}
-            ${!isStartVisible && isEndVisible ? 'rounded-r-full' : ''}
-            hover:opacity-90 transition-opacity cursor-pointer shadow-sm
+            ${seg.isFirst && seg.isLast ? 'rounded-full' : ''}
+            ${seg.isFirst && !seg.isLast ? 'rounded-l-full' : ''}
+            ${!seg.isFirst && seg.isLast ? 'rounded-r-full' : ''}
+            hover:opacity-90 transition-opacity cursor-pointer shadow-sm z-10
           `}
           style={{
-            gridRow: startRow + 2,
-            gridColumn: `${startCol + 1} / ${endCol + 2}`,
+            gridRow: seg.row + 2,
+            gridColumn: `${seg.startCol + 1} / ${seg.endCol + 2}`,
             top: '24px',
-            left: isStartVisible ? '50%' : '0',
-            right: isEndVisible ? '50%' : '0',
-            zIndex: 10
+            left: seg.leftOffset,
+            right: seg.rightOffset,
           }}
         >
-          <SourceIcon className="w-3 h-3 mr-1 flex-shrink-0" />
-          <span className="truncate">{event.guest_name || event.reason}</span>
-          {event.total_guests && (
-            <span className="ml-1 flex items-center flex-shrink-0">
-              <Users className="w-3 h-3 mr-0.5" />
-              {event.total_guests}
-            </span>
+          {seg.isFirst && (
+            <>
+              <SourceIcon className="w-3 h-3 mr-1 flex-shrink-0" />
+              <span className="truncate">{event.guest_name || event.reason}</span>
+              {event.total_guests && (
+                <span className="ml-1 flex items-center flex-shrink-0">
+                  <Users className="w-3 h-3 mr-0.5" />
+                  {event.total_guests}
+                </span>
+              )}
+            </>
           )}
         </div>
       </BookingDetailsPopover>
-    );
+    ));
   };
 
   return (
